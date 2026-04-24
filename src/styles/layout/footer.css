@@ -1,0 +1,209 @@
+/* FOOTER */
+.site-footer {
+  margin-top: 0;
+  background: linear-gradient(180deg, #0d2240 0%, #091929 100%);
+  color: #e5e7eb;
+  padding: 0 0 24px;
+  position: relative;
+  overflow: hidden;
+}
+.site-footer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+.site-footer .container {
+  position: relative;
+  z-index: 1;
+}
+.site-footer__cta-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 48px;
+  align-items: center;
+  padding: 76px 0 72px;
+}
+.site-footer__cta-copy {
+  min-width: 0;
+}
+.site-footer__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f5b327;
+}
+.site-footer__cta-title {
+  margin: 0 0 18px;
+  font-size: 58px;
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+  font-weight: 900;
+  color: #ffffff;
+  max-width: 860px;
+}
+.site-footer__cta-text {
+  margin: 0;
+  max-width: 560px;
+  font-size: 18px;
+  line-height: 1.65;
+  color: rgba(226, 232, 240, 0.76);
+}
+.site-footer__cta-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 20px;
+}
+.site-footer__hero-cta {
+  width: 100%;
+  min-height: 76px;
+  padding: 0 32px;
+  border: 0;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #ffb114 0%, #f2a403 100%);
+  color: #08101f;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow:
+    0 22px 48px rgba(245, 158, 11, 0.24),
+    0 10px 24px rgba(13, 17, 29, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.site-footer__hero-cta:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 28px 56px rgba(245, 158, 11, 0.28),
+    0 12px 28px rgba(13, 17, 29, 0.24);
+  filter: brightness(1.02);
+}
+.site-footer__quick-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.site-footer__quick-actions-label {
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 16px;
+  font-weight: 700;
+}
+.site-footer__quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.site-footer__quick-link {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+.site-footer__quick-divider {
+  color: rgba(226, 232, 240, 0.4);
+  font-size: 16px;
+  font-weight: 700;
+}
+.site-footer__quick-link:hover {
+  color: #f5b327;
+  transform: translateX(-2px);
+}
+.site-footer__step {
+  color: #cbd5e1;
+  font-size: 14px;
+  display: block;
+}
+.site-footer__top {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.2fr;
+  gap: 32px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.site-footer__title {
+  margin: 0 0 18px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+}
+.site-footer__links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.site-footer__links a,
+.site-footer__link-button {
+  color: #cbd5e1;
+  text-decoration: none;
+  font: inherit;
+}
+.site-footer__link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.site-footer__links a:hover,
+.site-footer__link-button:hover {
+  color: #ffffff;
+}
+.site-footer__contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.site-footer__phone {
+  font-size: 38px;
+  font-weight: 800;
+  color: #ffffff;
+  text-decoration: none;
+  line-height: 1.1;
+}
+.site-footer__mail {
+  color: #9cd2ff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 18px;
+}
+.site-footer__text {
+  color: #cbd5e1;
+  line-height: 1.7;
+  font-size: 16px;
+}
+.site-footer__cta {
+  margin-top: 14px;
+  min-height: 62px;
+  width: 100%;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffb114 0%, #f2a403 100%);
+  color: #07111f;
+  font-weight: 900;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 18px 36px rgba(245, 158, 11, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.site-footer__cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 44px rgba(245, 158, 11, 0.22);
+  filter: brightness(1.02);
+}
+.site-footer__legal {
+  padding-top: 16px;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.7;
+}

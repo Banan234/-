@@ -1,0 +1,106 @@
+/* QUOTE FORM */
+.quote-form-wrap {
+  margin-top: 32px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 24px;
+}
+.quote-form-head {
+  margin-bottom: 20px;
+}
+.quote-form {
+  display: grid;
+  gap: 20px;
+}
+.quote-form__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.quote-field {
+  display: grid;
+  gap: 8px;
+}
+.quote-field--full {
+  grid-column: 1 / -1;
+}
+.quote-field label {
+  font-size: 14px;
+  font-weight: 700;
+}
+.quote-field input,
+.quote-field textarea {
+  width: 100%;
+  border: 1px solid #d6d6d6;
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px;
+}
+.field-error,
+.form-error {
+  color: var(--danger-text);
+  font-size: 14px;
+}
+.form-success {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+.field-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+.char-counter {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* MODAL */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 200;
+}
+.modal-window {
+  position: relative;
+  width: min(960px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
+}
+.modal-close {
+  position: sticky;
+  top: 12px;
+  margin-left: auto;
+  margin-right: 12px;
+  margin-top: 12px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+.modal-window .quote-form-wrap {
+  margin-top: 0;
+  padding-top: 8px;
+  border: 0;
+}
+
