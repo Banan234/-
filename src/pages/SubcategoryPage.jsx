@@ -118,7 +118,11 @@ export default function SubcategoryPage() {
       try {
         setIsLoading(true);
         setError('');
-        const result = await fetchProducts(controller.signal);
+        // Сервер фильтрует по catalogCategorySlug — в браузер летит только
+        // нужная категория, а не весь каталог (~6700 товаров).
+        const result = await fetchProducts(controller.signal, {
+          category: slug,
+        });
         setProducts(result.items);
       } catch (requestError) {
         if (requestError.name === 'AbortError') return;
@@ -131,7 +135,7 @@ export default function SubcategoryPage() {
 
     loadProducts();
     return () => controller.abort();
-  }, []);
+  }, [slug]);
 
   useEffect(() => {
     setPage(1);
@@ -265,10 +269,27 @@ export default function SubcategoryPage() {
 
   if (!category) return null;
 
+  const parentCategory = parentByChildSlug[slug] || null;
+
   return (
     <section className="section">
       <Container>
         <div className="catalog-page">
+          <nav className="breadcrumbs" aria-label="Хлебные крошки">
+            <Link to="/">Главная</Link>
+            <span aria-hidden="true"> / </span>
+            <Link to="/catalog">Каталог</Link>
+            {parentCategory && (
+              <>
+                <span aria-hidden="true"> / </span>
+                <Link to={`/catalog/${parentCategory.slug}`}>
+                  {parentCategory.name}
+                </Link>
+              </>
+            )}
+            <span aria-hidden="true"> / </span>
+            <span aria-current="page">{category.name}</span>
+          </nav>
           <div className="catalog-page__header">
             <h1 className="page-title catalog-page__title">{category.name}</h1>
           </div>

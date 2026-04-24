@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Container from '../components/ui/Container';
 import ProductCard from '../components/ui/ProductCard';
-import { fetchProductBySlug, fetchProducts } from '../lib/productsApi';
+import { fetchProductBySlug, fetchRelatedProducts } from '../lib/productsApi';
 import { useCartStore } from '../store/useCartStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useSEO } from '../hooks/useSEO';
@@ -35,17 +35,13 @@ export default function ProductPage() {
         setIsLoading(true);
         setError('');
 
-        const [item, allResult] = await Promise.all([
+        const [item, related] = await Promise.all([
           fetchProductBySlug(slug, controller.signal),
-          fetchProducts(controller.signal),
+          fetchRelatedProducts(slug, 6, controller.signal),
         ]);
 
         setProduct(item);
-        setRelatedProducts(
-          allResult.items
-            .filter((p) => p.category === item.category && p.id !== item.id)
-            .slice(0, 6)
-        );
+        setRelatedProducts(related);
       } catch (requestError) {
         if (requestError.name === 'AbortError') {
           return;

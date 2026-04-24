@@ -1,0 +1,20 @@
+{
+  "suspiciousPriceThresholds": {
+    "м": 10000,
+    "шт": 500000,
+    "кг": 100000,
+    "уп": 50000,
+    "упак": 50000
+  },
+  "suspiciousPriceStats": {
+    "historyFile": "data/import-history.json",
+    "historyLimit": 8,
+    "minimumSamples": 30,
+    "thresholdPercentile": 0.99,
+    "thresholdMultiplier": 3
+  },
+  "classificationReport": {
+    "productLimit": 500,
+    "topPrefixLimit": 20
+  }
+}

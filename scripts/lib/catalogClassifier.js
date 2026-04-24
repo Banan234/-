@@ -26,7 +26,10 @@ const rules = [...catalogRulesRaw]
   .sort((a, b) => b.priority - a.priority)
   .map((rule) => ({
     ...rule,
-    normalizedPatterns: rule.patterns.map(normalize),
+    normalizedPatterns: rule.patterns.map((pattern) => ({
+      raw: pattern,
+      normalized: normalize(pattern),
+    })),
   }));
 
 // ---------------------------------------------------------------------------
@@ -54,6 +57,7 @@ for (const section of catalogCategoriesRaw.sections) {
       if (normalized) {
         categoryKeywords.push({
           keyword: normalized,
+          rawKeyword: kw,
           section:      section.name,
           sectionSlug:  section.slug,
           category:     cat.name,
@@ -67,6 +71,7 @@ for (const section of catalogCategoriesRaw.sections) {
         if (normalized) {
           categoryKeywords.push({
             keyword: normalized,
+            rawKeyword: kw,
             section:      section.name,
             sectionSlug:  section.slug,
             category:     subcat.name,
@@ -162,7 +167,7 @@ export function classifyProduct(product) {
   // --- 1. Явные правила ---
   for (const rule of rules) {
     for (const pattern of rule.normalizedPatterns) {
-      if (searchStr.includes(pattern)) {
+      if (searchStr.includes(pattern.normalized)) {
         return toCatalogResult({
           section:         rule.catalogSection,
           sectionSlug:     rule.catalogSectionSlug,
@@ -171,6 +176,8 @@ export function classifyProduct(product) {
           type:            rule.type,
           applicationType: rule.applicationType ?? null,
           brand:           manufacturer,
+          source:          'rule',
+          match:           pattern.raw,
         });
       }
     }
@@ -186,6 +193,8 @@ export function classifyProduct(product) {
         category:     match.category,
         categorySlug: match.categorySlug,
         brand:        manufacturer,
+        source:       'sourceCategory',
+        match:        product.sourceCategory,
       });
     }
   }
@@ -222,17 +231,30 @@ export function classifyProduct(product) {
         category:     brandEntry.category,
         categorySlug: brandEntry.categorySlug,
         brand:        detectedBrand,
+        source:       'brandDefault',
+        match:        brandEntry.brand,
       });
     }
 
     // --- 5. Substring-matching для марок с дефисом (ИНСИЛ-КВВЭ, ГЕРДА-КВ) ---
     if (familyNorm.includes('-')) {
-      const subMatch = findByKeyword(familyNorm, (kw) => familyNorm.includes(kw), manufacturer);
+      const subMatch = findByKeyword(
+        familyNorm,
+        (kw) => familyNorm.includes(kw),
+        manufacturer
+      );
       if (subMatch) return subMatch;
     }
   }
 
-  return { ...FALLBACK, catalogApplicationType: null, catalogBrand: manufacturer, manufacturer };
+  return {
+    ...FALLBACK,
+    catalogApplicationType: null,
+    catalogBrand: manufacturer,
+    manufacturer,
+    catalogClassificationSource: 'fallback',
+    catalogClassificationMatch: null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -263,6 +285,10 @@ function findByKeyword(value, predicate, brand = null) {
         category:     entry.category,
         categorySlug: entry.categorySlug,
         brand,
+        source:       value.startsWith(entry.keyword)
+          ? 'keywordPrefix'
+          : 'keywordSubstring',
+        match:        entry.rawKeyword,
       });
     }
   }
@@ -274,7 +300,17 @@ function findByKeyword(value, predicate, brand = null) {
 // «Некабельная продукция» — по требованию бизнеса её не разбиваем по типам.
 const CABLE_SECTIONS = new Set(['Кабель и провод', 'Специальные кабели']);
 
-function toCatalogResult({ section, sectionSlug, category, categorySlug, type = null, applicationType = null, brand = null }) {
+function toCatalogResult({
+  section,
+  sectionSlug,
+  category,
+  categorySlug,
+  type = null,
+  applicationType = null,
+  brand = null,
+  source = null,
+  match = null,
+}) {
   if (!CABLE_SECTIONS.has(section)) {
     return {
       catalogSection:         'Некабельная продукция',
@@ -285,6 +321,8 @@ function toCatalogResult({ section, sectionSlug, category, categorySlug, type = 
       catalogApplicationType: applicationType,
       catalogBrand:           brand,
       manufacturer:           brand,
+      catalogClassificationSource: source,
+      catalogClassificationMatch:  match,
     };
   }
   return {
@@ -296,6 +334,8 @@ function toCatalogResult({ section, sectionSlug, category, categorySlug, type = 
     catalogApplicationType: applicationType,
     catalogBrand:           brand,
     manufacturer:           brand,
+    catalogClassificationSource: source,
+    catalogClassificationMatch:  match,
   };
 }
 

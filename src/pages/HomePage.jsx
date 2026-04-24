@@ -3,7 +3,7 @@ import Container from '../components/ui/Container';
 import HeroLeadForm from '../components/home/HeroLeadForm';
 import CategoryShowcase from '../components/home/CategoryShowcase';
 import StockProductsGrid from '../components/home/StockProductsGrid';
-import { fetchProducts } from '../lib/productsApi';
+import { fetchFeaturedProducts } from '../lib/productsApi';
 import { useSEO } from '../hooks/useSEO';
 
 const heroBenefits = [
@@ -78,8 +78,8 @@ export default function HomePage() {
       try {
         setIsLoading(true);
         setLoadError('');
-        const result = await fetchProducts(controller.signal);
-        setProducts(result.items.slice(0, 10));
+        const items = await fetchFeaturedProducts(10, controller.signal);
+        setProducts(items);
       } catch (error) {
         if (error.name !== 'AbortError') {
           console.error('Ошибка загрузки товаров на главной:', error);

@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import { createRequire } from 'module';
@@ -11,6 +12,7 @@ const catalogCategoriesData = require('./data/catalogCategories.json');
 dotenv.config();
 
 const app = express();
+app.set('etag', false);
 const PORT = process.env.PORT || 3001;
 const DEFAULT_CATALOG_ORDER = 9999;
 const CANONICAL_CATEGORY_ORDER = new Map(
@@ -29,7 +31,12 @@ function escapeHtml(value) {
 }
 
 app.use(cors());
+app.use(compression());
 app.use(express.json());
+
+function applyCatalogCache(res) {
+  res.setHeader('Cache-Control', 'public, max-age=60, must-revalidate');
+}
 
 function createTransporter() {
   return nodemailer.createTransport({
@@ -127,16 +134,26 @@ function createQuoteItemsHtml(items) {
     .join('');
 }
 
-app.get('/api/products', async (_req, res) => {
+app.get('/api/products', async (req, res) => {
   try {
-    const items = await loadCatalogProducts();
+    applyCatalogCache(res);
+
+    const allItems = await loadCatalogProducts();
+    const categorySlug =
+      typeof req.query.category === 'string' ? req.query.category.trim() : '';
+    const items = categorySlug
+      ? allItems.filter((item) => item.catalogCategorySlug === categorySlug)
+      : allItems;
 
     return res.json({
       ok: true,
       items,
       meta: {
         count: items.length,
-        catalogSections: buildCatalogSections(items),
+        // Дерево категорий считаем всегда по полному каталогу, чтобы фильтр в URL
+        // не схлопывал боковую навигацию.
+        catalogSections: buildCatalogSections(allItems),
+        filter: categorySlug ? { category: categorySlug } : null,
       },
     });
   } catch (error) {
@@ -145,8 +162,65 @@ app.get('/api/products', async (_req, res) => {
   }
 });
 
+app.get('/api/products/featured', async (req, res) => {
+  try {
+    applyCatalogCache(res);
+
+    const limit = parseLimit(req.query.limit, 10, 50);
+    const items = await loadCatalogProducts();
+    const featured = [...items]
+      .sort((a, b) => {
+        const promotedDiff = (b.promoted ? 1 : 0) - (a.promoted ? 1 : 0);
+        if (promotedDiff !== 0) return promotedDiff;
+        return (b.stock || 0) - (a.stock || 0);
+      })
+      .slice(0, limit);
+
+    return res.json({
+      ok: true,
+      items: featured,
+    });
+  } catch (error) {
+    console.error('Ошибка чтения избранных товаров:', error);
+    return createErrorResponse(res, 'Не удалось загрузить позиции');
+  }
+});
+
+app.get('/api/products/:slug/related', async (req, res) => {
+  try {
+    applyCatalogCache(res);
+
+    const limit = parseLimit(req.query.limit, 6, 24);
+    const product = await findProductBySlug(req.params.slug);
+
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Товар не найден',
+      });
+    }
+
+    const items = await loadCatalogProducts();
+    const related = items
+      .filter(
+        (item) => item.id !== product.id && item.category === product.category
+      )
+      .slice(0, limit);
+
+    return res.json({
+      ok: true,
+      items: related,
+    });
+  } catch (error) {
+    console.error('Ошибка чтения похожих товаров:', error);
+    return createErrorResponse(res, 'Не удалось загрузить похожие товары');
+  }
+});
+
 app.get('/api/products/:slug', async (req, res) => {
   try {
+    applyCatalogCache(res);
+
     const item = await findProductBySlug(req.params.slug);
 
     if (!item) {
@@ -165,6 +239,12 @@ app.get('/api/products/:slug', async (req, res) => {
     return createErrorResponse(res, 'Не удалось загрузить товар');
   }
 });
+
+function parseLimit(value, fallback, max) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return fallback;
+  return Math.min(Math.floor(num), max);
+}
 
 app.post('/api/quote', async (req, res) => {
   try {
