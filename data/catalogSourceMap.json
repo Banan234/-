@@ -95,5 +95,12 @@
   { "sourceCategory": "Металлопрокат",                                                            "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
   { "sourceCategory": "Трубы",                                                                    "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
   { "sourceCategory": ") Х/Б Изделия",                                                            "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
-  { "sourceCategory": "Шина автомобильная",                                                       "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" }
+  { "sourceCategory": "Шина автомобильная",                                                       "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
+
+  { "sourceCategory": "Кабель Герда, Соббит, Квип, МКЭШВ, КВЭВЭ, КВВЭ",                           "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
+  { "sourceCategory": "Провод медный ПВ1,ПВ3,ПУВ,ПУГВ,ПГВА,НВ,ПВС,ШВВП,ПуГП",                    "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Провода",             "categorySlug": "provoda" },
+  { "sourceCategory": "Кабель Сигнальный блокировочный СБЗПу",                                     "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
+  { "sourceCategory": "Кабель КВПЭфВП-5е",                                                        "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "LAN-кабели",          "categorySlug": "lan-kabeli" },
+  { "sourceCategory": "К А Б Е Л Ь Н А Я   П Р О Д У К Ц И Я",                                    "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Прочее",              "categorySlug": "prochee" },
+  { "sourceCategory": "Механизмы исполнительные",                                                  "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Реле и пускатели", "categorySlug": "rele-puskately" }
 ]

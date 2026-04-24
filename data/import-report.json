@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-24T03:01:54.752Z",
+  "generatedAt": "2026-04-24T03:48:01.862Z",
   "sourceFile": "/Users/glebkristallov/Documents/yuzhural-site/data/price.xls",
   "summary": {
     "totalRowsInSheet": 3521,
@@ -7,11 +7,11 @@
     "productsImported": 6772,
     "productsPrevious": 6772,
     "skippedRows": 3,
-    "suspicious": 13,
+    "suspicious": 1,
     "added": 0,
     "removed": 0,
-    "priceChanged": 0,
-    "priceAlerts": 0,
+    "priceChanged": 2,
+    "priceAlerts": 2,
     "stockChanged": 0,
     "categoryChanged": 0
   },
@@ -2529,126 +2529,6 @@
   ],
   "suspicious": [
     {
-      "name": "АПБ 1,8х4,0/1,92",
-      "category": "Кабель АПБ 1,",
-      "unit": "кг",
-      "price": 374900,
-      "stock": 1499.9,
-      "reasons": [
-        "Цена 374900 ₽ за «кг» превышает порог 100000"
-      ]
-    },
-    {
-      "name": "ПВВГ нг(А)LS 4х185",
-      "category": "Кабель ПВВГ нг(А)LS",
-      "unit": "м",
-      "price": 7861100,
-      "stock": 0.028,
-      "reasons": [
-        "Цена 7861100 ₽ за «м» превышает порог 10000"
-      ]
-    },
-    {
-      "name": "КМТВэВ 4х1.5 нг(A)LS",
-      "category": "Кабель КМТВэВ",
-      "unit": "",
-      "price": 86900,
-      "stock": 0.221,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
-      "name": "КМТВэВ 4х1.5 нг-М",
-      "category": "Кабель КМТВэВ",
-      "unit": "",
-      "price": 86500,
-      "stock": 0.06,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
-      "name": "КМТВэВ 8х1.5 нг(A)LS хл",
-      "category": "Кабель КМТВэВ",
-      "unit": "",
-      "price": 192800,
-      "stock": 0.826,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
-      "name": "КМТВэВ 14х1.5 нг-М",
-      "category": "Кабель КМТВэВ",
-      "unit": "",
-      "price": 305200,
-      "stock": 0.2,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
-      "name": "КМТВэВ М 18х1.5 нг(А)",
-      "category": "Кабель КМТВэВ М",
-      "unit": "",
-      "price": 481500,
-      "stock": 0.25,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
-      "name": "КМТВэВ нг LS 4х1+4х2.5",
-      "category": "Кабель КМТВэВ нг LS",
-      "unit": "",
-      "price": 410800,
-      "stock": 0.16,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
-      "name": "КМТВэВ нг LS 7х1+7х2.5",
-      "category": "Кабель КМТВэВ нг LS",
-      "unit": "",
-      "price": 575100,
-      "stock": 0.019,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
-      "name": "КМТВэВ нг(А)LS хл 6х1.5",
-      "category": "Кабель КМТВэВ нг(А)LS хл",
-      "unit": "",
-      "price": 171000,
-      "stock": 0.068,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
-      "name": "КМТВэВ нг(А)ха 8х1.5",
-      "category": "Кабель КМТВэВ нг(А)ха",
-      "unit": "",
-      "price": 624200,
-      "stock": 0.181,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
-      "name": "КМТВэВ хк 4х1.5 нг(А)LS",
-      "category": "Кабель КМТВэВ хк",
-      "unit": "",
-      "price": 126800,
-      "stock": 0.02,
-      "reasons": [
-        "Не определена единица измерения"
-      ]
-    },
-    {
       "name": "Кран мостовой двухбалочный 16т",
       "category": "Кабель Кран мостовой двухбалочный 16т",
       "unit": "шт",
@@ -2662,8 +2542,38 @@
   "diff": {
     "added": [],
     "removed": [],
-    "priceChanged": [],
-    "priceAlerts": [],
+    "priceChanged": [
+      {
+        "name": "АПБ 1,8х4,0/1,92",
+        "category": "Кабель АПБ 1,",
+        "priceBefore": 374900,
+        "priceAfter": 374.9,
+        "deltaPercent": -99.9
+      },
+      {
+        "name": "ПВВГ нг(А)LS 4х185",
+        "category": "Кабель ПВВГ нг(А)LS",
+        "priceBefore": 7861100,
+        "priceAfter": 7861.1,
+        "deltaPercent": -99.9
+      }
+    ],
+    "priceAlerts": [
+      {
+        "name": "АПБ 1,8х4,0/1,92",
+        "category": "Кабель АПБ 1,",
+        "priceBefore": 374900,
+        "priceAfter": 374.9,
+        "deltaPercent": -99.9
+      },
+      {
+        "name": "ПВВГ нг(А)LS 4х185",
+        "category": "Кабель ПВВГ нг(А)LS",
+        "priceBefore": 7861100,
+        "priceAfter": 7861.1,
+        "deltaPercent": -99.9
+      }
+    ],
     "stockChanged": [],
     "categoryChanged": []
   }

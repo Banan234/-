@@ -18,6 +18,35 @@ const inputFile =
   process.argv[2] || path.join(projectRoot, 'data', 'price.xls');
 const outputFile = path.join(projectRoot, 'data', 'products.json');
 const reportFile = path.join(projectRoot, 'data', 'import-report.json');
+const overridesFile = path.join(projectRoot, 'data', 'priceOverrides.json');
+
+let priceOverrides = null;
+async function loadPriceOverrides() {
+  if (priceOverrides) return priceOverrides;
+  try {
+    const raw = await fs.readFile(overridesFile, 'utf-8');
+    const parsed = JSON.parse(raw);
+    priceOverrides = parsed?.overrides || {};
+  } catch {
+    priceOverrides = {};
+  }
+  return priceOverrides;
+}
+
+function applyPriceOverride(product) {
+  if (!priceOverrides) return product;
+  const override = priceOverrides[product.name] || priceOverrides[product.fullName];
+  if (!override) return product;
+  let newPrice = product.price;
+  if (typeof override.price === 'number') {
+    newPrice = override.price;
+  } else if (typeof override.priceDivide === 'number' && override.priceDivide > 0) {
+    newPrice = product.price / override.priceDivide;
+  } else if (typeof override.priceMultiply === 'number' && override.priceMultiply > 0) {
+    newPrice = product.price * override.priceMultiply;
+  }
+  return { ...product, price: Math.round(newPrice * 1000) / 1000 };
+}
 const PAGE_COLUMNS = {
   left: [0, 1, 2, 3],
   right: [5, 6, 7, 8],
@@ -209,10 +238,10 @@ function parsePageRow(cells, sourceRow, category, rowIndex = null) {
 }
 
 function createProductRecord(product, category, sourceRow = null, rowIndex = null) {
-  const normalized = normalizeImportedProduct({
+  const normalized = applyPriceOverride(normalizeImportedProduct({
     ...product,
     category,
-  });
+  }));
 
   if (!normalized.name) {
     return {
@@ -542,6 +571,7 @@ async function main() {
   console.log(`Чтение прайса: ${inputFile}`);
 
   const previousProducts = await loadPreviousProducts();
+  await loadPriceOverrides();
 
   const rows = await loadWorkbookRows();
   const importResult = extractProducts(rows);

@@ -140,14 +140,7 @@
   {
     "_comment": "=== СПЭ (силовой кабель с изоляцией из сшитого полиэтилена) — type-тег поверх Силового ===",
     "type": "СПЭ",
-    "patterns": ["пвпу", "пвпг", "апвпу", "апвпг", "апвп", "пвв нг", "пввнг", "пввг нг", "апвв нг", "апвбшв", "апввг", "пвбшв", "пвбшнг"],
-    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
-    "catalogCategory": "Силовой кабель", "catalogCategorySlug": "silovoy-kabel",
-    "priority": 150
-  },
-  {
-    "type": "СПЭ (ППГ с HF)",
-    "patterns": ["ппг нг(a)hf", "ппг нг(а)hf", "ппгнг(a)hf", "ппгнг(а)hf"],
+    "patterns": ["пвпу", "пвпг", "апвпу", "апвпг", "апвп", "пвв нг", "пввнг", "пввг нг", "апвв нг", "апвбшв", "апввг", "пвбшв", "пвбшнг", "ппг ", "ппг-", "ппгнг", "ппг нг", "аппг"],
     "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
     "catalogCategory": "Силовой кабель", "catalogCategorySlug": "silovoy-kabel",
     "priority": 150
@@ -249,7 +242,7 @@
   },
   {
     "type": "Водопогружной",
-    "patterns": ["впв", "кэвт", "экс-гвпв"],
+    "patterns": ["впв ", "впв-", "кэвт ", "кэвт-", "экс-гвпв"],
     "catalogSection": "Специальные кабели", "catalogSectionSlug": "specialnye-kabeli",
     "catalogCategory": "Кабель водопогружной", "catalogCategorySlug": "kabel-vodopogr",
     "priority": 140
@@ -839,5 +832,113 @@
     "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
     "catalogCategory": "Провода", "catalogCategorySlug": "provoda",
     "priority": 90
+  },
+
+  {
+    "_comment": "=== ИМПОРТНЫЕ: NYY/NYM/NUM/NYCY/NYRY/MCCMK — немецкие/финские силовые ===",
+    "type": "NYY/NYM/NUM/NYCY (импорт. силовые)",
+    "patterns": ["nyy", "nym", "num", "nycy", "nyry", "nycwy", "mccmk", "n2xh", "n2xsy"],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Импортные кабели", "catalogCategorySlug": "importnye-kabeli",
+    "applicationType": "Силовой",
+    "priority": 195
+  },
+
+  {
+    "_comment": "=== МЕТАЛЛОРУКАВ: перехватчик для 'Мет.рук.в ПВХ', чтобы не попадал в Водопогружной ===",
+    "type": "Металлорукав",
+    "patterns": ["мет.рук", "металлорук", "металл.рук"],
+    "catalogSection": "Кабельная арматура", "catalogSectionSlug": "kabelnaya-armatura",
+    "catalogCategory": "Металлорукав и гофра", "catalogCategorySlug": "metallorukav-gofra",
+    "priority": 220
+  },
+
+  {
+    "_comment": "=== ЖД сигнально-блокировочные (СБПЗА*) — это связь, не пожарная ===",
+    "type": "СБПЗА/СБПЗу ЖД-сигналка",
+    "patterns": ["сбпза", "сбпзу", "сбзп", "сбпбп"],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Кабели связи", "catalogCategorySlug": "kabeli-svyazi",
+    "priority": 210
+  },
+
+  {
+    "_comment": "=== КМВ/КМВэВ — монтажный для видеонаблюдения (sourceCategory может ошибочно слать в Пожарную) ===",
+    "type": "КМВ/КМВэВ — монтажный видеонаблюдение",
+    "patterns": ["кмв ", "кмв-", "кмвэв", "кмвв "],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Монтажный кабель", "catalogCategorySlug": "montazhnyy-kabel",
+    "priority": 160
+  },
+
+  {
+    "_comment": "=== ЛИФТОВЫЕ: КПВЛ/КПВП/КПЛМ/КПГ2У → Силовой ===",
+    "type": "Лифтовые силовые",
+    "patterns": ["кпвл", "кпвп ", "кпвп-", "кплм", "кпг2у", "кпг-"],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Силовой кабель", "catalogCategorySlug": "silovoy-kabel",
+    "priority": 100
+  },
+
+  {
+    "_comment": "=== РЕДКИЕ МОНТАЖНЫЕ: СНКЭО, МПИЭ, КМРПЭ, МП 37-12, КППЭВ, КПИВВ ===",
+    "type": "Редкие монтажные",
+    "patterns": ["кабельмонтажный", "снкэо", "мпиэ", "кмрпэ", "мп37-12", "мпэ37-12", "кппэв", "кпивв", "кппсэп"],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Монтажный кабель", "catalogCategorySlug": "montazhnyy-kabel",
+    "priority": 100
+  },
+
+  {
+    "_comment": "=== ИМПОРТНЫЕ РАСШИРЕННО: AESP/DRAKA/CARDIFF/BMK/BIT/BETA CAVI/BASEC/BFI/ERSE/LI6YC6Y/AT-(ZN)/DATA-CB ===",
+    "type": "Импортные КИПиА — расширенный список",
+    "patterns": [
+      "aesp", "signamax", "at-(zn)", "at(zn)", "basec", "beta cavi", "betacavi", "bfi automation", "bfiautomation",
+      "bit 500", "bit500", "bmk-jy", "bmkjy", "cardiff", "cable li6yc6y", "cableli6yc6y", "li6yc6y",
+      "cbl instrumentation", "cblinstr", "data 700", "data700", "draka", "jamag", "erse cablo", "ersecablo",
+      "bsec", "digisat", "electric нг"
+    ],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Импортные кабели", "catalogCategorySlug": "importnye-kabeli",
+    "applicationType": "КИПиА",
+    "priority": 185
+  },
+
+  {
+    "_comment": "=== ИМПОРТНЫЕ ОПТИКА: NTSS-FO и прочие FO ===",
+    "type": "Импортные оптические",
+    "patterns": ["ntss-fo", "ntss fo", "-fo-d-", "fo-in/out"],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Импортные кабели", "catalogCategorySlug": "importnye-kabeli",
+    "applicationType": "Связь",
+    "priority": 185
+  },
+
+  {
+    "_comment": "=== Герда ТПСПэПВ — телефонный (связь), попадает в Контрольный по ошибке ===",
+    "type": "Герда ТПСПэПВ",
+    "patterns": ["тпспэпв", "тпсппв", "тпспэп", "герда тпсп"],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Кабели связи", "catalogCategorySlug": "kabeli-svyazi",
+    "priority": 170
+  },
+
+  {
+    "_comment": "=== МКВЭФ/МКВЭФВ/МКВЭ — монтажные с фторопластом ===",
+    "type": "МКВЭ/МКВЭФ — монтажный",
+    "patterns": ["мквэф", "мквэв", "мквэк"],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Монтажный кабель", "catalogCategorySlug": "montazhnyy-kabel",
+    "priority": 170
+  },
+
+  {
+    "_comment": "=== RE-(ST)Y-FL и доп. варианты RE-серии ===",
+    "type": "RE-(ST)Y-FL",
+    "patterns": ["re-(st)y", "re-st-y", "re-2y-st", "re-2y(st)"],
+    "catalogSection": "Кабель и провод", "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Импортные кабели", "catalogCategorySlug": "importnye-kabeli",
+    "applicationType": "КИПиА",
+    "priority": 185
   }
 ]

@@ -50,8 +50,14 @@ export function normalizeImportedProduct(product) {
   const normalizedUnit = normalizeUnit(product.unit);
   const normalizedPrice = normalizeNumber(product.price);
   const normalizedStock = normalizeNumber(product.stock);
-  const normalizedCommercial = normalizeCommercialFields({
+  const inferredUnit = inferMissingUnit({
     unit: normalizedUnit,
+    price: normalizedPrice,
+    stock: normalizedStock,
+    parsedName,
+  });
+  const normalizedCommercial = normalizeCommercialFields({
+    unit: inferredUnit,
     price: normalizedPrice,
     stock: normalizedStock,
   });
@@ -133,6 +139,30 @@ function normalizeUnit(unit) {
   }
 
   return value;
+}
+
+// Если единица измерения в прайсе отсутствует, но позиция выглядит как кабель
+// (есть спецификация жил/сечения), цена высокая, а остаток дробный — это
+// почти наверняка километры. Такое встречается у КМТВэВ и других «редких»
+// марок, где поставщик не заполнил колонку «ед. изм.».
+function inferMissingUnit({ unit, price, stock, parsedName }) {
+  if (unit) {
+    return unit;
+  }
+
+  const looksLikeCable = Boolean(parsedName?.cores && parsedName?.crossSection);
+  if (!looksLikeCable) {
+    return unit;
+  }
+
+  // Цена > 5000 за «штуку» для кабеля с сечением и дробный остаток (< 10)
+  // — надёжный признак, что цена указана за км, а остаток в км.
+  const fractionalStock = stock > 0 && stock < 10;
+  if (price >= 5000 && fractionalStock) {
+    return 'км';
+  }
+
+  return unit;
 }
 
 function normalizeCommercialFields({ unit, price, stock }) {

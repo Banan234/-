@@ -314,11 +314,17 @@ export default function CatalogPage() {
   }
 
   return (
-    <section className="section">
+    <section className="section section--dark-soft catalog-section">
       <Container>
         <div className="catalog-page">
           <div className="catalog-page__header">
+            <span className="catalog-page__eyebrow">Каталог продукции</span>
             <h1 className="page-title catalog-page__title">{pageTitle}</h1>
+            <p className="catalog-page__subtitle">
+              {isLoading
+                ? 'Загружаем актуальные позиции из прайса...'
+                : (<>В наличии <strong>{filteredProducts.length.toLocaleString('ru-RU')}</strong> позиций · Отгрузка со склада в Челябинске</>)}
+            </p>
           </div>
           <div className="catalog-layout">
             <aside className="catalog-sidebar">
