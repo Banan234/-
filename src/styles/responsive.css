@@ -176,6 +176,9 @@
     padding: 0 14px;
     font-size: 13px;
   }
+  .mobile-menu-button {
+    display: inline-flex;
+  }
   .site-header__nav-inner {
     grid-template-columns: 1fr auto;
   }

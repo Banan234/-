@@ -4,6 +4,7 @@ import Container from '../components/ui/Container';
 import { useCartStore } from '../store/useCartStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useSEO } from '../hooks/useSEO';
+import '../styles/sections/commerce.css';
 
 export default function FavoritesPage() {
   useSEO({

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 const quickCommentOptions = [
   { label: 'ВВГ', value: 'ВВГ' },
@@ -8,7 +8,6 @@ const quickCommentOptions = [
 ];
 
 const initialForm = {
-  name: '',
   phone: '',
   comment: '',
   consent: false,
@@ -18,8 +17,22 @@ function normalizePhone(phone) {
   return phone.replace(/[^\d+]/g, '');
 }
 
-export default function HeroLeadForm() {
-  const [form, setForm] = useState(initialForm);
+function buildInitialForm(defaultComment) {
+  return {
+    ...initialForm,
+    comment: defaultComment,
+  };
+}
+
+export default function HeroLeadForm({
+  title = 'Не тратьте время на поиск кабеля',
+  subtitle = 'Ответим в течение 15 минут',
+  submitLabel = 'Получить КП',
+  defaultComment = '',
+  source = 'Главная страница',
+}) {
+  const fieldIdPrefix = useId().replace(/:/g, '');
+  const [form, setForm] = useState(() => buildInitialForm(defaultComment));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverMessage, setServerMessage] = useState('');
@@ -112,9 +125,9 @@ export default function HeroLeadForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: form.name.trim(),
           phone: form.phone.trim(),
-          comment: form.comment.trim() || 'Заявка с первого экрана главной страницы',
+          comment: form.comment.trim() || `Короткая заявка: ${source}`,
+          source,
           createdAt: new Date().toLocaleString('ru-RU'),
         }),
       });
@@ -127,7 +140,7 @@ export default function HeroLeadForm() {
 
       setIsSubmitted(true);
       setServerMessage(result.message || 'Заявка отправлена');
-      setForm(initialForm);
+      setForm(buildInitialForm(''));
       setErrors({});
     } catch (error) {
       console.error('Ошибка отправки заявки с главной:', error);
@@ -141,10 +154,8 @@ export default function HeroLeadForm() {
   return (
     <div className="hero-lead-card">
       <div className="hero-lead-card__head">
-        <h2 className="hero-lead-card__title">Не тратьте время на поиск кабеля</h2>
-        <p className="hero-lead-card__subtitle">
-          Ответим в течение 15 минут
-        </p>
+        <h2 className="hero-lead-card__title">{title}</h2>
+        <p className="hero-lead-card__subtitle">{subtitle}</p>
       </div>
 
       {isSubmitted ? <div className="form-success">{serverMessage}</div> : null}
@@ -155,9 +166,9 @@ export default function HeroLeadForm() {
 
       <form className="hero-lead-form" onSubmit={handleSubmit} noValidate>
         <div className="hero-lead-form__field">
-          <label htmlFor="lead-phone">Ваш телефон</label>
+          <label htmlFor={`${fieldIdPrefix}-lead-phone`}>Ваш телефон</label>
           <input
-            id="lead-phone"
+            id={`${fieldIdPrefix}-lead-phone`}
             name="phone"
             type="text"
             value={form.phone}
@@ -170,20 +181,7 @@ export default function HeroLeadForm() {
         </div>
 
         <div className="hero-lead-form__field">
-          <label htmlFor="lead-name">Ваше имя <span className="hero-lead-form__optional">(необязательно)</span></label>
-          <input
-            id="lead-name"
-            name="name"
-            type="text"
-            required={false}
-            value={form.name}
-            onChange={handleChange}
-            placeholder="Как к вам обращаться"
-          />
-        </div>
-
-        <div className="hero-lead-form__field">
-          <label htmlFor="lead-comment">Комментарий <span className="hero-lead-form__optional">(необязательно)</span></label>
+          <label htmlFor={`${fieldIdPrefix}-lead-comment`}>Комментарий <span className="hero-lead-form__optional">(необязательно)</span></label>
           <div className="hero-lead-form__quick-buttons" aria-label="Быстрые варианты комментария">
             {quickCommentOptions.map((option) => {
               const isActive = parseCommentTokens(form.comment).includes(option.value);
@@ -202,7 +200,7 @@ export default function HeroLeadForm() {
           </div>
           <textarea
             ref={commentRef}
-            id="lead-comment"
+            id={`${fieldIdPrefix}-lead-comment`}
             name="comment"
             value={form.comment}
             onChange={handleChange}
@@ -230,7 +228,7 @@ export default function HeroLeadForm() {
           className="button-primary hero-lead-form__submit"
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Отправка...' : 'Получить КП'}
+          {isSubmitting ? 'Отправка...' : submitLabel}
         </button>
       </form>
     </div>

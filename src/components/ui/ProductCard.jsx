@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom';
 import { useCartStore } from '../../store/useCartStore';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 
+function formatStockLabel(product) {
+  const stockValue = product.stock.toLocaleString('ru-RU');
+  return product.unit ? `${stockValue} ${product.unit}` : stockValue;
+}
+
 export default function ProductCard({ product, variant = 'default' }) {
   const addItem = useCartStore((state) => state.addItem);
   const toggleFavorite = useFavoritesStore((state) => state.toggleItem);
@@ -10,8 +15,9 @@ export default function ProductCard({ product, variant = 'default' }) {
   const [addedToCart, setAddedToCart] = useState(false);
   const isStockVariant = variant === 'stock';
   const productUrl = `/product/${product.slug}`;
-  const stockSubtitle = `В наличии: ${product.stock.toLocaleString('ru-RU')} м`;
-  const catalogStockLabel = `В наличии: ${product.stock.toLocaleString('ru-RU')} м`;
+  const stockLabel = `В наличии: ${formatStockLabel(product)}`;
+  const stockSubtitle = stockLabel;
+  const catalogStockLabel = stockLabel;
   const statusLabel = product.inStock ? 'В наличии' : 'Под заказ';
   const shippingLabel = product.inStock
     ? product.stock >= 100
@@ -24,7 +30,8 @@ export default function ProductCard({ product, variant = 'default' }) {
     badges.push('Хит');
   }
 
-  const priceLabel = `от ${product.price.toLocaleString('ru-RU')} ₽`;
+  const priceValue = `${product.price.toLocaleString('ru-RU')} ₽`;
+  const priceUnitLabel = product.unit ? `/ ${product.unit}` : '';
   const brand = product.manufacturer || product.catalogBrand;
   const displayTitle = (() => {
     if (!brand) return product.title;
@@ -37,7 +44,17 @@ export default function ProductCard({ product, variant = 'default' }) {
   })();
 
   function handleOpenQuote() {
-    window.dispatchEvent(new CustomEvent('open-quote-modal'));
+    window.dispatchEvent(
+      new CustomEvent('open-quote-modal', {
+        detail: {
+          title: 'Получить КП',
+          subtitle: 'Оставьте телефон — уточним наличие и подготовим предложение по позиции.',
+          submitLabel: 'Получить КП',
+          comment: `Интересует ${displayTitle}${product.sku ? `, SKU: ${product.sku}` : ''}`,
+          source: 'Карточка товара',
+        },
+      })
+    );
   }
 
   function handleAddToCart() {
@@ -112,15 +129,21 @@ export default function ProductCard({ product, variant = 'default' }) {
 
         {isStockVariant ? (
           <div className="product-card__price-row">
-            <div className="product-card__price">{priceLabel}</div>
-            <div className="product-card__unit">{product.unit ? `/ ${product.unit}` : ''}</div>
+            <div className="product-card__price">{priceValue}</div>
+            {priceUnitLabel && (
+              <div className="product-card__unit">{priceUnitLabel}</div>
+            )}
           </div>
         ) : (
           <>
             <div className="product-card__price-block">
               <div className="product-card__price-label">Цена</div>
-              <div className="product-card__price">{priceLabel}</div>
-              <div className="product-card__unit">{product.unit}</div>
+              <div className="product-card__price-row">
+                <div className="product-card__price">{priceValue}</div>
+                {priceUnitLabel && (
+                  <div className="product-card__unit">{priceUnitLabel}</div>
+                )}
+              </div>
             </div>
           </>
         )}

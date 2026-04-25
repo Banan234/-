@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-export default function Modal({ isOpen, onClose, children }) {
+export default function Modal({ isOpen, onClose, children, windowClassName = '' }) {
   useEffect(() => {
     if (!isOpen) return;
 
@@ -26,7 +26,7 @@ export default function Modal({ isOpen, onClose, children }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-window"
+        className={`modal-window${windowClassName ? ` ${windowClassName}` : ''}`}
         onClick={(event) => event.stopPropagation()}
       >
         <button

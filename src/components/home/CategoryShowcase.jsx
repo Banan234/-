@@ -34,42 +34,11 @@ const categoryCards = [
 
 export default function CategoryShowcase() {
   function handleBridgeClick(event) {
-    event.preventDefault();
-
     const target = document.getElementById('stock-now');
 
     if (target) {
-      const startY = window.scrollY;
-      const targetRect = target.getBoundingClientRect();
-      const absoluteTargetTop = targetRect.top + window.scrollY;
-      const centeredTargetY =
-        absoluteTargetTop - (window.innerHeight - targetRect.height) / 2;
-      const maxScrollY =
-        document.documentElement.scrollHeight - window.innerHeight;
-      const targetY = Math.max(0, Math.min(centeredTargetY, maxScrollY));
-      const distance = targetY - startY;
-      const duration = 1100;
-      const startTime = performance.now();
-
-      function easeInOutCubic(progress) {
-        return progress < 0.5
-          ? 4 * progress * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-      }
-
-      function animateScroll(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const easedProgress = easeInOutCubic(progress);
-
-        window.scrollTo(0, startY + distance * easedProgress);
-
-        if (progress < 1) {
-          window.requestAnimationFrame(animateScroll);
-        }
-      }
-
-      window.requestAnimationFrame(animateScroll);
+      event.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth' });
     }
   }
 

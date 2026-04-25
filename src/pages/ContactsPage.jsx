@@ -1,5 +1,5 @@
 import Container from '../components/ui/Container';
-import QuoteForm from '../components/quote/QuoteForm';
+import HeroLeadForm from '../components/home/HeroLeadForm';
 import { useSEO } from '../hooks/useSEO';
 
 export default function ContactsPage() {
@@ -150,7 +150,12 @@ export default function ContactsPage() {
             </div>
 
             <div className="contacts-layout__side">
-              <QuoteForm title="Напишите нам" />
+              <HeroLeadForm
+                title="Напишите нам"
+                subtitle="Оставьте телефон и вопрос — ответим в рабочее время."
+                submitLabel="Отправить"
+                source="Страница контактов"
+              />
             </div>
           </div>
         </Container>
