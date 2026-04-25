@@ -1,11 +1,16 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Container from '../ui/Container';
 import Modal from '../ui/Modal';
+import HeroLeadForm from '../home/HeroLeadForm';
 import QuoteForm from '../quote/QuoteForm';
 import SiteFooter from './SiteFooter';
+import MobileNav from './MobileNav';
+import { fetchProducts } from '../../lib/productsApi';
 import { useCartStore } from '../../store/useCartStore';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
+import { trackEvent } from '../../lib/analytics';
+import { usePageviewTracking } from '../../hooks/usePageviewTracking';
 import catalogCategoriesData from '../../../data/catalogCategories.json';
 
 const cableSection = catalogCategoriesData.sections.find(
@@ -42,17 +47,54 @@ const catalogMenu = [
     links: [{ label: 'Некабельная продукция', to: '/catalog/nekabelnaya-produkciya' }],
   },
 ];
+const SEARCH_SUGGESTIONS_LIMIT = 7;
+
+function normalizeSearchSuggestionKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[^0-9a-zа-я]+/g, '');
+}
+
+function formatPositionCount(count) {
+  const lastTwo = count % 100;
+  const last = count % 10;
+
+  if (lastTwo >= 11 && lastTwo <= 14) {
+    return `${count} позиций`;
+  }
+
+  if (last === 1) {
+    return `${count} позиция`;
+  }
+
+  if (last >= 2 && last <= 4) {
+    return `${count} позиции`;
+  }
+
+  return `${count} позиций`;
+}
 
 export default function MainLayout() {
   const items = useCartStore((state) => state.items);
-  const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCount = items.length;
   const favoritesCount = useFavoritesStore((state) => state.items.length);
 
   const navigate = useNavigate();
   const location = useLocation();
+  usePageviewTracking();
 
   const [headerSearch, setHeaderSearch] = useState('');
+  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [leadModalOptions, setLeadModalOptions] = useState({});
+  const [quoteModalOptions, setQuoteModalOptions] = useState({});
+  const [searchProducts, setSearchProducts] = useState([]);
+  const [isSearchCatalogLoaded, setIsSearchCatalogLoaded] = useState(false);
+  const [isSearchCatalogLoading, setIsSearchCatalogLoading] = useState(false);
+  const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isCatalogPinnedOpen, setIsCatalogPinnedOpen] = useState(false);
   const [activeCatalogIndex, setActiveCatalogIndex] = useState(0);
@@ -60,7 +102,60 @@ export default function MainLayout() {
   const isCatalogPage = location.pathname.startsWith('/catalog');
   const catalogCloseTimeoutRef = useRef(null);
   const catalogWrapperRef = useRef(null);
+  const searchLoadControllerRef = useRef(null);
   const activeCatalogGroup = catalogMenu[activeCatalogIndex] || catalogMenu[0];
+  const normalizedHeaderSearch = normalizeSearchSuggestionKey(headerSearch);
+  const searchSuggestions = useMemo(() => {
+    if (!normalizedHeaderSearch || searchProducts.length === 0) {
+      return [];
+    }
+
+    const markMap = new Map();
+
+    for (const product of searchProducts) {
+      const mark = String(product.mark || '').trim();
+
+      if (!mark) {
+        continue;
+      }
+
+      const key = normalizeSearchSuggestionKey(mark);
+
+      if (!key || !key.startsWith(normalizedHeaderSearch)) {
+        continue;
+      }
+
+      const current = markMap.get(key);
+
+      if (current) {
+        current.count += 1;
+      } else {
+        markMap.set(key, {
+          key,
+          mark,
+          count: 1,
+        });
+      }
+    }
+
+    return [...markMap.values()]
+      .sort((a, b) => {
+        const exactDiff =
+          Number(b.key === normalizedHeaderSearch) -
+          Number(a.key === normalizedHeaderSearch);
+
+        if (exactDiff !== 0) {
+          return exactDiff;
+        }
+
+        return b.count - a.count || a.mark.localeCompare(b.mark, 'ru');
+      })
+      .slice(0, SEARCH_SUGGESTIONS_LIMIT);
+  }, [normalizedHeaderSearch, searchProducts]);
+  const shouldShowSearchSuggestions =
+    isSearchSuggestionsOpen &&
+    normalizedHeaderSearch &&
+    (isSearchCatalogLoading || searchSuggestions.length > 0);
 
   useEffect(() => {
     function handleScroll() {
@@ -69,6 +164,12 @@ export default function MainLayout() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      searchLoadControllerRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -85,15 +186,37 @@ export default function MainLayout() {
   useEffect(() => {
     setIsCatalogOpen(false);
     setIsCatalogPinnedOpen(false);
+    setIsMobileNavOpen(false);
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    function handleOpenQuote() {
-      setIsQuoteModalOpen(true);
+    function handleOpenLead(event) {
+      setLeadModalOptions(event.detail || {});
+      setIsLeadModalOpen(true);
+      trackEvent('quote-open', {
+        source: event.detail?.source || event.type || 'unknown',
+        kind: 'lead',
+      });
     }
 
-    window.addEventListener('open-quote-modal', handleOpenQuote);
-    return () => window.removeEventListener('open-quote-modal', handleOpenQuote);
+    function handleOpenQuote(event) {
+      setQuoteModalOptions(event.detail || {});
+      setIsQuoteModalOpen(true);
+      trackEvent('quote-open', {
+        source: event.detail?.source || event.type || 'cart',
+        kind: 'quote',
+      });
+    }
+
+    window.addEventListener('open-lead-modal', handleOpenLead);
+    window.addEventListener('open-quote-modal', handleOpenLead);
+    window.addEventListener('open-cart-quote-modal', handleOpenQuote);
+
+    return () => {
+      window.removeEventListener('open-lead-modal', handleOpenLead);
+      window.removeEventListener('open-quote-modal', handleOpenLead);
+      window.removeEventListener('open-cart-quote-modal', handleOpenQuote);
+    };
   }, []);
 
   function clearCatalogCloseTimeout() {
@@ -168,7 +291,12 @@ export default function MainLayout() {
     event.preventDefault();
 
     const value = headerSearch.trim();
+    setIsSearchSuggestionsOpen(false);
     const params = new URLSearchParams(location.search);
+
+    if (value) {
+      trackEvent('search-submit', { query: value, source: 'header' });
+    }
 
     if (!value) {
       params.delete('search');
@@ -187,6 +315,49 @@ export default function MainLayout() {
     navigate(nextUrl);
   }
 
+  function ensureSearchCatalogLoaded() {
+    if (isSearchCatalogLoaded || isSearchCatalogLoading) {
+      return;
+    }
+
+    const controller = new AbortController();
+    searchLoadControllerRef.current = controller;
+    setIsSearchCatalogLoading(true);
+
+    fetchProducts(controller.signal)
+      .then((result) => {
+        setSearchProducts(Array.isArray(result.items) ? result.items : []);
+        setIsSearchCatalogLoaded(true);
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          console.error('Ошибка загрузки подсказок поиска:', error);
+        }
+      })
+      .finally(() => {
+        if (searchLoadControllerRef.current === controller) {
+          searchLoadControllerRef.current = null;
+        }
+        setIsSearchCatalogLoading(false);
+      });
+  }
+
+  function handleSearchInputChange(event) {
+    setHeaderSearch(event.target.value);
+    setIsSearchSuggestionsOpen(true);
+
+    if (event.target.value.trim()) {
+      ensureSearchCatalogLoaded();
+    }
+  }
+
+  function handleSearchSuggestionClick(mark) {
+    setHeaderSearch(mark);
+    setIsSearchSuggestionsOpen(false);
+    trackEvent('search-submit', { query: mark, source: 'header-suggestion' });
+    navigate(`/catalog?search=${encodeURIComponent(mark)}`);
+  }
+
   function handleLogoClick(event) {
     if (location.pathname === '/' && !location.search && !location.hash) {
       event.preventDefault();
@@ -194,8 +365,13 @@ export default function MainLayout() {
     }
   }
 
-  function openQuoteModal() {
-    setIsQuoteModalOpen(true);
+  function openLeadModal(options = {}) {
+    setLeadModalOptions(options);
+    setIsLeadModalOpen(true);
+    trackEvent('quote-open', {
+      source: options.source || 'lead',
+      kind: 'lead',
+    });
   }
 
   return (
@@ -215,7 +391,12 @@ export default function MainLayout() {
                 </span>
               </div>
               <div className="site-header__topbar-right">
-                <a href="/price.xls" download className="topbar-phone">
+                <a href="/price.xls" download className="topbar-download">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 3v12" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M5 21h14" />
+                  </svg>
                   Скачать прайс-лист
                 </a>
               </div>
@@ -232,7 +413,7 @@ export default function MainLayout() {
                 onClick={handleLogoClick}
               >
                 <img
-                  src="/лого%20итог.png"
+                  src="/logo.png"
                   alt="ЮжУралЭлектроКабель"
                   className="site-header__logo-image"
                 />
@@ -251,9 +432,28 @@ export default function MainLayout() {
                 <button
                   type="button"
                   className="button-primary header-cta-btn"
-                  onClick={openQuoteModal}
+                  onClick={() =>
+                    openLeadModal({
+                      title: 'Заказать звонок',
+                      subtitle: 'Оставьте телефон и комментарий — менеджер перезвонит в рабочее время.',
+                      submitLabel: 'Заказать звонок',
+                      source: 'Кнопка в хедере',
+                    })
+                  }
                 >
                   Заказать звонок
+                </button>
+
+                <button
+                  type="button"
+                  className="mobile-menu-button"
+                  onClick={() => setIsMobileNavOpen(true)}
+                  aria-label="Открыть меню"
+                  aria-expanded={isMobileNavOpen}
+                >
+                  <span />
+                  <span />
+                  <span />
                 </button>
               </div>
             </div>
@@ -379,12 +579,59 @@ export default function MainLayout() {
                 className="site-header__search-inline"
                 onSubmit={handleSearchSubmit}
               >
-                <input
-                  className="site-header__search-input"
-                  placeholder="Поиск по каталогу..."
-                  value={headerSearch}
-                  onChange={(event) => setHeaderSearch(event.target.value)}
-                />
+                <div className="site-header__search-field">
+                  <input
+                    className="site-header__search-input"
+                    placeholder="Поиск по каталогу..."
+                    value={headerSearch}
+                    onChange={handleSearchInputChange}
+                    onFocus={() => {
+                      setIsSearchSuggestionsOpen(true);
+                      if (headerSearch.trim()) {
+                        ensureSearchCatalogLoaded();
+                      }
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        setIsSearchSuggestionsOpen(false);
+                      }, 120);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        setIsSearchSuggestionsOpen(false);
+                      }
+                    }}
+                    aria-autocomplete="list"
+                    aria-expanded={Boolean(shouldShowSearchSuggestions)}
+                  />
+
+                  {shouldShowSearchSuggestions ? (
+                    <div className="site-header__search-suggestions">
+                      {isSearchCatalogLoading && searchSuggestions.length === 0 ? (
+                        <div className="site-header__search-suggestion-status">
+                          Загружаем марки...
+                        </div>
+                      ) : (
+                        searchSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.key}
+                            type="button"
+                            className="site-header__search-suggestion"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => handleSearchSuggestionClick(suggestion.mark)}
+                          >
+                            <span className="site-header__search-suggestion-mark">
+                              {suggestion.mark}
+                            </span>
+                            <span className="site-header__search-suggestion-count">
+                              {formatPositionCount(suggestion.count)}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  ) : null}
+                </div>
                 <button type="submit" className="site-header__search-button">
                   Найти
                 </button>
@@ -442,6 +689,22 @@ export default function MainLayout() {
         </div>
       </header>
 
+      <MobileNav
+        isOpen={isMobileNavOpen}
+        catalogMenu={catalogMenu}
+        favoritesCount={favoritesCount}
+        totalCount={totalCount}
+        onClose={() => setIsMobileNavOpen(false)}
+        onOpenQuote={() =>
+          openLeadModal({
+            title: 'Получить КП',
+            subtitle: 'Оставьте телефон и список нужных позиций — подготовим коммерческое предложение.',
+            submitLabel: 'Получить КП',
+            source: 'Мобильное меню',
+          })
+        }
+      />
+
       {isCatalogPinnedOpen && (
         <button
           type="button"
@@ -456,16 +719,58 @@ export default function MainLayout() {
       )}
 
       <main>
-        <Outlet />
+        <Suspense
+          fallback={
+            <div className="route-fallback" aria-busy="true" aria-live="polite">
+              <span className="route-fallback__spinner" aria-hidden="true" />
+              <span className="route-fallback__text">Загружаем страницу...</span>
+            </div>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </main>
 
-      <SiteFooter onOpenQuote={openQuoteModal} />
+      <SiteFooter
+        onOpenQuote={() =>
+          openLeadModal({
+            title: 'Получить КП',
+            subtitle: 'Оставьте телефон и список нужных позиций — подготовим коммерческое предложение.',
+            submitLabel: 'Получить КП',
+            source: 'CTA в футере',
+          })
+        }
+      />
+
+      <Modal
+        isOpen={isLeadModalOpen}
+        onClose={() => setIsLeadModalOpen(false)}
+        windowClassName="modal-window--lead"
+      >
+        <HeroLeadForm
+          title={leadModalOptions.title || 'Получить КП или заказать звонок'}
+          subtitle={
+            leadModalOptions.subtitle ||
+            'Оставьте телефон и комментарий — менеджер свяжется с вами.'
+          }
+          submitLabel={leadModalOptions.submitLabel || 'Отправить заявку'}
+          defaultComment={leadModalOptions.comment || ''}
+          source={leadModalOptions.source || 'Короткая форма'}
+        />
+      </Modal>
 
       <Modal
         isOpen={isQuoteModalOpen}
-        onClose={() => setIsQuoteModalOpen(false)}
+        onClose={() => {
+          setIsQuoteModalOpen(false);
+          setQuoteModalOptions({});
+        }}
       >
-        <QuoteForm title="Запрос коммерческого предложения" />
+        <QuoteForm
+          title={quoteModalOptions.title || 'Запрос коммерческого предложения'}
+          description={quoteModalOptions.description}
+          itemsOverride={quoteModalOptions.items || null}
+        />
       </Modal>
     </div>
   );
