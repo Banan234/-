@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCartStore } from '../../store/useCartStore';
+import { trackEvent } from '../../lib/analytics';
 import {
   loadStoredJson,
   removeStoredValue,
@@ -8,11 +9,19 @@ import {
 
 const FORM_STORAGE_KEY = 'yuzhural-quote-form';
 
+const CHANNEL_OPTIONS = [
+  { value: 'phone', label: 'Звонок' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'email', label: 'Email' },
+];
+
 const initialForm = {
   name: '',
   phone: '',
   email: '',
   comment: '',
+  preferredChannel: 'phone',
 };
 
 function loadFormFromStorage() {
@@ -23,6 +32,7 @@ function loadFormFromStorage() {
     phone: parsedForm?.phone || '',
     email: parsedForm?.email || '',
     comment: parsedForm?.comment || '',
+    preferredChannel: parsedForm?.preferredChannel || 'phone',
   };
 }
 
@@ -61,10 +71,14 @@ function validateForm(form, items) {
     }
   }
 
-  if (!email) {
-    errors.email = 'Введите email';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.email = 'Введите корректный email';
+  // Email опционален. Проверяем формат только если поле заполнено,
+  // либо если клиент сам выбрал email как канал связи.
+  if (email) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Введите корректный email';
+    }
+  } else if (form.preferredChannel === 'email') {
+    errors.email = 'Укажите email — выбран как способ связи';
   }
 
   if (comment.length > 1000) {
@@ -80,8 +94,12 @@ function validateForm(form, items) {
 
 export default function QuoteForm({
   title = 'Запрос коммерческого предложения',
+  description = 'Заполните форму, и мы подготовим предложение по текущему составу корзины.',
+  itemsOverride = null,
 }) {
-  const { items, clearCart } = useCartStore();
+  const { items: cartItems, clearCart } = useCartStore();
+  const items = itemsOverride || cartItems;
+  const shouldClearCartOnSuccess = !itemsOverride;
 
   const [form, setForm] = useState(loadFormFromStorage);
   const [errors, setErrors] = useState({});
@@ -89,9 +107,9 @@ export default function QuoteForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
 
-  const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCount = items.length;
   const totalPrice = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
     0
   );
 
@@ -117,6 +135,11 @@ export default function QuoteForm({
     setServerMessage('');
   }
 
+  function handleChannelChange(value) {
+    setForm((prev) => ({ ...prev, preferredChannel: value }));
+    setErrors((prev) => ({ ...prev, email: '' }));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -136,6 +159,7 @@ export default function QuoteForm({
       phone: form.phone.trim(),
       email: form.email.trim(),
       comment: form.comment.trim(),
+      preferredChannel: form.preferredChannel,
     };
 
     const orderPayload = {
@@ -147,6 +171,8 @@ export default function QuoteForm({
         category: item.category,
         price: item.price,
         quantity: item.quantity,
+        unit: item.unit,
+        comment: item.comment,
       })),
       totalCount,
       totalPrice,
@@ -168,12 +194,20 @@ export default function QuoteForm({
         throw new Error(result.message || 'Ошибка отправки');
       }
 
+      trackEvent('quote-submit', {
+        items: totalCount,
+        total: Math.round(totalPrice),
+        channel: cleanedForm.preferredChannel,
+        hasEmail: Boolean(cleanedForm.email),
+      });
       setIsSubmitted(true);
       setServerMessage(result.message || 'Заявка успешно отправлена');
       setErrors({});
       setForm(initialForm);
       clearFormStorage();
-      clearCart();
+      if (shouldClearCartOnSuccess) {
+        clearCart();
+      }
     } catch (error) {
       console.error(error);
       setIsSubmitted(false);
@@ -187,10 +221,7 @@ export default function QuoteForm({
     <div className="quote-form-wrap">
       <div className="quote-form-head">
         <h2 className="section-title section-title--left">{title}</h2>
-        <p className="page-subtitle">
-          Заполните форму, и мы подготовим предложение по текущему составу
-          корзины.
-        </p>
+        <p className="page-subtitle">{description}</p>
       </div>
 
       {items.length === 0 && !isSubmitted ? (
@@ -240,7 +271,7 @@ export default function QuoteForm({
           </div>
 
           <div className="quote-field">
-            <label htmlFor="email">Email *</label>
+            <label htmlFor="email">Email <span className="quote-field__optional">(опционально)</span></label>
             <input
               id="email"
               name="email"
@@ -252,6 +283,32 @@ export default function QuoteForm({
             {errors.email ? (
               <span className="field-error">{errors.email}</span>
             ) : null}
+          </div>
+
+          <div className="quote-field quote-field--full">
+            <label>Как удобнее связаться?</label>
+            <div className="quote-channels">
+              {CHANNEL_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={`quote-channel${
+                    form.preferredChannel === option.value ? ' quote-channel--active' : ''
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="preferredChannel"
+                    value={option.value}
+                    checked={form.preferredChannel === option.value}
+                    onChange={() => handleChannelChange(option.value)}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+            <span className="quote-field__hint">
+              Если выбран мессенджер — отправим КП в чат на указанный телефон.
+            </span>
           </div>
 
           <div className="quote-field quote-field--full">

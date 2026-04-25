@@ -62,6 +62,52 @@
   white-space: nowrap;
 }
 
+.quote-field__optional {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 13px;
+  margin-left: 4px;
+}
+.quote-field__hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.quote-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quote-channel {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #d7e3ef;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #35556d;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.quote-channel input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.quote-channel:hover {
+  border-color: #b7c8db;
+}
+.quote-channel--active {
+  background: linear-gradient(180deg, #ffd35a 0%, #f2b705 100%);
+  border-color: #f2b705;
+  color: #102238;
+}
+
 /* MODAL */
 .modal-overlay {
   position: fixed;
@@ -81,6 +127,9 @@
   background: #fff;
   border-radius: 24px;
   box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
+}
+.modal-window--lead {
+  width: min(540px, 100%);
 }
 .modal-close {
   position: sticky;
@@ -103,4 +152,11 @@
   padding-top: 8px;
   border: 0;
 }
-
+.modal-window--lead .hero-lead-card {
+  max-width: none;
+  padding-top: 8px;
+  border: 0;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: none;
+}

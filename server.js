@@ -114,8 +114,35 @@ function getCanonicalCategoryOrder(categorySlug) {
   return CANONICAL_CATEGORY_ORDER.get(categorySlug) ?? DEFAULT_CATALOG_ORDER;
 }
 
+const QUOTE_CHANNEL_LABELS = {
+  phone: 'Звонок по телефону',
+  whatsapp: 'WhatsApp',
+  telegram: 'Telegram',
+  email: 'Email',
+};
+
 function isValidQuoteRequest({ customer, items }) {
-  return customer && Array.isArray(items) && items.length > 0;
+  if (!customer || !Array.isArray(items) || items.length === 0) {
+    return false;
+  }
+
+  const phoneDigits = String(customer.phone || '').replace(/\D/g, '');
+  if (phoneDigits.length < 10) {
+    return false;
+  }
+
+  // Email опционален. Но если он есть — должен быть валидным.
+  const email = String(customer.email || '').trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return false;
+  }
+
+  // Если клиент выбрал email как канал связи — он обязан быть.
+  if (customer.preferredChannel === 'email' && !email) {
+    return false;
+  }
+
+  return true;
 }
 
 function createQuoteItemsHtml(items) {
@@ -124,11 +151,16 @@ function createQuoteItemsHtml(items) {
       (item) => `
           <tr>
             <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(item.title)}</td>
-            <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(item.sku)}</td>
+            <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(item.sku) || '—'}</td>
             <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(item.category)}</td>
-            <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(item.quantity)}</td>
-            <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(item.price)} ₽</td>
+            <td style="padding:8px;border:1px solid #ddd;">${escapeHtml(item.quantity)} ${escapeHtml(item.unit) || ''}</td>
+            <td style="padding:8px;border:1px solid #ddd;">${Number(item.price || 0) > 0 ? `${escapeHtml(item.price)} ₽` : 'Рассчитать'}</td>
           </tr>
+          ${
+            item.comment
+              ? `<tr><td colspan="5" style="padding:8px;border:1px solid #ddd;color:#555;">Комментарий: ${escapeHtml(item.comment)}</td></tr>`
+              : ''
+          }
         `
     )
     .join('');
@@ -264,7 +296,8 @@ app.post('/api/quote', async (req, res) => {
       <h3>Контакты клиента</h3>
       <p><strong>Имя:</strong> ${escapeHtml(customer.name)}</p>
       <p><strong>Телефон:</strong> ${escapeHtml(customer.phone)}</p>
-      <p><strong>Email:</strong> ${escapeHtml(customer.email)}</p>
+      <p><strong>Email:</strong> ${escapeHtml(customer.email) || '—'}</p>
+      <p><strong>Предпочтительный канал:</strong> ${escapeHtml(QUOTE_CHANNEL_LABELS[customer.preferredChannel] || customer.preferredChannel) || '—'}</p>
       <p><strong>Комментарий:</strong> ${escapeHtml(customer.comment) || '—'}</p>
 
       <h3>Состав заявки</h3>
@@ -274,7 +307,7 @@ app.post('/api/quote', async (req, res) => {
             <th style="padding:8px;border:1px solid #ddd;">Товар</th>
             <th style="padding:8px;border:1px solid #ddd;">SKU</th>
             <th style="padding:8px;border:1px solid #ddd;">Категория</th>
-            <th style="padding:8px;border:1px solid #ddd;">Кол-во</th>
+            <th style="padding:8px;border:1px solid #ddd;">Метраж/объём</th>
             <th style="padding:8px;border:1px solid #ddd;">Цена</th>
           </tr>
         </thead>
@@ -287,10 +320,12 @@ app.post('/api/quote', async (req, res) => {
       <p><strong>Общая сумма:</strong> ${totalPrice} ₽</p>
     `;
 
+    const replyTo = String(customer.email || '').trim() || undefined;
+
     await transporter.sendMail({
       from: process.env.SMTP_FROM,
       to: process.env.QUOTE_TO_EMAIL,
-      replyTo: customer.email,
+      ...(replyTo ? { replyTo } : {}),
       subject: 'Новая заявка на КП — ЮжУралЭлектроКабель',
       html,
     });
@@ -307,11 +342,8 @@ app.post('/api/quote', async (req, res) => {
 
 app.post('/api/lead-request', async (req, res) => {
   try {
-    const { name, phone, comment, createdAt } = req.body;
-
-    if (!name || String(name).trim().length < 2) {
-      return createErrorResponse(res, 'Укажите имя', 400);
-    }
+    const { name, phone, comment, source, createdAt } = req.body;
+    const contactName = String(name || '').trim();
 
     const normalizedPhone = String(phone || '').replace(/\D/g, '');
 
@@ -322,9 +354,10 @@ app.post('/api/lead-request', async (req, res) => {
     const transporter = createTransporter();
 
     const html = `
-      <h2>Новая заявка с главной страницы</h2>
+      <h2>Новая короткая заявка</h2>
       <p><strong>Дата:</strong> ${escapeHtml(createdAt) || '—'}</p>
-      <p><strong>Контактное лицо:</strong> ${escapeHtml(name)}</p>
+      <p><strong>Источник:</strong> ${escapeHtml(source) || '—'}</p>
+      <p><strong>Контактное лицо:</strong> ${escapeHtml(contactName) || 'Не указано'}</p>
       <p><strong>Телефон:</strong> ${escapeHtml(phone)}</p>
       <p><strong>Комментарий:</strong> ${escapeHtml(comment) || '—'}</p>
     `;
@@ -332,7 +365,7 @@ app.post('/api/lead-request', async (req, res) => {
     await transporter.sendMail({
       from: process.env.SMTP_FROM,
       to: process.env.QUOTE_TO_EMAIL,
-      subject: 'Новая заявка с главной — ЮжУралЭлектроКабель',
+      subject: 'Новая короткая заявка — ЮжУралЭлектроКабель',
       html,
     });
 
