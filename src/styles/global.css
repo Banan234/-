@@ -1,8 +1,12 @@
 @import './core/base.css';
 @import './layout/header.css';
-@import './sections/home.css';
-@import './sections/commerce.css';
 @import './layout/overlays.css';
 @import './layout/footer.css';
 @import './pages/content.css';
 @import './responsive.css';
+
+/*
+ * Стили секций (home.css, commerce.css) импортируются из соответствующих
+ * страниц/компонентов — Vite раскладывает их в отдельные CSS-чанки и
+ * подгружает только когда нужная страница реально открывается.
+ */
