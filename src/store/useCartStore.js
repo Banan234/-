@@ -1,72 +1,86 @@
 import { create } from 'zustand';
-import { loadStoredJson, saveStoredJson } from '../lib/browserStorage';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { createMigratingItemsStorage } from '../lib/browserStorage';
 
-const CART_STORAGE_KEY = 'yuzhural-cart';
+export const useCartStore = create(
+  persist(
+    (set) => ({
+      items: [],
 
-function loadCartFromStorage() {
-  const parsedCart = loadStoredJson(CART_STORAGE_KEY, []);
+      addItem: (product) =>
+        set((state) => {
+          const existingItem = state.items.find((item) => item.id === product.id);
 
-  return Array.isArray(parsedCart) ? parsedCart : [];
-}
+          if (existingItem) {
+            return {
+              items: state.items.map((item) =>
+                item.id === product.id
+                  ? { ...item, quantity: item.quantity + (product.quantity || 1) }
+                  : item
+              ),
+            };
+          }
 
-function saveCartToStorage(items) {
-  saveStoredJson(CART_STORAGE_KEY, items);
-}
+          return {
+            items: [
+              ...state.items,
+              { ...product, quantity: product.quantity || 1 },
+            ],
+          };
+        }),
 
-export const useCartStore = create((set) => ({
-  items: loadCartFromStorage(),
+      addManualItem: (item) =>
+        set((state) => ({
+          items: [
+            ...state.items,
+            {
+              id: `manual-${Date.now()}`,
+              slug: '',
+              sku: '',
+              image: '/product-placeholder.svg',
+              category: 'Ручная позиция',
+              price: 0,
+              unit: 'м',
+              manual: true,
+              ...item,
+              quantity: item.quantity || 1,
+            },
+          ],
+        })),
 
-  addItem: (product) =>
-    set((state) => {
-      const existingItem = state.items.find((item) => item.id === product.id);
+      updateItemQuantity: (id, quantity) =>
+        set((state) => {
+          const nextQuantity = Math.max(0, Number(quantity) || 0);
+          return {
+            items: state.items
+              .map((item) =>
+                item.id === id ? { ...item, quantity: nextQuantity } : item
+              )
+              .filter((item) => item.quantity > 0),
+          };
+        }),
 
-      let updatedItems;
+      removeItem: (id) =>
+        set((state) => ({
+          items: state.items.filter((item) => item.id !== id),
+        })),
 
-      if (existingItem) {
-        updatedItems = state.items.map((item) =>
-          item.id === product.id
-            ? {
-                ...item,
-                quantity: item.quantity + (product.quantity || 1),
-              }
-            : item
-        );
-      } else {
-        updatedItems = [
-          ...state.items,
-          { ...product, quantity: product.quantity || 1 },
-        ];
-      }
+      decreaseItem: (id) =>
+        set((state) => ({
+          items: state.items
+            .map((item) =>
+              item.id === id ? { ...item, quantity: item.quantity - 1 } : item
+            )
+            .filter((item) => item.quantity > 0),
+        })),
 
-      saveCartToStorage(updatedItems);
-
-      return { items: updatedItems };
+      clearCart: () => set({ items: [] }),
     }),
-
-  removeItem: (id) =>
-    set((state) => {
-      const updatedItems = state.items.filter((item) => item.id !== id);
-
-      saveCartToStorage(updatedItems);
-
-      return { items: updatedItems };
-    }),
-
-  decreaseItem: (id) =>
-    set((state) => {
-      const updatedItems = state.items
-        .map((item) =>
-          item.id === id ? { ...item, quantity: item.quantity - 1 } : item
-        )
-        .filter((item) => item.quantity > 0);
-
-      saveCartToStorage(updatedItems);
-
-      return { items: updatedItems };
-    }),
-
-  clearCart: () => {
-    saveCartToStorage([]);
-    set({ items: [] });
-  },
-}));
+    {
+      name: 'yuzhural-cart',
+      storage: createJSONStorage(() => createMigratingItemsStorage()),
+      partialize: (state) => ({ items: state.items }),
+      version: 1,
+    }
+  )
+);

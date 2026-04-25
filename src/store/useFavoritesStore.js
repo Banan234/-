@@ -1,58 +1,43 @@
 import { create } from 'zustand';
-import { loadStoredJson, saveStoredJson } from '../lib/browserStorage';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { createMigratingItemsStorage } from '../lib/browserStorage';
 
-const FAVORITES_STORAGE_KEY = 'yuzhural-favorites';
+export const useFavoritesStore = create(
+  persist(
+    (set, get) => ({
+      items: [],
 
-function loadFavoritesFromStorage() {
-  const parsedFavorites = loadStoredJson(FAVORITES_STORAGE_KEY, []);
+      addItem: (product) =>
+        set((state) => {
+          if (state.items.some((item) => item.id === product.id)) {
+            return state;
+          }
+          return { items: [...state.items, product] };
+        }),
 
-  return Array.isArray(parsedFavorites) ? parsedFavorites : [];
-}
+      removeItem: (id) =>
+        set((state) => ({
+          items: state.items.filter((item) => item.id !== id),
+        })),
 
-function saveFavoritesToStorage(items) {
-  saveStoredJson(FAVORITES_STORAGE_KEY, items);
-}
+      toggleItem: (product) => {
+        const exists = get().items.some((item) => item.id === product.id);
+        if (exists) {
+          get().removeItem(product.id);
+          return;
+        }
+        get().addItem(product);
+      },
 
-export const useFavoritesStore = create((set, get) => ({
-  items: loadFavoritesFromStorage(),
+      isFavorite: (id) => get().items.some((item) => item.id === id),
 
-  addItem: (product) =>
-    set((state) => {
-      const exists = state.items.some((item) => item.id === product.id);
-
-      if (exists) {
-        return state;
-      }
-
-      const updatedItems = [...state.items, product];
-      saveFavoritesToStorage(updatedItems);
-
-      return { items: updatedItems };
+      clearFavorites: () => set({ items: [] }),
     }),
-
-  removeItem: (id) =>
-    set((state) => {
-      const updatedItems = state.items.filter((item) => item.id !== id);
-      saveFavoritesToStorage(updatedItems);
-
-      return { items: updatedItems };
-    }),
-
-  toggleItem: (product) => {
-    const exists = get().items.some((item) => item.id === product.id);
-
-    if (exists) {
-      get().removeItem(product.id);
-      return;
+    {
+      name: 'yuzhural-favorites',
+      storage: createJSONStorage(() => createMigratingItemsStorage()),
+      partialize: (state) => ({ items: state.items }),
+      version: 1,
     }
-
-    get().addItem(product);
-  },
-
-  isFavorite: (id) => get().items.some((item) => item.id === id),
-
-  clearFavorites: () => {
-    saveFavoritesToStorage([]);
-    set({ items: [] });
-  },
-}));
+  )
+);
