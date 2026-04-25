@@ -6,6 +6,123 @@ import { fetchProductBySlug, fetchRelatedProducts } from '../lib/productsApi';
 import { useCartStore } from '../store/useCartStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useSEO } from '../hooks/useSEO';
+import { useJsonLd } from '../hooks/useJsonLd';
+import { trackEvent } from '../lib/analytics';
+import {
+  SITE_LEGAL_NAME,
+  SITE_NAME,
+  SITE_URL,
+  absoluteUrl,
+} from '../lib/siteConfig';
+import '../styles/sections/commerce.css';
+
+const BREADCRUMB_JSON_LD_ID = 'product-breadcrumb-json-ld';
+const PRODUCT_JSON_LD_ID = 'product-product-json-ld';
+
+function buildProductJsonLd(product) {
+  if (!product) return null;
+
+  const url = absoluteUrl(`/product/${product.slug}`);
+  const price = Number(product.price);
+  const hasPrice = Number.isFinite(price) && price > 0;
+  const stock = Number(product.stock);
+  const hasStock = Number.isFinite(stock) && stock > 0;
+  const brandName =
+    product.catalogBrand || product.manufacturer || SITE_LEGAL_NAME;
+
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.title || product.fullName || product.name,
+    sku: product.sku || String(product.id),
+    url,
+    description:
+      product.description ||
+      [
+        product.fullName || product.name,
+        product.catalogCategory,
+        product.catalogSection,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    brand: {
+      '@type': 'Brand',
+      name: brandName,
+    },
+    category: product.catalogCategory || product.catalogSection || undefined,
+  };
+
+  if (product.image) {
+    data.image = absoluteUrl(product.image);
+  }
+
+  if (product.mark) {
+    data.mpn = product.mark;
+  }
+
+  if (hasPrice) {
+    data.offers = {
+      '@type': 'Offer',
+      url,
+      priceCurrency: 'RUB',
+      price: price.toFixed(2),
+      availability: hasStock
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/PreOrder',
+      itemCondition: 'https://schema.org/NewCondition',
+      seller: {
+        '@type': 'Organization',
+        name: SITE_NAME,
+        url: SITE_URL,
+      },
+    };
+  }
+
+  return data;
+}
+
+function getCatalogPath(slug) {
+  return slug ? `/catalog/${slug}` : '/catalog';
+}
+
+function getProductBreadcrumbs(product) {
+  const items = [
+    { label: 'Главная', to: '/' },
+    { label: 'Каталог', to: '/catalog' },
+  ];
+  const hasSection = Boolean(product.catalogSection);
+  const hasCategory = Boolean(product.catalogCategory);
+  const isSameCatalogLevel =
+    (product.catalogSectionSlug &&
+      product.catalogSectionSlug === product.catalogCategorySlug) ||
+    product.catalogSection === product.catalogCategory;
+
+  if (hasSection) {
+    items.push({
+      label: product.catalogSection,
+      to: getCatalogPath(product.catalogSectionSlug),
+    });
+  }
+
+  if (hasCategory && !isSameCatalogLevel) {
+    items.push({
+      label: product.catalogCategory,
+      to: getCatalogPath(product.catalogCategorySlug),
+    });
+  }
+
+  items.push({
+    label: product.title,
+    to: `/product/${product.slug}`,
+    isCurrent: true,
+  });
+
+  return items;
+}
+
+function getAbsoluteUrl(path) {
+  return absoluteUrl(path);
+}
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -24,6 +141,8 @@ export default function ProductPage() {
     title: product ? product.title : undefined,
     description: product ? product.description : '',
     ogType: 'product',
+    image: product?.image,
+    canonical: product ? `/product/${product.slug}` : undefined,
   });
 
   useEffect(() => {
@@ -42,6 +161,14 @@ export default function ProductPage() {
 
         setProduct(item);
         setRelatedProducts(related);
+        if (item) {
+          trackEvent('product-view', {
+            sku: item.sku || item.id,
+            slug: item.slug,
+            mark: item.mark,
+            category: item.catalogCategorySlug || item.catalogSectionSlug,
+          });
+        }
       } catch (requestError) {
         if (requestError.name === 'AbortError') {
           return;
@@ -58,6 +185,24 @@ export default function ProductPage() {
 
     return () => controller.abort();
   }, [slug]);
+
+  const breadcrumbJsonLd = product
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: getProductBreadcrumbs(product).map((item, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          name: item.label,
+          item: getAbsoluteUrl(item.to),
+        })),
+      }
+    : null;
+
+  const productJsonLd = product ? buildProductJsonLd(product) : null;
+
+  useJsonLd(BREADCRUMB_JSON_LD_ID, breadcrumbJsonLd);
+  useJsonLd(PRODUCT_JSON_LD_ID, productJsonLd);
 
   if (isLoading) {
     return (
@@ -89,16 +234,34 @@ export default function ProductPage() {
     );
   }
 
+  function openProductQuoteModal() {
+    window.dispatchEvent(
+      new CustomEvent('open-cart-quote-modal', {
+        detail: {
+          title: 'Запрос КП по этой позиции',
+          description:
+            'Заполните форму, и мы подготовим коммерческое предложение по выбранной позиции.',
+          items: [{ ...product, quantity }],
+        },
+      })
+    );
+  }
+
   return (
     <section className="section">
       <Container>
-        <div className="breadcrumbs">
-          <Link to="/">Главная</Link>
-          <span> / </span>
-          <Link to="/catalog">Каталог</Link>
-          <span> / </span>
-          <span>{product.title}</span>
-        </div>
+        <nav className="breadcrumbs" aria-label="Хлебные крошки">
+          {getProductBreadcrumbs(product).map((item, index, items) => (
+            <span key={`${item.label}-${index}`}>
+              {index > 0 && <span aria-hidden="true"> / </span>}
+              {index === items.length - 1 ? (
+                <span aria-current="page">{item.label}</span>
+              ) : (
+                <Link to={item.to}>{item.label}</Link>
+              )}
+            </span>
+          ))}
+        </nav>
 
         <div className="product-page">
           <div className="product-page__media">
@@ -137,10 +300,12 @@ export default function ProductPage() {
             </div>
 
             <div className="product-page__price">
-              от {product.price.toLocaleString('ru-RU')} ₽
+              {product.price.toLocaleString('ru-RU')} ₽
             </div>
 
-            <div className="product-page__unit">{product.unit}</div>
+            <div className="product-page__unit">
+              {product.unit ? `/ ${product.unit}` : ''}
+            </div>
 
             <div className="product-page__buttons">
               <div className="product-qty">
@@ -168,6 +333,14 @@ export default function ProductPage() {
               <button
                 type="button"
                 className="button-primary"
+                onClick={openProductQuoteModal}
+              >
+                Запросить КП по этой позиции
+              </button>
+
+              <button
+                type="button"
+                className="button-secondary"
                 onClick={() => addItem({ ...product, quantity })}
               >
                 Добавить в корзину

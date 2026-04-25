@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /cart
+Disallow: /favorites
+
+Sitemap: https://yuzhuralelectrokabel.ru/sitemap.xml

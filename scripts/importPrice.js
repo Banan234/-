@@ -14,6 +14,7 @@ import {
   loadProductRegistry,
   saveProductRegistry,
 } from './lib/productRegistry.js';
+import { writeSeoArtifacts } from './lib/siteSeo.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,6 +33,12 @@ const reportHtmlFile = path.join(projectRoot, 'data', 'import-report.html');
 const overridesFile = path.join(projectRoot, 'data', 'priceOverrides.json');
 const importConfigFile = path.join(projectRoot, 'data', 'importConfig.json');
 const registryFile = path.join(projectRoot, 'data', 'productRegistry.json');
+const publicDir = path.join(projectRoot, 'public');
+const catalogCategoriesFile = path.join(
+  projectRoot,
+  'data',
+  'catalogCategories.json'
+);
 
 const REQUIRED_HEADER_TOKENS = ['наименование', 'ед.изм', 'цена', 'остаток'];
 
@@ -1645,9 +1652,28 @@ async function main() {
 
   const products = productsWithIdentity.map(stripClassificationDiagnostics);
 
+  let seoSummary = null;
+
   if (!isDryRun) {
     await saveProducts(products);
     await saveProductRegistry(registryFile, registry);
+
+    try {
+      const categoriesRaw = await fs.readFile(catalogCategoriesFile, 'utf-8');
+      const categoriesData = JSON.parse(categoriesRaw);
+      seoSummary = await writeSeoArtifacts({
+        outputDir: publicDir,
+        siteUrl: process.env.SITE_URL || process.env.VITE_SITE_URL,
+        products,
+        categoriesData,
+        lastmod: generatedAt,
+      });
+    } catch (error) {
+      console.warn(
+        'Не удалось сгенерировать sitemap.xml/robots.txt:',
+        error.message
+      );
+    }
   }
 
   const diff = buildDiff(previousProducts, products);
@@ -1777,6 +1803,11 @@ async function main() {
   console.log(
     `Реестр товаров: ${path.relative(projectRoot, registryFile)} · записей: ${Object.keys(registry.entries).length} · nextId: ${registry.nextId}`
   );
+  if (seoSummary) {
+    console.log(
+      `SEO: ${path.relative(projectRoot, seoSummary.sitemapPath)} (${seoSummary.urlCount} URL) · ${path.relative(projectRoot, seoSummary.robotsPath)}`
+    );
+  }
   console.log(
     `Схема прайса: заголовков=${schema.headerRowsFound}, найдено=${schema.detectedHeaders.join(',')}`
   );
