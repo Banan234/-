@@ -63,6 +63,7 @@ export default function FavoritesPage() {
             {items.map((item) => {
               const quantity = getQuantity(item.id);
               const specs = Object.entries(item.specs || {}).slice(0, 4);
+              const isInStock = item.inStock ?? Number(item.stock || 0) > 0;
 
               return (
                 <article key={item.id} className="favorite-card">
@@ -72,12 +73,12 @@ export default function FavoritesPage() {
                     </span>
                     <span
                       className={`favorite-card__stock ${
-                        item.inStock
+                        isInStock
                           ? 'favorite-card__stock--in'
                           : 'favorite-card__stock--out'
                       }`}
                     >
-                      {item.inStock ? 'В наличии' : 'Под заказ'}
+                      {isInStock ? 'В наличии' : 'Под заказ'}
                     </span>
                   </div>
 

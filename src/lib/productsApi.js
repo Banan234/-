@@ -11,8 +11,25 @@ async function fetchJson(url, signal, fallbackMessage) {
 
 export function fetchProducts(signal, options = {}) {
   const params = new URLSearchParams();
-  if (options.category) {
-    params.set('category', options.category);
+  for (const key of [
+    'category',
+    'search',
+    'priceMin',
+    'priceMax',
+    'material',
+    'construction',
+    'cores',
+    'section',
+    'voltage',
+    'appType',
+    'spe',
+    'sort',
+    'page',
+    'limit',
+  ]) {
+    if (options[key] !== undefined && options[key] !== null && options[key] !== '') {
+      params.set(key, String(options[key]));
+    }
   }
   const query = params.toString();
   const url = query ? `/api/products?${query}` : '/api/products';
@@ -34,6 +51,19 @@ export async function fetchRelatedProducts(slug, limit, signal) {
     `/api/products/${slug}/related?limit=${limit}`,
     signal,
     'Не удалось загрузить похожие товары'
+  );
+
+  return result.items;
+}
+
+export async function fetchProductSuggestions(search, limit, signal) {
+  const params = new URLSearchParams();
+  params.set('search', search);
+  params.set('limit', String(limit));
+  const result = await fetchJson(
+    `/api/products/suggestions?${params.toString()}`,
+    signal,
+    'Не удалось загрузить подсказки'
   );
 
   return result.items;

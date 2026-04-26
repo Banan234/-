@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ProductCard from '../ui/ProductCard';
 import {
   getCoreVariantLabel,
@@ -8,6 +7,7 @@ import {
   formatVoltage,
 } from '../../lib/catalogFilters';
 import { trackEvent } from '../../lib/analytics';
+import { useCatalogFilters } from '../../hooks/useCatalogFilters';
 
 const PAGE_SIZE = 24;
 
@@ -16,34 +16,28 @@ function getPageNumbers(currentPage, totalPages) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
   const pages = new Set([1, totalPages]);
-  for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+  for (
+    let i = Math.max(1, currentPage - 2);
+    i <= Math.min(totalPages, currentPage + 2);
+    i++
+  ) {
     pages.add(i);
   }
   const sorted = [...pages].sort((a, b) => a - b);
   const result = [];
   for (let i = 0; i < sorted.length; i++) {
     result.push(sorted[i]);
-    if (i < sorted.length - 1 && sorted[i + 1] - sorted[i] > 1) result.push('...');
+    if (i < sorted.length - 1 && sorted[i + 1] - sorted[i] > 1)
+      result.push('...');
   }
   return result;
 }
 
 function scrollCatalogGridIntoView() {
-  document.getElementById('catalog-grid')?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'start',
-  });
-}
-
-function parseCsvParam(raw) {
-  if (!raw) return [];
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
-}
-
-function parseCsvNumbers(raw) {
-  return parseCsvParam(raw)
-    .map((v) => Number(v))
-    .filter((v) => Number.isFinite(v));
+  const grid = document.getElementById('catalog-grid');
+  if (!grid) return;
+  const top = grid.getBoundingClientRect().top + window.scrollY;
+  window.scrollTo({ top, behavior: 'smooth' });
 }
 
 export default function ProductListingView({
@@ -52,27 +46,40 @@ export default function ProductListingView({
   error,
   extraFilters = {},
   scopeKey,
+  pagination = null,
+  filterOptions: serverFilterOptions = null,
 }) {
   const { showAppType = false, showSPE = false } = extraFilters;
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const search = searchParams.get('search') || '';
-  const priceMin = searchParams.get('priceMin') || '';
-  const priceMax = searchParams.get('priceMax') || '';
-  const sortBy = searchParams.get('sort') || 'default';
-  const selectedMaterials = parseCsvParam(searchParams.get('material'));
-  const selectedConstructions = parseCsvParam(searchParams.get('construction'));
-  const selectedCores = parseCsvParam(searchParams.get('cores'));
-  const selectedSections = parseCsvNumbers(searchParams.get('section'));
-  const selectedVoltages = parseCsvNumbers(searchParams.get('voltage'));
-  const selectedAppTypes = parseCsvParam(searchParams.get('appType'));
-  const onlySPE = searchParams.get('spe') === '1';
+  const {
+    filters,
+    filtersKey: catalogFiltersKey,
+    updateParam,
+    updateParams,
+    toggleCsvParam,
+    resetFilters,
+  } = useCatalogFilters({ includeAdvancedFilters: showAppType || showSPE });
+  const {
+    search,
+    priceMin,
+    priceMax,
+    priceMinNumber,
+    priceMaxNumber,
+    sortBy,
+    selectedMaterials,
+    selectedConstructions,
+    selectedCores,
+    selectedSections,
+    selectedVoltages,
+    selectedAppTypes,
+    onlySPE,
+  } = filters;
 
   const [searchInput, setSearchInput] = useState(search);
   const [priceMinInput, setPriceMinInput] = useState(priceMin);
   const [priceMaxInput, setPriceMaxInput] = useState(priceMax);
-  const [page, setPage] = useState(1);
+  const [localPage, setLocalPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
+  const isServerPaged = Boolean(pagination);
 
   useEffect(() => {
     setSearchInput(search);
@@ -86,77 +93,57 @@ export default function ProductListingView({
     setPriceMaxInput(priceMax);
   }, [priceMax]);
 
+  // Сбрасываем страницу при любой смене фильтров. Ключ строим один раз
+  // из релевантных параметров — без этого зависимости пересоздавались бы
+  // на каждый ререндер, провоцируя лишние прогоны эффекта.
+  const filtersKey = useMemo(
+    () => [scopeKey, catalogFiltersKey].join('|'),
+    [scopeKey, catalogFiltersKey]
+  );
+
   useEffect(() => {
-    setPage(1);
-  }, [
-    scopeKey,
-    search,
-    priceMin,
-    priceMax,
-    sortBy,
-    searchParams.get('material'),
-    searchParams.get('construction'),
-    searchParams.get('cores'),
-    searchParams.get('section'),
-    searchParams.get('voltage'),
-    searchParams.get('appType'),
-    searchParams.get('spe'),
-  ]);
-
-  function updateParam(key, value) {
-    const next = new URLSearchParams(searchParams);
-    if (value === null || value === undefined || value === '' || value === false) {
-      next.delete(key);
-    } else {
-      next.set(key, String(value));
+    if (!isServerPaged) {
+      setLocalPage(1);
     }
-    setSearchParams(next, { replace: false });
-  }
+  }, [filtersKey, isServerPaged]);
 
-  function toggleCsvParam(key, value) {
-    const current = parseCsvParam(searchParams.get(key));
-    const next = current.includes(String(value))
-      ? current.filter((v) => v !== String(value))
-      : [...current, String(value)];
-    updateParam(key, next.length > 0 ? next.join(',') : '');
-  }
-
-  function resetFilters() {
-    const next = new URLSearchParams(searchParams);
-    [
-      'search',
-      'priceMin',
-      'priceMax',
-      'material',
-      'construction',
-      'cores',
-      'section',
-      'voltage',
-      'appType',
-      'spe',
-    ].forEach((k) => next.delete(k));
-    setSearchParams(next, { replace: false });
-  }
+  const searchDebounceRef = useRef(null);
 
   function commitSearch() {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
     const value = searchInput.trim();
-    const previous = (searchParams.get('search') || '').trim();
-    if (value && value !== previous) {
+    const previous = search.trim();
+    if (value === previous) return;
+    if (value) {
       trackEvent('search-submit', { query: value, source: 'catalog' });
     }
     updateParam('search', value);
   }
 
+  // Дебаунсим автокоммит, чтобы клик по соседнему фильтру не отправлял
+  // незаконченный запрос. Enter и кнопка очистки коммитят сразу.
+  useEffect(() => {
+    if (searchInput.trim() === search.trim()) return undefined;
+    const timer = setTimeout(() => {
+      searchDebounceRef.current = null;
+      commitSearch();
+    }, 400);
+    searchDebounceRef.current = timer;
+    return () => clearTimeout(timer);
+    // commitSearch замкнута на актуальный searchInput через сам эффект
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput, search]);
+
   function commitPriceRange() {
-    updateParam('priceMin', priceMinInput.trim());
-    // second update merges with first because setSearchParams reads latest in same microtask
-    // but to be safe, build one params object:
-    const next = new URLSearchParams(searchParams);
     const minVal = priceMinInput.trim();
     const maxVal = priceMaxInput.trim();
-    if (minVal) next.set('priceMin', minVal); else next.delete('priceMin');
-    if (maxVal) next.set('priceMax', maxVal); else next.delete('priceMax');
-    setSearchParams(next, { replace: false });
+    updateParams({
+      priceMin: minVal,
+      priceMax: maxVal,
+    });
   }
 
   const searchedProducts = useMemo(() => {
@@ -176,7 +163,7 @@ export default function ProductListingView({
     });
   }, [products, search]);
 
-  const filterOptions = useMemo(() => {
+  const localFilterOptions = useMemo(() => {
     const materialSet = new Set();
     const constructionSet = new Set();
     const coreSet = new Set();
@@ -194,7 +181,8 @@ export default function ProductListingView({
       if (coreVariant) coreSet.add(coreVariant);
       if (product.crossSection) sectionSet.add(product.crossSection);
       if (product.voltage != null) voltageSet.add(product.voltage);
-      if (product.catalogApplicationType) appTypeSet.add(product.catalogApplicationType);
+      if (product.catalogApplicationType)
+        appTypeSet.add(product.catalogApplicationType);
       if (product.catalogType === 'СПЭ') hasSPE = true;
       const p = Number(product.price);
       if (Number.isFinite(p) && p > 0) {
@@ -205,8 +193,12 @@ export default function ProductListingView({
 
     return {
       materials: [...materialSet].sort((a, b) => a.localeCompare(b, 'ru')),
-      constructions: [...constructionSet].sort((a, b) => a.localeCompare(b, 'ru')),
-      cores: [...coreSet].sort((a, b) => a.localeCompare(b, 'ru', { numeric: true })),
+      constructions: [...constructionSet].sort((a, b) =>
+        a.localeCompare(b, 'ru')
+      ),
+      cores: [...coreSet].sort((a, b) =>
+        a.localeCompare(b, 'ru', { numeric: true })
+      ),
       sections: [...sectionSet].sort((a, b) => a - b),
       voltages: [...voltageSet].sort((a, b) => a - b),
       appTypes: [...appTypeSet].sort((a, b) => a.localeCompare(b, 'ru')),
@@ -217,16 +209,24 @@ export default function ProductListingView({
   }, [searchedProducts]);
 
   const filteredProducts = useMemo(() => {
+    if (isServerPaged) return products;
+
     let result = [...searchedProducts];
 
     if (selectedMaterials.length > 0) {
-      result = result.filter((p) => selectedMaterials.includes(getConductorMaterial(p)));
+      result = result.filter((p) =>
+        selectedMaterials.includes(getConductorMaterial(p))
+      );
     }
     if (selectedConstructions.length > 0) {
-      result = result.filter((p) => selectedConstructions.includes(getWireConstruction(p)));
+      result = result.filter((p) =>
+        selectedConstructions.includes(getWireConstruction(p))
+      );
     }
     if (selectedCores.length > 0) {
-      result = result.filter((p) => selectedCores.includes(getCoreVariantLabel(p)));
+      result = result.filter((p) =>
+        selectedCores.includes(getCoreVariantLabel(p))
+      );
     }
     if (selectedSections.length > 0) {
       result = result.filter((p) => selectedSections.includes(p.crossSection));
@@ -235,24 +235,50 @@ export default function ProductListingView({
       result = result.filter((p) => selectedVoltages.includes(p.voltage));
     }
     if (showAppType && selectedAppTypes.length > 0) {
-      result = result.filter((p) => selectedAppTypes.includes(p.catalogApplicationType));
+      result = result.filter((p) =>
+        selectedAppTypes.includes(p.catalogApplicationType)
+      );
     }
     if (showSPE && onlySPE) {
       result = result.filter((p) => p.catalogType === 'СПЭ');
     }
 
-    const minNum = Number(priceMin);
-    const maxNum = Number(priceMax);
-    if (Number.isFinite(minNum) && minNum > 0) {
-      result = result.filter((p) => Number(p.price) >= minNum);
+    if (priceMinNumber !== null) {
+      result = result.filter((p) => Number(p.price) >= priceMinNumber);
     }
-    if (Number.isFinite(maxNum) && maxNum > 0) {
-      result = result.filter((p) => Number(p.price) <= maxNum);
+    if (priceMaxNumber !== null) {
+      result = result.filter((p) => Number(p.price) <= priceMaxNumber);
     }
 
-    if (sortBy === 'price-asc') result.sort((a, b) => a.price - b.price);
-    if (sortBy === 'price-desc') result.sort((a, b) => b.price - a.price);
-    if (sortBy === 'title-asc') result.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
+    // «Цена по запросу» (price=0/null) всегда уезжает в конец списка —
+    // и при возрастании, и при убывании. Иначе при price-asc такие позиции
+    // оказывались бы первыми, что вводит снабженца в заблуждение.
+    const sortPrice = (p) => {
+      const value = Number(p.price);
+      return Number.isFinite(value) && value > 0 ? value : null;
+    };
+    if (sortBy === 'price-asc') {
+      result.sort((a, b) => {
+        const pa = sortPrice(a);
+        const pb = sortPrice(b);
+        if (pa === null && pb === null) return 0;
+        if (pa === null) return 1;
+        if (pb === null) return -1;
+        return pa - pb;
+      });
+    }
+    if (sortBy === 'price-desc') {
+      result.sort((a, b) => {
+        const pa = sortPrice(a);
+        const pb = sortPrice(b);
+        if (pa === null && pb === null) return 0;
+        if (pa === null) return 1;
+        if (pb === null) return -1;
+        return pb - pa;
+      });
+    }
+    if (sortBy === 'title-asc')
+      result.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
     if (sortBy === 'popular') result.sort((a, b) => b.stock - a.stock);
 
     return result;
@@ -267,13 +293,24 @@ export default function ProductListingView({
     onlySPE,
     showAppType,
     showSPE,
-    priceMin,
-    priceMax,
+    priceMinNumber,
+    priceMaxNumber,
     sortBy,
+    isServerPaged,
+    products,
   ]);
 
-  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE);
-  const visibleProducts = filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const filterOptions = serverFilterOptions || localFilterOptions;
+  const page = pagination?.page || localPage;
+  const resultCount = pagination?.total ?? filteredProducts.length;
+  const totalPages =
+    pagination?.totalPages || Math.ceil(filteredProducts.length / PAGE_SIZE);
+  const visibleProducts = isServerPaged
+    ? products
+    : filteredProducts.slice(
+        (localPage - 1) * PAGE_SIZE,
+        localPage * PAGE_SIZE
+      );
 
   const hasActiveFilters =
     selectedMaterials.length > 0 ||
@@ -300,7 +337,11 @@ export default function ProductListingView({
     const normalizedPage = Math.min(Math.max(nextPage, 1), totalPages);
     if (normalizedPage === page) return;
 
-    setPage(normalizedPage);
+    if (isServerPaged) {
+      updateParam('page', normalizedPage > 1 ? normalizedPage : '');
+    } else {
+      setLocalPage(normalizedPage);
+    }
     requestAnimationFrame(scrollCatalogGridIntoView);
   }
 
@@ -316,17 +357,21 @@ export default function ProductListingView({
         >
           <input
             type="search"
+            name="catalog-search"
             className="catalog-search-bar__input"
             placeholder="Поиск по марке или названию: ВВГнг-LS 3×2.5"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            onBlur={commitSearch}
           />
           {search && (
             <button
               type="button"
               className="catalog-search-bar__clear"
               onClick={() => {
+                if (searchDebounceRef.current) {
+                  clearTimeout(searchDebounceRef.current);
+                  searchDebounceRef.current = null;
+                }
                 setSearchInput('');
                 updateParam('search', '');
               }}
@@ -379,7 +424,9 @@ export default function ProductListingView({
             className="catalog-filter-panel__head"
             onClick={() => setIsFilterOpen((v) => !v)}
           >
-            <span className="catalog-filter-panel__title">Подбор по параметрам</span>
+            <span className="catalog-filter-panel__title">
+              Подбор по параметрам
+            </span>
             <span
               className={`catalog-filter-panel__chevron${
                 isFilterOpen ? ' catalog-filter-panel__chevron--open' : ''
@@ -393,14 +440,19 @@ export default function ProductListingView({
             <div className="catalog-filter-panel__body">
               {filterOptions.materials.length > 0 && (
                 <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">Материал жилы</span>
+                  <span className="catalog-filter-row__label">
+                    Материал жилы
+                  </span>
                   <div className="catalog-filter-row__tags">
                     {filterOptions.materials.map((mat) => (
                       <button
                         key={mat}
                         type="button"
+                        aria-pressed={selectedMaterials.includes(mat)}
                         className={`catalog-filter-tag${
-                          selectedMaterials.includes(mat) ? ' catalog-filter-tag--active' : ''
+                          selectedMaterials.includes(mat)
+                            ? ' catalog-filter-tag--active'
+                            : ''
                         }`}
                         onClick={() => toggleCsvParam('material', mat)}
                       >
@@ -413,18 +465,23 @@ export default function ProductListingView({
 
               {filterOptions.constructions.length > 0 && (
                 <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">Исполнение жилы</span>
+                  <span className="catalog-filter-row__label">
+                    Исполнение жилы
+                  </span>
                   <div className="catalog-filter-row__tags">
                     {filterOptions.constructions.map((construction) => (
                       <button
                         key={construction}
                         type="button"
+                        aria-pressed={selectedConstructions.includes(construction)}
                         className={`catalog-filter-tag${
                           selectedConstructions.includes(construction)
                             ? ' catalog-filter-tag--active'
                             : ''
                         }`}
-                        onClick={() => toggleCsvParam('construction', construction)}
+                        onClick={() =>
+                          toggleCsvParam('construction', construction)
+                        }
                       >
                         {construction}
                       </button>
@@ -441,8 +498,11 @@ export default function ProductListingView({
                       <button
                         key={core}
                         type="button"
+                        aria-pressed={selectedCores.includes(core)}
                         className={`catalog-filter-tag${
-                          selectedCores.includes(core) ? ' catalog-filter-tag--active' : ''
+                          selectedCores.includes(core)
+                            ? ' catalog-filter-tag--active'
+                            : ''
                         }`}
                         onClick={() => toggleCsvParam('cores', core)}
                       >
@@ -455,14 +515,19 @@ export default function ProductListingView({
 
               {filterOptions.sections.length > 0 && (
                 <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">Сечение, мм²</span>
+                  <span className="catalog-filter-row__label">
+                    Сечение, мм²
+                  </span>
                   <div className="catalog-filter-row__tags">
                     {filterOptions.sections.map((section) => (
                       <button
                         key={section}
                         type="button"
+                        aria-pressed={selectedSections.includes(section)}
                         className={`catalog-filter-tag${
-                          selectedSections.includes(section) ? ' catalog-filter-tag--active' : ''
+                          selectedSections.includes(section)
+                            ? ' catalog-filter-tag--active'
+                            : ''
                         }`}
                         onClick={() => toggleCsvParam('section', section)}
                       >
@@ -475,14 +540,19 @@ export default function ProductListingView({
 
               {filterOptions.voltages.length > 0 && (
                 <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">Напряжение, кВ</span>
+                  <span className="catalog-filter-row__label">
+                    Напряжение, кВ
+                  </span>
                   <div className="catalog-filter-row__tags">
                     {filterOptions.voltages.map((v) => (
                       <button
                         key={v}
                         type="button"
+                        aria-pressed={selectedVoltages.includes(v)}
                         className={`catalog-filter-tag${
-                          selectedVoltages.includes(v) ? ' catalog-filter-tag--active' : ''
+                          selectedVoltages.includes(v)
+                            ? ' catalog-filter-tag--active'
+                            : ''
                         }`}
                         onClick={() => toggleCsvParam('voltage', v)}
                       >
@@ -501,8 +571,11 @@ export default function ProductListingView({
                       <button
                         key={t}
                         type="button"
+                        aria-pressed={selectedAppTypes.includes(t)}
                         className={`catalog-filter-tag${
-                          selectedAppTypes.includes(t) ? ' catalog-filter-tag--active' : ''
+                          selectedAppTypes.includes(t)
+                            ? ' catalog-filter-tag--active'
+                            : ''
                         }`}
                         onClick={() => toggleCsvParam('appType', t)}
                       >
@@ -515,10 +588,13 @@ export default function ProductListingView({
 
               {showSPE && filterOptions.hasSPE && (
                 <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">Тип изоляции</span>
+                  <span className="catalog-filter-row__label">
+                    Тип изоляции
+                  </span>
                   <div className="catalog-filter-row__tags">
                     <button
                       type="button"
+                      aria-pressed={onlySPE}
                       className={`catalog-filter-tag${
                         onlySPE ? ' catalog-filter-tag--active' : ''
                       }`}
@@ -549,10 +625,17 @@ export default function ProductListingView({
       {!error && (
         <div className="catalog-filter-summary">
           <div className="catalog-filter-panel__sort">
-            <label className="catalog-filter-panel__sort-label">Сортировка:</label>
+            <label className="catalog-filter-panel__sort-label">
+              Сортировка:
+            </label>
             <select
               value={sortBy}
-              onChange={(e) => updateParam('sort', e.target.value === 'default' ? '' : e.target.value)}
+              onChange={(e) =>
+                updateParam(
+                  'sort',
+                  e.target.value === 'default' ? '' : e.target.value
+                )
+              }
               className="catalog-sidebar__select catalog-filter-panel__sort-select"
             >
               <option value="default">По умолчанию</option>
@@ -567,7 +650,7 @@ export default function ProductListingView({
               'Загружаем...'
             ) : (
               <>
-                Найдено: <strong>{filteredProducts.length}</strong> товаров
+                Найдено: <strong>{resultCount}</strong> товаров
               </>
             )}
           </div>
@@ -578,9 +661,13 @@ export default function ProductListingView({
         <div className="catalog-empty">{error}</div>
       ) : isLoading ? (
         <div className="catalog-empty">Подготавливаем товары из прайса...</div>
-      ) : filteredProducts.length > 0 ? (
+      ) : resultCount > 0 ? (
         <>
-          <div id="catalog-grid" className="catalog-grid-anchor" aria-hidden="true" />
+          <div
+            id="catalog-grid"
+            className="catalog-grid-anchor"
+            aria-hidden="true"
+          />
           <div className="products-grid products-grid--catalog">
             {visibleProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
@@ -629,7 +716,9 @@ export default function ProductListingView({
           )}
         </>
       ) : (
-        <div className="catalog-empty">По вашему запросу товары не найдены.</div>
+        <div className="catalog-empty">
+          По вашему запросу товары не найдены.
+        </div>
       )}
     </>
   );

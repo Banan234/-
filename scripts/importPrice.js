@@ -25,8 +25,16 @@ const cliFlags = new Set(cliArgs.filter((arg) => arg.startsWith('--')));
 const positionalArgs = cliArgs.filter((arg) => !arg.startsWith('--'));
 const isDryRun = cliFlags.has('--dry-run');
 
+const URL_RE = /^https?:\/\//i;
+const positionalSource = positionalArgs[0] || '';
+// Источник прайса: явный URL/путь в argv → переменная окружения PRICE_URL → дефолтный data/price.xls.
+// URL автоматически скачивается перед парсингом.
+const priceUrl = URL_RE.test(positionalSource)
+  ? positionalSource
+  : process.env.PRICE_URL || '';
 const inputFile =
-  positionalArgs[0] || path.join(projectRoot, 'data', 'price.xls');
+  (priceUrl ? '' : positionalSource) ||
+  path.join(projectRoot, 'data', 'price.xls');
 const outputFile = path.join(projectRoot, 'data', 'products.json');
 const reportFile = path.join(projectRoot, 'data', 'import-report.json');
 const reportHtmlFile = path.join(projectRoot, 'data', 'import-report.html');
@@ -1596,7 +1604,29 @@ function buildReportHtml(report) {
 </html>`;
 }
 
+async function downloadPriceFile() {
+  console.log(`Скачивание прайса: ${priceUrl}`);
+  const response = await fetch(priceUrl);
+  if (!response.ok) {
+    throw new Error(
+      `Не удалось скачать прайс по URL ${priceUrl}: HTTP ${response.status}`
+    );
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length === 0) {
+    throw new Error(`Скачанный файл пустой: ${priceUrl}`);
+  }
+  await fs.mkdir(path.dirname(inputFile), { recursive: true });
+  await fs.writeFile(inputFile, buffer);
+  console.log(
+    `Сохранено в ${inputFile} (${(buffer.length / 1024).toFixed(1)} КБ)`
+  );
+}
+
 async function main() {
+  if (priceUrl) {
+    await downloadPriceFile();
+  }
   console.log(`Чтение прайса: ${inputFile}`);
   if (isDryRun) {
     console.log('Режим: --dry-run (файлы не записываются)');

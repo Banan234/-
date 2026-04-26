@@ -1,12 +1,12 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Container from '../ui/Container';
 import Modal from '../ui/Modal';
 import HeroLeadForm from '../home/HeroLeadForm';
 import QuoteForm from '../quote/QuoteForm';
 import SiteFooter from './SiteFooter';
 import MobileNav from './MobileNav';
-import { fetchProducts } from '../../lib/productsApi';
+import { fetchProductSuggestions } from '../../lib/productsApi';
 import { useCartStore } from '../../store/useCartStore';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { trackEvent } from '../../lib/analytics';
@@ -90,8 +90,7 @@ export default function MainLayout() {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [leadModalOptions, setLeadModalOptions] = useState({});
   const [quoteModalOptions, setQuoteModalOptions] = useState({});
-  const [searchProducts, setSearchProducts] = useState([]);
-  const [isSearchCatalogLoaded, setIsSearchCatalogLoaded] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [isSearchCatalogLoading, setIsSearchCatalogLoading] = useState(false);
   const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -105,53 +104,6 @@ export default function MainLayout() {
   const searchLoadControllerRef = useRef(null);
   const activeCatalogGroup = catalogMenu[activeCatalogIndex] || catalogMenu[0];
   const normalizedHeaderSearch = normalizeSearchSuggestionKey(headerSearch);
-  const searchSuggestions = useMemo(() => {
-    if (!normalizedHeaderSearch || searchProducts.length === 0) {
-      return [];
-    }
-
-    const markMap = new Map();
-
-    for (const product of searchProducts) {
-      const mark = String(product.mark || '').trim();
-
-      if (!mark) {
-        continue;
-      }
-
-      const key = normalizeSearchSuggestionKey(mark);
-
-      if (!key || !key.startsWith(normalizedHeaderSearch)) {
-        continue;
-      }
-
-      const current = markMap.get(key);
-
-      if (current) {
-        current.count += 1;
-      } else {
-        markMap.set(key, {
-          key,
-          mark,
-          count: 1,
-        });
-      }
-    }
-
-    return [...markMap.values()]
-      .sort((a, b) => {
-        const exactDiff =
-          Number(b.key === normalizedHeaderSearch) -
-          Number(a.key === normalizedHeaderSearch);
-
-        if (exactDiff !== 0) {
-          return exactDiff;
-        }
-
-        return b.count - a.count || a.mark.localeCompare(b.mark, 'ru');
-      })
-      .slice(0, SEARCH_SUGGESTIONS_LIMIT);
-  }, [normalizedHeaderSearch, searchProducts]);
   const shouldShowSearchSuggestions =
     isSearchSuggestionsOpen &&
     normalizedHeaderSearch &&
@@ -315,40 +267,45 @@ export default function MainLayout() {
     navigate(nextUrl);
   }
 
-  function ensureSearchCatalogLoaded() {
-    if (isSearchCatalogLoaded || isSearchCatalogLoading) {
+  function loadSearchSuggestions(value) {
+    const search = value.trim();
+
+    if (!search) {
+      searchLoadControllerRef.current?.abort();
+      searchLoadControllerRef.current = null;
+      setSearchSuggestions([]);
+      setIsSearchCatalogLoading(false);
       return;
     }
 
+    searchLoadControllerRef.current?.abort();
     const controller = new AbortController();
     searchLoadControllerRef.current = controller;
     setIsSearchCatalogLoading(true);
 
-    fetchProducts(controller.signal)
-      .then((result) => {
-        setSearchProducts(Array.isArray(result.items) ? result.items : []);
-        setIsSearchCatalogLoaded(true);
+    fetchProductSuggestions(search, SEARCH_SUGGESTIONS_LIMIT, controller.signal)
+      .then((items) => {
+        setSearchSuggestions(Array.isArray(items) ? items : []);
       })
       .catch((error) => {
         if (error.name !== 'AbortError') {
           console.error('Ошибка загрузки подсказок поиска:', error);
+          setSearchSuggestions([]);
         }
       })
       .finally(() => {
         if (searchLoadControllerRef.current === controller) {
           searchLoadControllerRef.current = null;
+          setIsSearchCatalogLoading(false);
         }
-        setIsSearchCatalogLoading(false);
       });
   }
 
   function handleSearchInputChange(event) {
-    setHeaderSearch(event.target.value);
+    const value = event.target.value;
+    setHeaderSearch(value);
     setIsSearchSuggestionsOpen(true);
-
-    if (event.target.value.trim()) {
-      ensureSearchCatalogLoaded();
-    }
+    loadSearchSuggestions(value);
   }
 
   function handleSearchSuggestionClick(mark) {
@@ -588,7 +545,7 @@ export default function MainLayout() {
                     onFocus={() => {
                       setIsSearchSuggestionsOpen(true);
                       if (headerSearch.trim()) {
-                        ensureSearchCatalogLoaded();
+                        loadSearchSuggestions(headerSearch);
                       }
                     }}
                     onBlur={() => {

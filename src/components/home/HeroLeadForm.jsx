@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from 'react';
+import HoneypotField from '../forms/HoneypotField';
 
 const quickCommentOptions = [
   { label: 'ВВГ', value: 'ВВГ' },
@@ -33,6 +34,7 @@ export default function HeroLeadForm({
 }) {
   const fieldIdPrefix = useId().replace(/:/g, '');
   const [form, setForm] = useState(() => buildInitialForm(defaultComment));
+  const [honeypot, setHoneypot] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverMessage, setServerMessage] = useState('');
@@ -129,6 +131,7 @@ export default function HeroLeadForm({
           comment: form.comment.trim() || `Короткая заявка: ${source}`,
           source,
           createdAt: new Date().toLocaleString('ru-RU'),
+          company_website: honeypot,
         }),
       });
 
@@ -165,6 +168,10 @@ export default function HeroLeadForm({
       ) : null}
 
       <form className="hero-lead-form" onSubmit={handleSubmit} noValidate>
+        <HoneypotField
+          value={honeypot}
+          onChange={(event) => setHoneypot(event.target.value)}
+        />
         <div className="hero-lead-form__field">
           <label htmlFor={`${fieldIdPrefix}-lead-phone`}>Ваш телефон</label>
           <input

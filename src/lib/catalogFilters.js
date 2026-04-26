@@ -10,6 +10,14 @@ export function formatVoltage(v) {
 }
 
 export function getConductorMaterial(product) {
+  if (product?.isAluminum) {
+    return 'алюминий';
+  }
+
+  if (product?.conductorMaterial) {
+    return product.conductorMaterial;
+  }
+
   const decoded = product?.cableDecoded?.decoded;
   if (!decoded) return 'медь';
   const isAluminum = decoded.some((d) => d.includes('алюминиевые жилы'));

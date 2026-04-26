@@ -1426,6 +1426,16 @@
   color: var(--muted);
   font-size: 14px;
 }
+.breadcrumbs__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+.breadcrumbs__item {
+  display: inline;
+}
 .breadcrumbs a {
   color: inherit;
   text-decoration: none;

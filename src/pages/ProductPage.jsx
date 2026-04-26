@@ -120,10 +120,6 @@ function getProductBreadcrumbs(product) {
   return items;
 }
 
-function getAbsoluteUrl(path) {
-  return absoluteUrl(path);
-}
-
 export default function ProductPage() {
   const { slug } = useParams();
   const addItem = useCartStore((state) => state.addItem);
@@ -194,7 +190,7 @@ export default function ProductPage() {
           '@type': 'ListItem',
           position: index + 1,
           name: item.label,
-          item: getAbsoluteUrl(item.to),
+          item: absoluteUrl(item.to),
         })),
       }
     : null;
@@ -250,17 +246,46 @@ export default function ProductPage() {
   return (
     <section className="section">
       <Container>
-        <nav className="breadcrumbs" aria-label="Хлебные крошки">
-          {getProductBreadcrumbs(product).map((item, index, items) => (
-            <span key={`${item.label}-${index}`}>
-              {index > 0 && <span aria-hidden="true"> / </span>}
-              {index === items.length - 1 ? (
-                <span aria-current="page">{item.label}</span>
-              ) : (
-                <Link to={item.to}>{item.label}</Link>
-              )}
-            </span>
-          ))}
+        <nav
+          className="breadcrumbs"
+          role="navigation"
+          aria-label="Хлебные крошки"
+        >
+          <ol
+            className="breadcrumbs__list"
+            itemScope
+            itemType="https://schema.org/BreadcrumbList"
+          >
+            {getProductBreadcrumbs(product).map((item, index, items) => {
+              const isLast = index === items.length - 1;
+              const position = index + 1;
+              return (
+                <li
+                  key={`${item.label}-${index}`}
+                  className="breadcrumbs__item"
+                  itemProp="itemListElement"
+                  itemScope
+                  itemType="https://schema.org/ListItem"
+                >
+                  {index > 0 && (
+                    <span className="breadcrumbs__sep" aria-hidden="true">
+                      {' / '}
+                    </span>
+                  )}
+                  {isLast ? (
+                    <span aria-current="page" itemProp="name">
+                      {item.label}
+                    </span>
+                  ) : (
+                    <Link to={item.to} itemProp="item">
+                      <span itemProp="name">{item.label}</span>
+                    </Link>
+                  )}
+                  <meta itemProp="position" content={String(position)} />
+                </li>
+              );
+            })}
+          </ol>
         </nav>
 
         <div className="product-page">

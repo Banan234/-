@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useCartStore } from '../../store/useCartStore';
 import { trackEvent } from '../../lib/analytics';
+import HoneypotField from '../forms/HoneypotField';
 import {
   loadStoredJson,
   removeStoredValue,
   saveStoredJson,
 } from '../../lib/browserStorage';
+import { validateForm } from './quoteFormValidation';
 
 const FORM_STORAGE_KEY = 'yuzhural-quote-form';
 
@@ -44,54 +46,6 @@ function clearFormStorage() {
   removeStoredValue(FORM_STORAGE_KEY);
 }
 
-function normalizePhone(phone) {
-  return phone.replace(/[^\d+]/g, '');
-}
-
-function validateForm(form, items) {
-  const errors = {};
-
-  const name = form.name.trim();
-  const phone = normalizePhone(form.phone.trim());
-  const email = form.email.trim();
-  const comment = form.comment.trim();
-
-  if (!name) {
-    errors.name = 'Введите имя';
-  } else if (name.length < 2) {
-    errors.name = 'Имя должно содержать минимум 2 символа';
-  }
-
-  if (!phone) {
-    errors.phone = 'Введите телефон';
-  } else {
-    const digitsOnly = phone.replace(/\D/g, '');
-    if (digitsOnly.length < 10) {
-      errors.phone = 'Введите корректный телефон';
-    }
-  }
-
-  // Email опционален. Проверяем формат только если поле заполнено,
-  // либо если клиент сам выбрал email как канал связи.
-  if (email) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = 'Введите корректный email';
-    }
-  } else if (form.preferredChannel === 'email') {
-    errors.email = 'Укажите email — выбран как способ связи';
-  }
-
-  if (comment.length > 1000) {
-    errors.comment = 'Комментарий не должен превышать 1000 символов';
-  }
-
-  if (items.length === 0) {
-    errors.cart = 'Корзина пуста';
-  }
-
-  return errors;
-}
-
 export default function QuoteForm({
   title = 'Запрос коммерческого предложения',
   description = 'Заполните форму, и мы подготовим предложение по текущему составу корзины.',
@@ -102,6 +56,7 @@ export default function QuoteForm({
   const shouldClearCartOnSuccess = !itemsOverride;
 
   const [form, setForm] = useState(loadFormFromStorage);
+  const [honeypot, setHoneypot] = useState('');
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,7 +69,8 @@ export default function QuoteForm({
   );
 
   useEffect(() => {
-    saveFormToStorage(form);
+    const timer = setTimeout(() => saveFormToStorage(form), 300);
+    return () => clearTimeout(timer);
   }, [form]);
 
   function handleChange(event) {
@@ -177,6 +133,7 @@ export default function QuoteForm({
       totalCount,
       totalPrice,
       createdAt: new Date().toLocaleString('ru-RU'),
+      company_website: honeypot,
     };
 
     try {
@@ -238,7 +195,11 @@ export default function QuoteForm({
         <div className="form-error">{serverMessage}</div>
       ) : null}
 
-      <form className="quote-form" onSubmit={handleSubmit}>
+      <form className="quote-form" onSubmit={handleSubmit} noValidate>
+        <HoneypotField
+          value={honeypot}
+          onChange={(event) => setHoneypot(event.target.value)}
+        />
         <div className="quote-form__grid">
           <div className="quote-field">
             <label htmlFor="name">Имя *</label>

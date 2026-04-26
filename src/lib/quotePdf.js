@@ -1,30 +1,71 @@
 // Генерация коммерческого предложения в PDF.
-// Шрифты Roboto-Regular/Roboto-Bold с поддержкой кириллицы вшиты в base64
-// и подгружаются динамическим импортом — чтобы не утяжелять основной бандл.
+// Шрифты Roboto-Regular/Roboto-Bold лежат в public/fonts и грузятся по HTTP.
+// Браузерный cache-control работает между обновлениями страницы, а в module-scope
+// остаётся только base64 текущей вкладки для передачи в jsPDF VFS.
+
+import {
+  SITE_ADDRESS,
+  SITE_EMAIL,
+  SITE_LEGAL_NAME,
+  SITE_NAME,
+  SITE_PHONE_DISPLAY,
+  SITE_URL,
+} from './siteConfig.js';
 
 const COMPANY = {
-  name: 'ЮжУралЭлектроКабель',
-  legal: 'ООО «ЮжУралЭлектроКабель»',
-  city: 'Челябинск',
-  phone: '+7 (351) 000-00-00',
-  email: 'sales@yuzhural-cable.ru',
-  site: 'yuzhural-cable.ru',
+  name: SITE_NAME,
+  legal: SITE_LEGAL_NAME,
+  city: SITE_ADDRESS.addressLocality,
+  phone: SITE_PHONE_DISPLAY,
+  email: SITE_EMAIL,
+  site: SITE_URL.replace(/^https?:\/\//i, ''),
 };
 
 const QUOTE_VALIDITY_DAYS = 3;
 const FONT_REGULAR = 'Roboto';
 const FONT_BOLD = 'Roboto-Bold';
+const FONT_FILES = {
+  regular: '/fonts/Roboto-Regular-v2026.ttf',
+  bold: '/fonts/Roboto-Bold-v2026.ttf',
+};
 
-let cachedFontData = null;
+let cachedFontDataPromise = null;
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const chunk = bytes.subarray(offset, offset + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+}
+
+async function fetchFontBase64(url) {
+  const response = await fetch(url, { cache: 'force-cache' });
+
+  if (!response.ok) {
+    throw new Error(`Не удалось загрузить шрифт для PDF: ${url}`);
+  }
+
+  return arrayBufferToBase64(await response.arrayBuffer());
+}
 
 async function loadFontData() {
-  if (cachedFontData) return cachedFontData;
-  const [{ robotoRegularBase64 }, { robotoBoldBase64 }] = await Promise.all([
-    import('./fonts/robotoRegular.js'),
-    import('./fonts/robotoBold.js'),
-  ]);
-  cachedFontData = { robotoRegularBase64, robotoBoldBase64 };
-  return cachedFontData;
+  if (!cachedFontDataPromise) {
+    cachedFontDataPromise = Promise.all([
+      fetchFontBase64(FONT_FILES.regular),
+      fetchFontBase64(FONT_FILES.bold),
+    ]).then(([robotoRegularBase64, robotoBoldBase64]) => ({
+      robotoRegularBase64,
+      robotoBoldBase64,
+    }));
+  }
+
+  return cachedFontDataPromise;
 }
 
 async function registerFonts(doc) {
