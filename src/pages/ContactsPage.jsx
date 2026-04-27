@@ -134,11 +134,29 @@ export default function ContactsPage() {
                 <div className="contacts-map-card__title">Как нас найти</div>
                 <div className="contacts-map-placeholder">
                   <div>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '12px', color: '#2f8fe8' }} aria-hidden="true">
-                      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
-                      <circle cx="12" cy="10" r="3"/>
+                    <svg
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ marginBottom: '12px', color: '#2f8fe8' }}
+                      aria-hidden="true"
+                    >
+                      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
                     </svg>
-                    <div style={{ fontWeight: 700, fontSize: '16px', color: '#0a1628', marginBottom: '6px' }}>
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        fontSize: '16px',
+                        color: '#0a1628',
+                        marginBottom: '6px',
+                      }}
+                    >
                       г. Челябинск, ул. Южная, 9А
                     </div>
                     <div style={{ fontSize: '14px', color: '#5a6f87' }}>

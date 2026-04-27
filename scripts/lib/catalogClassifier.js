@@ -9,12 +9,12 @@ const __dirname = path.dirname(__filename);
 // Загрузка данных при старте
 // ---------------------------------------------------------------------------
 
-const catalogCategoriesRaw  = readJson('../../data/catalogCategories.json');
-const catalogRulesRaw       = readJson('../../data/catalogRules.json');
-const sourceCategoryMapRaw  = readJson('../../data/catalogSourceMap.json');
-const brandMapRaw           = readJson('../../data/catalogBrandMap.json');
-const manufacturersRaw      = readJson('../../data/catalogManufacturers.json');
-const cableLetters          = readJson('../../data/cableLetters.json');
+const catalogCategoriesRaw = readJson('../../data/catalogCategories.json');
+const catalogRulesRaw = readJson('../../data/catalogRules.json');
+const sourceCategoryMapRaw = readJson('../../data/catalogSourceMap.json');
+const brandMapRaw = readJson('../../data/catalogBrandMap.json');
+const manufacturersRaw = readJson('../../data/catalogManufacturers.json');
+const cableLetters = readJson('../../data/cableLetters.json');
 
 // ---------------------------------------------------------------------------
 // 1. Явные правила (catalogRules.json)
@@ -58,9 +58,9 @@ for (const section of catalogCategoriesRaw.sections) {
         categoryKeywords.push({
           keyword: normalized,
           rawKeyword: kw,
-          section:      section.name,
-          sectionSlug:  section.slug,
-          category:     cat.name,
+          section: section.name,
+          sectionSlug: section.slug,
+          category: cat.name,
           categorySlug: cat.slug,
         });
       }
@@ -72,9 +72,9 @@ for (const section of catalogCategoriesRaw.sections) {
           categoryKeywords.push({
             keyword: normalized,
             rawKeyword: kw,
-            section:      section.name,
-            sectionSlug:  section.slug,
-            category:     subcat.name,
+            section: section.name,
+            sectionSlug: section.slug,
+            category: subcat.name,
             categorySlug: subcat.slug,
           });
         }
@@ -106,8 +106,18 @@ const manufacturerPrefixes = [...manufacturersRaw]
 // ---------------------------------------------------------------------------
 
 const COMPOUND_TOKENS = [
-  'нг-LS-HF', 'нгLS-HF', 'нг-HF', 'нг-LS', 'нгLS', 'нгHF', 'нгХЛ', 'нг',
-  'LS-HF', 'LS', 'HF', 'ХЛ',
+  'нг-LS-HF',
+  'нгLS-HF',
+  'нг-HF',
+  'нг-LS',
+  'нгLS',
+  'нгHF',
+  'нгХЛ',
+  'нг',
+  'LS-HF',
+  'LS',
+  'HF',
+  'ХЛ',
 ];
 
 // ---------------------------------------------------------------------------
@@ -115,11 +125,11 @@ const COMPOUND_TOKENS = [
 // ---------------------------------------------------------------------------
 
 const FALLBACK = {
-  catalogSection:     'Кабель и провод',
+  catalogSection: 'Кабель и провод',
   catalogSectionSlug: 'kabel-i-provod',
-  catalogCategory:    'Прочее',
-  catalogCategorySlug:'prochee',
-  catalogType:        null,
+  catalogCategory: 'Прочее',
+  catalogCategorySlug: 'prochee',
+  catalogType: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -140,9 +150,9 @@ const FALLBACK = {
  *  6. Fallback → "Прочее"
  */
 export function classifyProduct(product) {
-  const mark         = product.mark         ?? '';
-  const markFamily   = product.markFamily   ?? product.mark ?? '';
-  const name         = product.name         ?? '';
+  const mark = product.mark ?? '';
+  const markFamily = product.markFamily ?? product.mark ?? '';
+  const name = product.name ?? '';
 
   // Извлекаем производителя из prefixа наименования (catalogManufacturers.json)
   let manufacturer = product.manufacturer ?? null;
@@ -152,7 +162,9 @@ export function classifyProduct(product) {
     for (const mfr of manufacturerPrefixes) {
       if (familyNormForMfr.startsWith(mfr.normalized)) {
         manufacturer = mfr.name;
-        effectiveMarkFamily = markFamily.slice(mfr.name.length).replace(/^[-\s]+/, '');
+        effectiveMarkFamily = markFamily
+          .slice(mfr.name.length)
+          .replace(/^[-\s]+/, '');
         break;
       }
     }
@@ -162,22 +174,24 @@ export function classifyProduct(product) {
   // Имя производителя нужно, чтобы правила могли целиться в бренд
   // (HELUKABEL, Герда, КРУИН и т.п.): priceParser отрезает его от mark/markFamily,
   // но бренд-специфичные правила должны продолжать срабатывать.
-  const searchStr = normalize([manufacturer, mark, markFamily].filter(Boolean).join(' '));
+  const searchStr = normalize(
+    [manufacturer, mark, markFamily].filter(Boolean).join(' ')
+  );
 
   // --- 1. Явные правила ---
   for (const rule of rules) {
     for (const pattern of rule.normalizedPatterns) {
       if (searchStr.includes(pattern.normalized)) {
         return toCatalogResult({
-          section:         rule.catalogSection,
-          sectionSlug:     rule.catalogSectionSlug,
-          category:        rule.catalogCategory,
-          categorySlug:    rule.catalogCategorySlug,
-          type:            rule.type,
+          section: rule.catalogSection,
+          sectionSlug: rule.catalogSectionSlug,
+          category: rule.catalogCategory,
+          categorySlug: rule.catalogCategorySlug,
+          type: rule.type,
           applicationType: rule.applicationType ?? null,
-          brand:           manufacturer,
-          source:          'rule',
-          match:           pattern.raw,
+          brand: manufacturer,
+          source: 'rule',
+          match: pattern.raw,
         });
       }
     }
@@ -188,13 +202,13 @@ export function classifyProduct(product) {
     const match = sourceCategoryMap.get(normalize(product.sourceCategory));
     if (match) {
       return toCatalogResult({
-        section:      match.section,
-        sectionSlug:  match.sectionSlug,
-        category:     match.category,
+        section: match.section,
+        sectionSlug: match.sectionSlug,
+        category: match.category,
         categorySlug: match.categorySlug,
-        brand:        manufacturer,
-        source:       'sourceCategory',
-        match:        product.sourceCategory,
+        brand: manufacturer,
+        source: 'sourceCategory',
+        match: product.sourceCategory,
       });
     }
   }
@@ -204,7 +218,11 @@ export function classifyProduct(product) {
 
   if (familyNorm) {
     // --- 3. Prefix-matching: markFamily.startsWith(keyword) ---
-    const prefixMatch = findByKeyword(familyNorm, (kw) => familyNorm.startsWith(kw), manufacturer);
+    const prefixMatch = findByKeyword(
+      familyNorm,
+      (kw) => familyNorm.startsWith(kw),
+      manufacturer
+    );
     if (prefixMatch) return prefixMatch;
 
     // --- 4. Стриппинг брендового префикса ---
@@ -220,19 +238,23 @@ export function classifyProduct(product) {
 
       if (remainder) {
         // Пробуем классифицировать по остатку марки
-        const remMatch = findByKeyword(remainder, (kw) => remainder.startsWith(kw), detectedBrand);
+        const remMatch = findByKeyword(
+          remainder,
+          (kw) => remainder.startsWith(kw),
+          detectedBrand
+        );
         if (remMatch) return remMatch;
       }
 
       // Keyword для остатка не найден — используем категорию бренда по умолчанию
       return toCatalogResult({
-        section:      brandEntry.section,
-        sectionSlug:  brandEntry.sectionSlug,
-        category:     brandEntry.category,
+        section: brandEntry.section,
+        sectionSlug: brandEntry.sectionSlug,
+        category: brandEntry.category,
         categorySlug: brandEntry.categorySlug,
-        brand:        detectedBrand,
-        source:       'brandDefault',
-        match:        brandEntry.brand,
+        brand: detectedBrand,
+        source: 'brandDefault',
+        match: brandEntry.brand,
       });
     }
 
@@ -264,8 +286,10 @@ export function classifyProduct(product) {
 export function decodeCable(mark) {
   if (!mark) return null;
 
-  const tokens  = tokenizeMark(String(mark).trim());
-  const decoded = tokens.map((token) => cableLetters[token] ?? null).filter(Boolean);
+  const tokens = tokenizeMark(String(mark).trim());
+  const decoded = tokens
+    .map((token) => cableLetters[token] ?? null)
+    .filter(Boolean);
 
   if (decoded.length === 0) return null;
 
@@ -280,15 +304,15 @@ function findByKeyword(value, predicate, brand = null) {
   for (const entry of categoryKeywords) {
     if (predicate(entry.keyword)) {
       return toCatalogResult({
-        section:      entry.section,
-        sectionSlug:  entry.sectionSlug,
-        category:     entry.category,
+        section: entry.section,
+        sectionSlug: entry.sectionSlug,
+        category: entry.category,
         categorySlug: entry.categorySlug,
         brand,
-        source:       value.startsWith(entry.keyword)
+        source: value.startsWith(entry.keyword)
           ? 'keywordPrefix'
           : 'keywordSubstring',
-        match:        entry.rawKeyword,
+        match: entry.rawKeyword,
       });
     }
   }
@@ -313,29 +337,29 @@ function toCatalogResult({
 }) {
   if (!CABLE_SECTIONS.has(section)) {
     return {
-      catalogSection:         'Некабельная продукция',
-      catalogSectionSlug:     'nekabelnaya-produkciya',
-      catalogCategory:        'Некабельная продукция',
-      catalogCategorySlug:    'nekabelnaya-produkciya',
-      catalogType:            type,
+      catalogSection: 'Некабельная продукция',
+      catalogSectionSlug: 'nekabelnaya-produkciya',
+      catalogCategory: 'Некабельная продукция',
+      catalogCategorySlug: 'nekabelnaya-produkciya',
+      catalogType: type,
       catalogApplicationType: applicationType,
-      catalogBrand:           brand,
-      manufacturer:           brand,
+      catalogBrand: brand,
+      manufacturer: brand,
       catalogClassificationSource: source,
-      catalogClassificationMatch:  match,
+      catalogClassificationMatch: match,
     };
   }
   return {
-    catalogSection:         section,
-    catalogSectionSlug:     sectionSlug,
-    catalogCategory:        category,
-    catalogCategorySlug:    categorySlug,
-    catalogType:            type,
+    catalogSection: section,
+    catalogSectionSlug: sectionSlug,
+    catalogCategory: category,
+    catalogCategorySlug: categorySlug,
+    catalogType: type,
     catalogApplicationType: applicationType,
-    catalogBrand:           brand,
-    manufacturer:           brand,
+    catalogBrand: brand,
+    manufacturer: brand,
     catalogClassificationSource: source,
-    catalogClassificationMatch:  match,
+    catalogClassificationMatch: match,
   };
 }
 
@@ -350,20 +374,22 @@ function toCatalogResult({
  * (ключам и искомым строкам), поэтому взаимное соответствие сохраняется.
  */
 function normalize(value) {
-  return String(value ?? '')
-    .toLowerCase()
-    .replace(/ё/g,  'е')
-    // Кириллические буквы, идентичные латинским по начертанию:
-    .replace(/а/g,  'a')
-    .replace(/е/g,  'e')
-    .replace(/о/g,  'o')
-    .replace(/р/g,  'p')
-    .replace(/с/g,  'c')
-    .replace(/у/g,  'y')
-    .replace(/х/g,  'x')
-    .replace(/м/g,  'm')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return (
+    String(value ?? '')
+      .toLowerCase()
+      .replace(/ё/g, 'е')
+      // Кириллические буквы, идентичные латинским по начертанию:
+      .replace(/а/g, 'a')
+      .replace(/е/g, 'e')
+      .replace(/о/g, 'o')
+      .replace(/р/g, 'p')
+      .replace(/с/g, 'c')
+      .replace(/у/g, 'y')
+      .replace(/х/g, 'x')
+      .replace(/м/g, 'm')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 function tokenizeMark(mark) {

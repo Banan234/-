@@ -1,5 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import HoneypotField from '../forms/HoneypotField';
+import { captureException } from '../../lib/errorTracking';
+import { isValidRussianPhone } from '../../../lib/quoteValidation.js';
 
 const quickCommentOptions = [
   { label: 'ВВГ', value: 'ВВГ' },
@@ -40,6 +42,16 @@ export default function HeroLeadForm({
   const [serverMessage, setServerMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const commentRef = useRef(null);
+  const renderedAtRef = useRef(Date.now());
+  const fieldIds = {
+    phone: `${fieldIdPrefix}-lead-phone`,
+    comment: `${fieldIdPrefix}-lead-comment`,
+    consent: `${fieldIdPrefix}-lead-consent`,
+  };
+  const errorIds = {
+    phone: `${fieldIds.phone}-error`,
+    consent: `${fieldIds.consent}-error`,
+  };
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
@@ -62,7 +74,7 @@ export default function HeroLeadForm({
     const nextErrors = {};
     const normalizedPhone = normalizePhone(form.phone.trim());
 
-    if (normalizedPhone.replace(/\D/g, '').length < 10) {
+    if (!isValidRussianPhone(normalizedPhone)) {
       nextErrors.phone = 'Укажите корректный телефон';
     }
 
@@ -131,6 +143,8 @@ export default function HeroLeadForm({
           comment: form.comment.trim() || `Короткая заявка: ${source}`,
           source,
           createdAt: new Date().toLocaleString('ru-RU'),
+          rendered_at: renderedAtRef.current,
+          submit_at: Date.now(),
           company_website: honeypot,
         }),
       });
@@ -144,9 +158,10 @@ export default function HeroLeadForm({
       setIsSubmitted(true);
       setServerMessage(result.message || 'Заявка отправлена');
       setForm(buildInitialForm(''));
+      renderedAtRef.current = Date.now();
       setErrors({});
     } catch (error) {
-      console.error('Ошибка отправки заявки с главной:', error);
+      captureException(error, { source: 'HeroLeadForm.submit' });
       setIsSubmitted(false);
       setServerMessage(error.message || 'Не удалось отправить заявку');
     } finally {
@@ -173,25 +188,37 @@ export default function HeroLeadForm({
           onChange={(event) => setHoneypot(event.target.value)}
         />
         <div className="hero-lead-form__field">
-          <label htmlFor={`${fieldIdPrefix}-lead-phone`}>Ваш телефон</label>
+          <label htmlFor={fieldIds.phone}>Ваш телефон</label>
           <input
-            id={`${fieldIdPrefix}-lead-phone`}
+            id={fieldIds.phone}
             name="phone"
             type="text"
             value={form.phone}
             onChange={handleChange}
             placeholder="+7 ___ - __ - __"
+            aria-invalid={errors.phone ? 'true' : undefined}
+            aria-describedby={errors.phone ? errorIds.phone : undefined}
           />
           {errors.phone ? (
-            <span className="field-error">{errors.phone}</span>
+            <span id={errorIds.phone} className="field-error">
+              {errors.phone}
+            </span>
           ) : null}
         </div>
 
         <div className="hero-lead-form__field">
-          <label htmlFor={`${fieldIdPrefix}-lead-comment`}>Комментарий <span className="hero-lead-form__optional">(необязательно)</span></label>
-          <div className="hero-lead-form__quick-buttons" aria-label="Быстрые варианты комментария">
+          <label htmlFor={fieldIds.comment}>
+            Комментарий{' '}
+            <span className="hero-lead-form__optional">(необязательно)</span>
+          </label>
+          <div
+            className="hero-lead-form__quick-buttons"
+            aria-label="Быстрые варианты комментария"
+          >
             {quickCommentOptions.map((option) => {
-              const isActive = parseCommentTokens(form.comment).includes(option.value);
+              const isActive = parseCommentTokens(form.comment).includes(
+                option.value
+              );
 
               return (
                 <button
@@ -207,7 +234,7 @@ export default function HeroLeadForm({
           </div>
           <textarea
             ref={commentRef}
-            id={`${fieldIdPrefix}-lead-comment`}
+            id={fieldIds.comment}
             name="comment"
             value={form.comment}
             onChange={handleChange}
@@ -219,15 +246,20 @@ export default function HeroLeadForm({
 
         <label className="hero-lead-form__consent">
           <input
+            id={fieldIds.consent}
             name="consent"
             type="checkbox"
             checked={form.consent}
             onChange={handleChange}
+            aria-invalid={errors.consent ? 'true' : undefined}
+            aria-describedby={errors.consent ? errorIds.consent : undefined}
           />
           <span>Даю согласие на обработку персональных данных</span>
         </label>
         {errors.consent ? (
-          <span className="field-error">{errors.consent}</span>
+          <span id={errorIds.consent} className="field-error">
+            {errors.consent}
+          </span>
         ) : null}
 
         <button

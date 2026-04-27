@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import Container from '../components/ui/Container';
 import ProductListingView from '../components/catalog/ProductListingView';
 import { fetchProducts } from '../lib/productsApi';
+import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useCatalogFilters } from '../hooks/useCatalogFilters';
 import catalogCategoriesData from '../../data/catalogCategories.json';
@@ -77,7 +78,7 @@ export default function CatalogPage() {
           return;
         }
 
-        console.error(requestError);
+        captureException(requestError, { source: 'CatalogPage.loadProducts' });
         setError(requestError.message || 'Не удалось загрузить каталог');
       } finally {
         setIsLoading(false);

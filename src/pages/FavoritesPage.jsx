@@ -38,7 +38,11 @@ export default function FavoritesPage() {
               type="button"
               className="button-secondary"
               onClick={() => {
-                if (window.confirm('Очистить избранное? Все товары будут удалены из списка.')) {
+                if (
+                  window.confirm(
+                    'Очистить избранное? Все товары будут удалены из списка.'
+                  )
+                ) {
                   clearFavorites();
                 }
               }}
@@ -90,6 +94,10 @@ export default function FavoritesPage() {
                       src={item.image}
                       alt={item.title}
                       className="favorite-card__image"
+                      width="560"
+                      height="320"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </Link>
 
@@ -157,7 +165,17 @@ export default function FavoritesPage() {
                           aria-label="Удалить из избранного"
                           title="Удалить из избранного"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
                             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                           </svg>
                         </button>
@@ -168,7 +186,17 @@ export default function FavoritesPage() {
                           aria-label="Открыть товар"
                           title="Открыть страницу товара"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                             <polyline points="15 3 21 3 21 9" />
                             <line x1="10" y1="14" x2="21" y2="3" />

@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useCartStore } from '../../store/useCartStore';
 import { trackEvent } from '../../lib/analytics';
+import { captureException } from '../../lib/errorTracking';
 import HoneypotField from '../forms/HoneypotField';
 import {
   loadStoredJson,
   removeStoredValue,
   saveStoredJson,
 } from '../../lib/browserStorage';
+import { MAX_QUOTE_CUSTOMER_COMMENT_LENGTH } from '../../../lib/quoteValidation.js';
 import { validateForm } from './quoteFormValidation';
 
 const FORM_STORAGE_KEY = 'yuzhural-quote-form';
@@ -61,6 +63,20 @@ export default function QuoteForm({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
+  const fieldIdPrefix = useId().replace(/:/g, '');
+  const renderedAtRef = useRef(Date.now());
+  const fieldIds = {
+    name: `${fieldIdPrefix}-quote-name`,
+    phone: `${fieldIdPrefix}-quote-phone`,
+    email: `${fieldIdPrefix}-quote-email`,
+    comment: `${fieldIdPrefix}-quote-comment`,
+  };
+  const errorIds = {
+    name: `${fieldIds.name}-error`,
+    phone: `${fieldIds.phone}-error`,
+    email: `${fieldIds.email}-error`,
+    comment: `${fieldIds.comment}-error`,
+  };
 
   const totalCount = items.length;
   const totalPrice = items.reduce(
@@ -133,6 +149,8 @@ export default function QuoteForm({
       totalCount,
       totalPrice,
       createdAt: new Date().toLocaleString('ru-RU'),
+      rendered_at: renderedAtRef.current,
+      submit_at: Date.now(),
       company_website: honeypot,
     };
 
@@ -161,12 +179,13 @@ export default function QuoteForm({
       setServerMessage(result.message || 'Заявка успешно отправлена');
       setErrors({});
       setForm(initialForm);
+      renderedAtRef.current = Date.now();
       clearFormStorage();
       if (shouldClearCartOnSuccess) {
         clearCart();
       }
     } catch (error) {
-      console.error(error);
+      captureException(error, { source: 'QuoteForm.submit' });
       setIsSubmitted(false);
       setServerMessage(error.message || 'Не удалось отправить заявку');
     } finally {
@@ -183,7 +202,11 @@ export default function QuoteForm({
 
       {items.length === 0 && !isSubmitted ? (
         <div className="form-error">
-          Корзина пуста. Добавьте товары из <a href="/catalog" style={{ color: 'inherit', fontWeight: 700 }}>каталога</a>, чтобы сформировать запрос КП.
+          Корзина пуста. Добавьте товары из{' '}
+          <a href="/catalog" style={{ color: 'inherit', fontWeight: 700 }}>
+            каталога
+          </a>
+          , чтобы сформировать запрос КП.
         </div>
       ) : null}
 
@@ -202,47 +225,61 @@ export default function QuoteForm({
         />
         <div className="quote-form__grid">
           <div className="quote-field">
-            <label htmlFor="name">Имя *</label>
+            <label htmlFor={fieldIds.name}>Имя *</label>
             <input
-              id="name"
+              id={fieldIds.name}
               name="name"
               type="text"
               value={form.name}
               onChange={handleChange}
               placeholder="Иван Иванов"
+              aria-invalid={errors.name ? 'true' : undefined}
+              aria-describedby={errors.name ? errorIds.name : undefined}
             />
             {errors.name ? (
-              <span className="field-error">{errors.name}</span>
+              <span id={errorIds.name} className="field-error">
+                {errors.name}
+              </span>
             ) : null}
           </div>
 
           <div className="quote-field">
-            <label htmlFor="phone">Телефон *</label>
+            <label htmlFor={fieldIds.phone}>Телефон *</label>
             <input
-              id="phone"
+              id={fieldIds.phone}
               name="phone"
               type="text"
               value={form.phone}
               onChange={handleChange}
               placeholder="+7 (900) 000-00-00"
+              aria-invalid={errors.phone ? 'true' : undefined}
+              aria-describedby={errors.phone ? errorIds.phone : undefined}
             />
             {errors.phone ? (
-              <span className="field-error">{errors.phone}</span>
+              <span id={errorIds.phone} className="field-error">
+                {errors.phone}
+              </span>
             ) : null}
           </div>
 
           <div className="quote-field">
-            <label htmlFor="email">Email <span className="quote-field__optional">(опционально)</span></label>
+            <label htmlFor={fieldIds.email}>
+              Email <span className="quote-field__optional">(опционально)</span>
+            </label>
             <input
-              id="email"
+              id={fieldIds.email}
               name="email"
               type="email"
               value={form.email}
               onChange={handleChange}
               placeholder="mail@company.ru"
+              aria-invalid={errors.email ? 'true' : undefined}
+              aria-describedby={errors.email ? errorIds.email : undefined}
             />
             {errors.email ? (
-              <span className="field-error">{errors.email}</span>
+              <span id={errorIds.email} className="field-error">
+                {errors.email}
+              </span>
             ) : null}
           </div>
 
@@ -253,7 +290,9 @@ export default function QuoteForm({
                 <label
                   key={option.value}
                   className={`quote-channel${
-                    form.preferredChannel === option.value ? ' quote-channel--active' : ''
+                    form.preferredChannel === option.value
+                      ? ' quote-channel--active'
+                      : ''
                   }`}
                 >
                   <input
@@ -273,25 +312,31 @@ export default function QuoteForm({
           </div>
 
           <div className="quote-field quote-field--full">
-            <label htmlFor="comment">Комментарий</label>
+            <label htmlFor={fieldIds.comment}>Комментарий</label>
             <textarea
-              id="comment"
+              id={fieldIds.comment}
               name="comment"
               value={form.comment}
               onChange={handleChange}
               placeholder="Уточнения по объему, срокам, доставке, реквизитам"
               rows="5"
-              maxLength={1000}
+              maxLength={MAX_QUOTE_CUSTOMER_COMMENT_LENGTH}
+              aria-invalid={errors.comment ? 'true' : undefined}
+              aria-describedby={errors.comment ? errorIds.comment : undefined}
             />
 
             <div className="field-meta">
               {errors.comment ? (
-                <span className="field-error">{errors.comment}</span>
+                <span id={errorIds.comment} className="field-error">
+                  {errors.comment}
+                </span>
               ) : (
                 <span />
               )}
 
-              <span className="char-counter">{form.comment.length} / 1000</span>
+              <span className="char-counter">
+                {form.comment.length} / {MAX_QUOTE_CUSTOMER_COMMENT_LENGTH}
+              </span>
             </div>
           </div>
         </div>

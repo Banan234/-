@@ -473,7 +473,9 @@ export default function ProductListingView({
                       <button
                         key={construction}
                         type="button"
-                        aria-pressed={selectedConstructions.includes(construction)}
+                        aria-pressed={selectedConstructions.includes(
+                          construction
+                        )}
                         className={`catalog-filter-tag${
                           selectedConstructions.includes(construction)
                             ? ' catalog-filter-tag--active'

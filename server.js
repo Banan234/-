@@ -2,46 +2,120 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
 import nodemailer from 'nodemailer';
+import proxyaddr from 'proxy-addr';
 import rateLimit from 'express-rate-limit';
-import { createRequire } from 'module';
 import { pathToFileURL } from 'url';
+import { createCatalogStore } from './lib/catalog.js';
 import {
-  findProductBySlug,
-  getCatalogProductListItems,
-  getCatalogProductListItemsByCategory,
-  getCatalogProductsByCategory,
-  loadCatalogProducts,
-} from './lib/catalog.js';
-import {
-  MAX_QUOTE_ITEMS,
+  MAX_QUOTE_PAYLOAD_BYTES,
   isValidQuoteRequest,
+  isValidRussianPhone,
 } from './lib/quoteValidation.js';
 import { accessLog, logger } from './lib/logger.js';
-
-const require = createRequire(import.meta.url);
-const catalogCategoriesData = require('./data/catalogCategories.json');
+import {
+  CANONICAL_CATEGORY_ORDER,
+  DEFAULT_PRODUCTS_LIMIT,
+  MAX_PRODUCTS_LIMIT,
+  applyProductFilters,
+  buildProductSuggestions,
+  createCatalogQueryStore,
+  hasProductFilters,
+  parseLimit,
+  parsePage,
+  sortProducts,
+} from './lib/catalogQuery.js';
 
 dotenv.config();
 
 const PORT = process.env.PORT || 3001;
+const CATALOG_CACHE_TTL_SECONDS = 60;
+const CATALOG_CACHE_TTL_MS = CATALOG_CACHE_TTL_SECONDS * 1000;
+const HSTS_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+const MIN_FORM_RENDER_MS = 2_000;
+const DEFAULT_TRUSTED_PROXY_IPS = 'loopback';
+const DEFAULT_SMTP_CONNECTION_TIMEOUT_MS = 10_000;
+const DEFAULT_SMTP_GREETING_TIMEOUT_MS = 10_000;
+const DEFAULT_SMTP_SOCKET_TIMEOUT_MS = 20_000;
+const DEFAULT_SMTP_SEND_TIMEOUT_MS = 25_000;
+const DEFAULT_SMTP_SEND_RETRIES = 1;
+const DEFAULT_SMTP_RETRY_DELAY_MS = 750;
+const RETRYABLE_MAIL_ERROR_CODES = new Set([
+  'ECONNABORTED',
+  'ECONNECTION',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EPIPE',
+  'ESOCKET',
+  'ETIMEDOUT',
+  'EAI_AGAIN',
+]);
+
+const API_CSP_DIRECTIVES = Object.freeze({
+  defaultSrc: ["'none'"],
+  baseUri: ["'none'"],
+  connectSrc: ["'self'"],
+  fontSrc: ["'none'"],
+  formAction: ["'none'"],
+  frameAncestors: ["'none'"],
+  frameSrc: ["'none'"],
+  imgSrc: ["'none'"],
+  manifestSrc: ["'none'"],
+  mediaSrc: ["'none'"],
+  objectSrc: ["'none'"],
+  scriptSrc: ["'none'"],
+  scriptSrcAttr: ["'none'"],
+  styleSrc: ["'none'"],
+  workerSrc: ["'none'"],
+});
 
 // Honeypot: скрытое поле, которое реальный пользователь не видит и не заполняет.
 // Боты обычно заполняют все input'ы подряд — отдаём им фейковый success.
 function isHoneypotTriggered(body) {
-  return Boolean(body && typeof body.company_website === 'string' && body.company_website.trim());
+  return Boolean(
+    body &&
+    typeof body.company_website === 'string' &&
+    body.company_website.trim()
+  );
 }
-const DEFAULT_CATALOG_ORDER = 9999;
-const DEFAULT_PRODUCTS_LIMIT = 24;
-const MAX_PRODUCTS_LIMIT = 96;
-const FLEXIBLE_MARK_RE = /^(КГ|ПуГ|ПВС|ШВВП|КОГ|ПРГ|ПМГ)/i;
-const CANONICAL_CATEGORY_ORDER = new Map(
-  catalogCategoriesData.sections.flatMap((section) =>
-    section.categories.map((category, index) => [category.slug, index])
-  )
-);
-let catalogSectionsCacheItems = null;
-let catalogSectionsCache = null;
+
+function getHeaderValue(req, name) {
+  return String(req.get(name) || '').trim();
+}
+
+function hasBrowserLikeHeaders(req) {
+  return Boolean(
+    getHeaderValue(req, 'user-agent') && getHeaderValue(req, 'accept-language')
+  );
+}
+
+function hasSuspiciousSubmitTiming(body) {
+  const hasRenderedAt = Object.hasOwn(body || {}, 'rendered_at');
+  const hasSubmitAt = Object.hasOwn(body || {}, 'submit_at');
+
+  // Старые открытые вкладки после деплоя могут отправить payload без новых
+  // полей. Не блокируем отсутствие обоих значений, но режем битые/слишком
+  // быстрые значения, если клиент уже начал их присылать.
+  if (!hasRenderedAt && !hasSubmitAt) return false;
+  if (!hasRenderedAt || !hasSubmitAt) return true;
+
+  const renderedAt = Number(body.rendered_at);
+  const submitAt = Number(body.submit_at);
+
+  if (!Number.isFinite(renderedAt) || !Number.isFinite(submitAt)) {
+    return true;
+  }
+
+  return submitAt - renderedAt < MIN_FORM_RENDER_MS;
+}
+
+function getBotSubmissionSignal(req) {
+  if (isHoneypotTriggered(req.body)) return 'honeypot';
+  if (!hasBrowserLikeHeaders(req)) return 'missing_headers';
+  if (hasSuspiciousSubmitTiming(req.body)) return 'fast_submit';
+  return null;
+}
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -66,31 +140,250 @@ function requireJsonContentType(req, res, next) {
 }
 
 function normalizeEmail(value) {
-  return String(value ?? '').trim().toLowerCase();
+  // Удаляем любые control-символы (включая CR/LF/TAB) — защита от
+  // header injection в replyTo при последующей отправке через SMTP.
+  // Если после чистки строка перестаёт быть валидным email, isValidQuoteRequest
+  // её отбросит на следующем шаге.
+  return String(value ?? '')
+    .replace(/[\x00-\x1f\x7f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+// Финальный guard перед передачей пользовательского значения в SMTP-заголовок.
+// nodemailer и сам валидирует, но defense-in-depth: явно отбрасываем строку
+// при любом намёке на CR/LF/control-символы или несоответствие email-формату.
+const SAFE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function safeReplyTo(value) {
+  const email = String(value ?? '');
+  if (!email) return undefined;
+  if (/[\r\n\x00-\x1f\x7f]/.test(email)) return undefined;
+  if (!SAFE_EMAIL_RE.test(email)) return undefined;
+  return email;
 }
 
 function normalizePhoneInput(value) {
-  // Сохраняем + в начале, остальное — только цифры. Валидация по длине цифр
-  // живёт в isValidQuoteRequest.
+  // Сохраняем + в начале, остальное — только цифры. Финальная валидация
+  // живёт в isValidRussianPhone / isValidQuoteRequest.
   const raw = String(value ?? '').trim();
   const digits = raw.replace(/\D/g, '');
   return raw.startsWith('+') ? `+${digits}` : digits;
 }
 
 function applyCatalogCache(res) {
-  res.setHeader('Cache-Control', 'public, max-age=60, must-revalidate');
+  res.setHeader(
+    'Cache-Control',
+    `public, max-age=${CATALOG_CACHE_TTL_SECONDS}, must-revalidate`
+  );
 }
 
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: process.env.SMTP_SECURE === 'true',
+function parseBooleanEnv(value, fallback) {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if (!normalized) return fallback;
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+function parseIntegerEnv(value, fallback, { min = 1, max = Infinity } = {}) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(Math.floor(parsed), min), max);
+}
+
+function readNonEmptyEnv(value) {
+  const normalized = String(value ?? '').trim();
+  return normalized || null;
+}
+
+function normalizeCanonicalSiteUrl(value, key) {
+  const raw = readNonEmptyEnv(value);
+  if (!raw) return null;
+
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`${key} должен быть абсолютным http(s)-URL`);
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error(`${key} должен использовать протокол http или https`);
+  }
+
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error(
+      `${key} должен быть базовым URL без userinfo, query и hash`
+    );
+  }
+
+  return parsed.href.replace(/\/+$/, '');
+}
+
+export function validateSiteUrlEnv(env = process.env) {
+  const siteUrl = normalizeCanonicalSiteUrl(env.SITE_URL, 'SITE_URL');
+  const viteSiteUrl = normalizeCanonicalSiteUrl(
+    env.VITE_SITE_URL,
+    'VITE_SITE_URL'
+  );
+
+  if (siteUrl && viteSiteUrl && siteUrl !== viteSiteUrl) {
+    throw new Error(
+      `SITE_URL и VITE_SITE_URL должны совпадать: SITE_URL="${siteUrl}", VITE_SITE_URL="${viteSiteUrl}"`
+    );
+  }
+
+  return {
+    siteUrl: siteUrl || viteSiteUrl,
+    viteSiteUrl,
+  };
+}
+
+export function getSmtpTransportOptions(env = process.env) {
+  const secure = parseBooleanEnv(env.SMTP_SECURE, true);
+  const pool = parseBooleanEnv(env.SMTP_POOL, true);
+  const options = {
+    host: env.SMTP_HOST,
+    port: parseIntegerEnv(env.SMTP_PORT, secure ? 465 : 587, {
+      min: 1,
+      max: 65_535,
+    }),
+    secure,
+    pool,
+    connectionTimeout: parseIntegerEnv(
+      env.SMTP_CONNECTION_TIMEOUT_MS,
+      DEFAULT_SMTP_CONNECTION_TIMEOUT_MS,
+      { min: 1_000, max: 120_000 }
+    ),
+    greetingTimeout: parseIntegerEnv(
+      env.SMTP_GREETING_TIMEOUT_MS,
+      DEFAULT_SMTP_GREETING_TIMEOUT_MS,
+      { min: 1_000, max: 120_000 }
+    ),
+    socketTimeout: parseIntegerEnv(
+      env.SMTP_SOCKET_TIMEOUT_MS,
+      DEFAULT_SMTP_SOCKET_TIMEOUT_MS,
+      { min: 1_000, max: 300_000 }
+    ),
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
     },
-  });
+  };
+
+  if (pool) {
+    options.maxConnections = parseIntegerEnv(env.SMTP_POOL_MAX_CONNECTIONS, 2, {
+      min: 1,
+      max: 10,
+    });
+    options.maxMessages = parseIntegerEnv(env.SMTP_POOL_MAX_MESSAGES, 100, {
+      min: 1,
+      max: 10_000,
+    });
+  }
+
+  return options;
+}
+
+export function getMailSendOptions(env = process.env) {
+  return {
+    timeoutMs: parseIntegerEnv(
+      env.SMTP_SEND_TIMEOUT_MS,
+      DEFAULT_SMTP_SEND_TIMEOUT_MS,
+      { min: 1_000, max: 300_000 }
+    ),
+    maxRetries: parseIntegerEnv(
+      env.SMTP_SEND_RETRIES,
+      DEFAULT_SMTP_SEND_RETRIES,
+      { min: 0, max: 5 }
+    ),
+    retryDelayMs: parseIntegerEnv(
+      env.SMTP_RETRY_DELAY_MS,
+      DEFAULT_SMTP_RETRY_DELAY_MS,
+      { min: 0, max: 60_000 }
+    ),
+  };
+}
+
+export function createTransporter(env = process.env) {
+  return nodemailer.createTransport(getSmtpTransportOptions(env));
+}
+
+function createMailTimeoutError(timeoutMs) {
+  const error = new Error(`SMTP send timed out after ${timeoutMs} ms`);
+  error.code = 'SMTP_SEND_TIMEOUT';
+  return error;
+}
+
+function withTimeout(promise, timeoutMs) {
+  if (!timeoutMs) return promise;
+
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(
+        () => reject(createMailTimeoutError(timeoutMs)),
+        timeoutMs
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+function wait(ms) {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function isRetryableMailError(error) {
+  const responseCode = Number(error?.responseCode);
+  if (
+    Number.isInteger(responseCode) &&
+    responseCode >= 400 &&
+    responseCode < 500
+  ) {
+    return true;
+  }
+
+  const code = String(error?.code || '').toUpperCase();
+  return RETRYABLE_MAIL_ERROR_CODES.has(code);
+}
+
+export async function sendMailWithRetry(
+  transporter,
+  mailOptions,
+  {
+    event = 'smtp.send',
+    timeoutMs = DEFAULT_SMTP_SEND_TIMEOUT_MS,
+    maxRetries = DEFAULT_SMTP_SEND_RETRIES,
+    retryDelayMs = DEFAULT_SMTP_RETRY_DELAY_MS,
+  } = {}
+) {
+  const totalAttempts = maxRetries + 1;
+
+  for (let attempt = 1; attempt <= totalAttempts; attempt += 1) {
+    try {
+      return await withTimeout(transporter.sendMail(mailOptions), timeoutMs);
+    } catch (error) {
+      if (attempt >= totalAttempts || !isRetryableMailError(error)) {
+        throw error;
+      }
+
+      logger.warn('smtp.send.retry', {
+        err: error,
+        event,
+        attempt,
+        next_attempt: attempt + 1,
+        max_retries: maxRetries,
+        retry_delay_ms: retryDelayMs,
+      });
+      await wait(retryDelayMs);
+    }
+  }
+
+  return null;
 }
 
 function createErrorResponse(res, message, status = 500) {
@@ -100,339 +393,13 @@ function createErrorResponse(res, message, status = 500) {
   });
 }
 
-function buildCatalogSections(items) {
-  const sectionOrder = [];
-  const sectionMap = new Map();
-
-  for (const item of items) {
-    const sectionSlug = item.catalogSectionSlug;
-    const categorySlug = item.catalogCategorySlug;
-
-    if (!sectionSlug || !categorySlug) {
-      continue;
-    }
-
-    if (!sectionMap.has(sectionSlug)) {
-      sectionOrder.push(sectionSlug);
-      sectionMap.set(sectionSlug, {
-        name: item.catalogSection,
-        slug: sectionSlug,
-        categoryOrder: [],
-        categoryMap: new Map(),
-      });
-    }
-
-    const section = sectionMap.get(sectionSlug);
-
-    if (!section.categoryMap.has(categorySlug)) {
-      section.categoryOrder.push(categorySlug);
-      section.categoryMap.set(categorySlug, {
-        name: item.catalogCategory,
-        slug: categorySlug,
-        count: 0,
-      });
-    }
-
-    section.categoryMap.get(categorySlug).count++;
-  }
-
-  return sectionOrder.map((sectionSlug) => {
-    const section = sectionMap.get(sectionSlug);
-    const categories = section.categoryOrder
-      .map((categorySlug) => section.categoryMap.get(categorySlug))
-      .sort(
-        (a, b) =>
-          getCanonicalCategoryOrder(a.slug) - getCanonicalCategoryOrder(b.slug)
-      );
-
-    return {
-      name: section.name,
-      slug: section.slug,
-      categories,
-    };
-  });
+export function parseTrustedProxyIps(value = process.env.TRUSTED_PROXY_IPS) {
+  const raw = String(value ?? '').trim() || DEFAULT_TRUSTED_PROXY_IPS;
+  return raw.split(/[\s,]+/).filter(Boolean);
 }
 
-function getCatalogSections(items) {
-  if (catalogSectionsCacheItems === items && catalogSectionsCache) {
-    return catalogSectionsCache;
-  }
-
-  catalogSectionsCacheItems = items;
-  catalogSectionsCache = buildCatalogSections(items);
-  return catalogSectionsCache;
-}
-
-function getCanonicalCategoryOrder(categorySlug) {
-  return CANONICAL_CATEGORY_ORDER.get(categorySlug) ?? DEFAULT_CATALOG_ORDER;
-}
-
-function normalizeSearchKey(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/ё/g, 'е')
-    .replace(/[^0-9a-zа-я]+/g, '');
-}
-
-function parseCsvParam(value) {
-  if (typeof value !== 'string' || !value.trim()) return [];
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function parseCsvNumbers(value) {
-  return parseCsvParam(value)
-    .map((item) => Number(item))
-    .filter((item) => Number.isFinite(item));
-}
-
-function getWireConstruction(product) {
-  const mark = product?.mark || '';
-  return FLEXIBLE_MARK_RE.test(mark) ? 'многопроволочная' : 'однопроволочная';
-}
-
-function getConductorMaterial(product) {
-  const decoded = product?.cableDecoded?.decoded;
-  if (!Array.isArray(decoded)) return 'медь';
-  const isAluminum = decoded.some((item) =>
-    String(item).includes('алюминиевые жилы')
-  );
-  return isAluminum ? 'алюминий' : 'медь';
-}
-
-function getCoreVariantLabel(product) {
-  const cores = normalizePositiveNumber(product?.cores);
-  const groundCores = normalizePositiveNumber(product?.groundCores);
-
-  if (!cores) return '';
-  return groundCores ? `${cores}+${groundCores}` : String(cores);
-}
-
-function normalizePositiveNumber(value) {
-  const normalized = Number(value);
-  return Number.isFinite(normalized) && normalized > 0 ? normalized : null;
-}
-
-function getSearchFilteredProducts(items, search) {
-  const query = String(search || '').trim().toLowerCase();
-  if (!query) return items;
-
-  return items.filter((product) => {
-    const mark = (product.mark || '').toLowerCase();
-    const title = (product.title || '').toLowerCase();
-    const fullName = (product.fullName || '').toLowerCase();
-    const sku = (product.sku || '').toLowerCase();
-    return (
-      mark.includes(query) ||
-      title.includes(query) ||
-      fullName.includes(query) ||
-      sku.includes(query)
-    );
-  });
-}
-
-function buildCatalogFacets(items) {
-  const materialSet = new Set();
-  const constructionSet = new Set();
-  const coreSet = new Set();
-  const sectionSet = new Set();
-  const voltageSet = new Set();
-  const appTypeSet = new Set();
-  let hasSPE = false;
-  let minPrice = Infinity;
-  let maxPrice = -Infinity;
-
-  for (const product of items) {
-    materialSet.add(getConductorMaterial(product));
-    constructionSet.add(getWireConstruction(product));
-
-    const coreVariant = getCoreVariantLabel(product);
-    if (coreVariant) coreSet.add(coreVariant);
-    if (product.crossSection) sectionSet.add(product.crossSection);
-    if (product.voltage != null) voltageSet.add(product.voltage);
-    if (product.catalogApplicationType) appTypeSet.add(product.catalogApplicationType);
-    if (product.catalogType === 'СПЭ') hasSPE = true;
-
-    const price = Number(product.price);
-    if (Number.isFinite(price) && price > 0) {
-      if (price < minPrice) minPrice = price;
-      if (price > maxPrice) maxPrice = price;
-    }
-  }
-
-  return {
-    materials: [...materialSet].sort((a, b) => a.localeCompare(b, 'ru')),
-    constructions: [...constructionSet].sort((a, b) => a.localeCompare(b, 'ru')),
-    cores: [...coreSet].sort((a, b) => a.localeCompare(b, 'ru', { numeric: true })),
-    sections: [...sectionSet].sort((a, b) => a - b),
-    voltages: [...voltageSet].sort((a, b) => a - b),
-    appTypes: [...appTypeSet].sort((a, b) => a.localeCompare(b, 'ru')),
-    hasSPE,
-    minPrice: Number.isFinite(minPrice) ? minPrice : 0,
-    maxPrice: Number.isFinite(maxPrice) ? maxPrice : 0,
-  };
-}
-
-function applyProductFilters(items, query) {
-  let result = items;
-  const selectedMaterials = parseCsvParam(query.material);
-  const selectedConstructions = parseCsvParam(query.construction);
-  const selectedCores = parseCsvParam(query.cores);
-  const selectedSections = parseCsvNumbers(query.section);
-  const selectedVoltages = parseCsvNumbers(query.voltage);
-  const selectedAppTypes = parseCsvParam(query.appType);
-  const onlySPE = query.spe === '1';
-
-  if (selectedMaterials.length > 0) {
-    result = result.filter((item) =>
-      selectedMaterials.includes(getConductorMaterial(item))
-    );
-  }
-  if (selectedConstructions.length > 0) {
-    result = result.filter((item) =>
-      selectedConstructions.includes(getWireConstruction(item))
-    );
-  }
-  if (selectedCores.length > 0) {
-    result = result.filter((item) =>
-      selectedCores.includes(getCoreVariantLabel(item))
-    );
-  }
-  if (selectedSections.length > 0) {
-    result = result.filter((item) => selectedSections.includes(item.crossSection));
-  }
-  if (selectedVoltages.length > 0) {
-    result = result.filter((item) => selectedVoltages.includes(item.voltage));
-  }
-  if (selectedAppTypes.length > 0) {
-    result = result.filter((item) =>
-      selectedAppTypes.includes(item.catalogApplicationType)
-    );
-  }
-  if (onlySPE) {
-    result = result.filter((item) => item.catalogType === 'СПЭ');
-  }
-
-  const minPrice = Number(query.priceMin);
-  const maxPrice = Number(query.priceMax);
-  if (Number.isFinite(minPrice) && minPrice > 0) {
-    result = result.filter((item) => Number(item.price) >= minPrice);
-  }
-  if (Number.isFinite(maxPrice) && maxPrice > 0) {
-    result = result.filter((item) => Number(item.price) <= maxPrice);
-  }
-
-  return result;
-}
-
-function sortProducts(items, sortBy) {
-  if (!sortBy || sortBy === 'default') return items;
-
-  const result = [...items];
-  const sortPrice = (product) => {
-    const value = Number(product.price);
-    return Number.isFinite(value) && value > 0 ? value : null;
-  };
-
-  if (sortBy === 'price-asc') {
-    result.sort((a, b) => comparePrices(a, b, sortPrice, 1));
-  } else if (sortBy === 'price-desc') {
-    result.sort((a, b) => comparePrices(a, b, sortPrice, -1));
-  } else if (sortBy === 'title-asc') {
-    result.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
-  } else if (sortBy === 'popular') {
-    result.sort((a, b) => (b.stock || 0) - (a.stock || 0));
-  }
-
-  return result;
-}
-
-function comparePrices(a, b, sortPrice, direction) {
-  const priceA = sortPrice(a);
-  const priceB = sortPrice(b);
-  if (priceA === null && priceB === null) return 0;
-  if (priceA === null) return 1;
-  if (priceB === null) return -1;
-  return direction === 1 ? priceA - priceB : priceB - priceA;
-}
-
-function parsePage(value) {
-  const page = Number(value);
-  if (!Number.isFinite(page) || page <= 0) return 1;
-  return Math.floor(page);
-}
-
-function parseLimit(value, fallback, max) {
-  const num = Number(value);
-  if (!Number.isFinite(num) || num <= 0) return fallback;
-  return Math.min(Math.floor(num), max);
-}
-
-function getCatalogQueryItems(allItems, category) {
-  const categoryValue = typeof category === 'string' ? category.trim() : '';
-  if (!categoryValue || categoryValue === 'Все') return allItems;
-
-  const bySlug = getCatalogProductsByCategory(categoryValue, allItems);
-  if (bySlug.length > 0 || CANONICAL_CATEGORY_ORDER.has(categoryValue)) {
-    return bySlug;
-  }
-
-  return allItems.filter(
-    (item) =>
-      item.catalogCategory === categoryValue || item.category === categoryValue
-  );
-}
-
-function hasProductFilters(query) {
-  return [
-    'search',
-    'priceMin',
-    'priceMax',
-    'material',
-    'construction',
-    'cores',
-    'section',
-    'voltage',
-    'appType',
-    'spe',
-  ].some((key) => typeof query[key] === 'string' && query[key].trim())
-    || (typeof query.sort === 'string' &&
-      query.sort.trim() &&
-      query.sort !== 'default');
-}
-
-function buildProductSuggestions(items, search, limit) {
-  const normalizedSearch = normalizeSearchKey(search);
-  if (!normalizedSearch) return [];
-
-  const markMap = new Map();
-
-  for (const product of items) {
-    const mark = String(product.mark || '').trim();
-    if (!mark) continue;
-
-    const key = normalizeSearchKey(mark);
-    if (!key || !key.startsWith(normalizedSearch)) continue;
-
-    const current = markMap.get(key);
-    if (current) {
-      current.count += 1;
-    } else {
-      markMap.set(key, { key, mark, count: 1 });
-    }
-  }
-
-  return [...markMap.values()]
-    .sort((a, b) => {
-      const exactDiff =
-        Number(b.key === normalizedSearch) - Number(a.key === normalizedSearch);
-      if (exactDiff !== 0) return exactDiff;
-      return b.count - a.count || a.mark.localeCompare(b.mark, 'ru');
-    })
-    .slice(0, limit);
+export function createTrustedProxyFn(value = process.env.TRUSTED_PROXY_IPS) {
+  return proxyaddr.compile(parseTrustedProxyIps(value));
 }
 
 const QUOTE_CHANNEL_LABELS = {
@@ -466,19 +433,33 @@ function createQuoteItemsHtml(items) {
 // Фабрика express-инстанса. Каждый вызов создаёт изолированный rate limiter
 // и cors-allowlist — что позволяет параллельным интеграционным тестам не
 // влиять друг на друга. На проде вызывается ровно один раз из main-блока.
-export function createApp({ rateLimitOptions } = {}) {
+export function createApp({
+  rateLimitOptions,
+  trustProxy = createTrustedProxyFn(),
+  catalogStore = createCatalogStore(),
+  catalogQueryStore = createCatalogQueryStore({
+    getCatalogProductsByCategory: catalogStore.getCatalogProductsByCategory,
+    facetCacheTtlMs: CATALOG_CACHE_TTL_MS,
+  }),
+  mailTransporter = createTransporter(),
+  mailSendOptions = getMailSendOptions(),
+} = {}) {
   const app = express();
   app.set('etag', false);
-  app.set('trust proxy', 1);
+  app.set('trust proxy', trustProxy);
+  app.locals.mailTransporter = mailTransporter;
 
+  // 3 заявки/час с одного IP. B2B-снабженец редко шлёт КП чаще; для абуза
+  // (массовая рассылка через нашу SMTP, перебор email replyTo) этот лимит уже
+  // дорог. Если реальный клиент упёрся — попросит менеджера по телефону.
   const quoteRateLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    limit: 5,
+    windowMs: 60 * 60 * 1000,
+    limit: 3,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     message: {
       ok: false,
-      message: 'Слишком много заявок. Попробуйте через минуту.',
+      message: 'Слишком много заявок. Попробуйте через час или позвоните нам.',
     },
     ...rateLimitOptions,
   });
@@ -504,11 +485,27 @@ export function createApp({ rateLimitOptions } = {}) {
       },
     })
   );
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: API_CSP_DIRECTIVES,
+      },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      strictTransportSecurity: {
+        maxAge: HSTS_MAX_AGE_SECONDS,
+        includeSubDomains: true,
+      },
+      xFrameOptions: { action: 'deny' },
+    })
+  );
   app.use('/api/products', compression());
-  app.use(express.json({ limit: '64kb' }));
+  app.use(express.json({ limit: MAX_QUOTE_PAYLOAD_BYTES }));
   app.use((err, req, res, next) => {
     if (err && err.type === 'entity.too.large') {
-      return res.status(413).json({ ok: false, message: 'Слишком большой запрос' });
+      return res
+        .status(413)
+        .json({ ok: false, message: 'Слишком большой запрос' });
     }
     return next(err);
   });
@@ -523,14 +520,24 @@ export function createApp({ rateLimitOptions } = {}) {
     try {
       applyCatalogCache(res);
 
-      const allItems = await loadCatalogProducts();
+      const allItems = await catalogStore.loadCatalogProducts();
       const categorySlug =
         typeof req.query.category === 'string' ? req.query.category.trim() : '';
       const hasPagination = req.query.page != null || req.query.limit != null;
       const hasFilters = hasProductFilters(req.query);
-      const baseItems = getCatalogQueryItems(allItems, categorySlug);
-      const searchedItems = getSearchFilteredProducts(baseItems, req.query.search);
-      const facets = buildCatalogFacets(searchedItems);
+      const baseItems = catalogQueryStore.getCatalogQueryItems(
+        allItems,
+        categorySlug
+      );
+      const searchedItems = catalogQueryStore.getSearchFilteredProducts(
+        baseItems,
+        req.query.search
+      );
+      const facets = catalogQueryStore.getCatalogFacets(searchedItems, {
+        categorySlug,
+        search: req.query.search,
+        catalogItems: allItems,
+      });
       const filteredItems = sortProducts(
         applyProductFilters(searchedItems, req.query),
         req.query.sort
@@ -541,20 +548,31 @@ export function createApp({ rateLimitOptions } = {}) {
       let pagination = null;
 
       if (hasPagination) {
-        const limit = parseLimit(req.query.limit, DEFAULT_PRODUCTS_LIMIT, MAX_PRODUCTS_LIMIT);
+        const limit = parseLimit(
+          req.query.limit,
+          DEFAULT_PRODUCTS_LIMIT,
+          MAX_PRODUCTS_LIMIT
+        );
         const totalPages = Math.max(1, Math.ceil(total / limit));
         const page = Math.min(parsePage(req.query.page), totalPages);
         const start = (page - 1) * limit;
-        responseItems = getCatalogProductListItems(
+        responseItems = catalogStore.getCatalogProductListItems(
           filteredItems.slice(start, start + limit)
         );
         pagination = { page, limit, total, totalPages };
-      } else if (!hasFilters && categorySlug && CANONICAL_CATEGORY_ORDER.has(categorySlug)) {
-        responseItems = getCatalogProductListItemsByCategory(categorySlug, allItems);
+      } else if (
+        !hasFilters &&
+        categorySlug &&
+        CANONICAL_CATEGORY_ORDER.has(categorySlug)
+      ) {
+        responseItems = catalogStore.getCatalogProductListItemsByCategory(
+          categorySlug,
+          allItems
+        );
       } else if (!hasFilters) {
-        responseItems = getCatalogProductListItems(baseItems);
+        responseItems = catalogStore.getCatalogProductListItems(baseItems);
       } else {
-        responseItems = getCatalogProductListItems(filteredItems);
+        responseItems = catalogStore.getCatalogProductListItems(filteredItems);
       }
 
       return res.json({
@@ -568,7 +586,7 @@ export function createApp({ rateLimitOptions } = {}) {
           facets,
           // Дерево категорий считаем всегда по полному каталогу, чтобы фильтр в URL
           // не схлопывал боковую навигацию.
-          catalogSections: getCatalogSections(allItems),
+          catalogSections: catalogQueryStore.getCatalogSections(allItems),
           filter: categorySlug ? { category: categorySlug } : null,
         },
       });
@@ -583,7 +601,7 @@ export function createApp({ rateLimitOptions } = {}) {
       applyCatalogCache(res);
 
       const limit = parseLimit(req.query.limit, 10, 50);
-      const items = await loadCatalogProducts();
+      const items = await catalogStore.loadCatalogProducts();
       const featured = [...items]
         .sort((a, b) => {
           const promotedDiff = (b.promoted ? 1 : 0) - (a.promoted ? 1 : 0);
@@ -594,7 +612,7 @@ export function createApp({ rateLimitOptions } = {}) {
 
       return res.json({
         ok: true,
-        items: getCatalogProductListItems(featured),
+        items: catalogStore.getCatalogProductListItems(featured),
       });
     } catch (error) {
       logger.error('catalog.featured.failed', { err: error });
@@ -607,7 +625,7 @@ export function createApp({ rateLimitOptions } = {}) {
       applyCatalogCache(res);
 
       const limit = parseLimit(req.query.limit, 7, 20);
-      const items = await loadCatalogProducts();
+      const items = await catalogStore.loadCatalogProducts();
 
       return res.json({
         ok: true,
@@ -624,7 +642,7 @@ export function createApp({ rateLimitOptions } = {}) {
       applyCatalogCache(res);
 
       const limit = parseLimit(req.query.limit, 6, 24);
-      const product = await findProductBySlug(req.params.slug);
+      const product = await catalogStore.findProductBySlug(req.params.slug);
 
       if (!product) {
         return res.status(404).json({
@@ -633,7 +651,7 @@ export function createApp({ rateLimitOptions } = {}) {
         });
       }
 
-      const items = await loadCatalogProducts();
+      const items = await catalogStore.loadCatalogProducts();
       const related = items
         .filter(
           (item) => item.id !== product.id && item.category === product.category
@@ -642,10 +660,13 @@ export function createApp({ rateLimitOptions } = {}) {
 
       return res.json({
         ok: true,
-        items: getCatalogProductListItems(related),
+        items: catalogStore.getCatalogProductListItems(related),
       });
     } catch (error) {
-      logger.error('catalog.related.failed', { err: error, slug: req.params.slug });
+      logger.error('catalog.related.failed', {
+        err: error,
+        slug: req.params.slug,
+      });
       return createErrorResponse(res, 'Не удалось загрузить похожие товары');
     }
   });
@@ -654,7 +675,7 @@ export function createApp({ rateLimitOptions } = {}) {
     try {
       applyCatalogCache(res);
 
-      const item = await findProductBySlug(req.params.slug);
+      const item = await catalogStore.findProductBySlug(req.params.slug);
 
       if (!item) {
         return res.status(404).json({
@@ -668,33 +689,46 @@ export function createApp({ rateLimitOptions } = {}) {
         item,
       });
     } catch (error) {
-      logger.error('catalog.product.failed', { err: error, slug: req.params.slug });
+      logger.error('catalog.product.failed', {
+        err: error,
+        slug: req.params.slug,
+      });
       return createErrorResponse(res, 'Не удалось загрузить товар');
     }
   });
 
-  app.post('/api/quote', requireJsonContentType, quoteRateLimiter, async (req, res) => {
-    try {
-      if (isHoneypotTriggered(req.body)) {
-        return res.json({ ok: true, message: 'Заявка успешно отправлена' });
-      }
+  app.post(
+    '/api/quote',
+    requireJsonContentType,
+    quoteRateLimiter,
+    async (req, res) => {
+      try {
+        if (getBotSubmissionSignal(req)) {
+          return res.json({ ok: true, message: 'Заявка успешно отправлена' });
+        }
 
-      const { customer: rawCustomer, items, totalCount, totalPrice, createdAt } = req.body;
-      const customer = rawCustomer
-        ? {
-            ...rawCustomer,
-            phone: normalizePhoneInput(rawCustomer.phone),
-            email: normalizeEmail(rawCustomer.email),
-          }
-        : rawCustomer;
+        const {
+          customer: rawCustomer,
+          items,
+          totalCount,
+          totalPrice,
+          createdAt,
+        } = req.body;
+        const customer = rawCustomer
+          ? {
+              ...rawCustomer,
+              phone: normalizePhoneInput(rawCustomer.phone),
+              email: normalizeEmail(rawCustomer.email),
+            }
+          : rawCustomer;
 
-      if (!isValidQuoteRequest({ customer, items })) {
-        return createErrorResponse(res, 'Некорректные данные заявки', 400);
-      }
+        const quoteRequest = { ...req.body, customer, items };
 
-      const transporter = createTransporter();
+        if (!isValidQuoteRequest(quoteRequest)) {
+          return createErrorResponse(res, 'Некорректные данные заявки', 400);
+        }
 
-      const html = `
+        const html = `
         <h2>Новая заявка на коммерческое предложение</h2>
 
         <p><strong>Дата:</strong> ${escapeHtml(createdAt)}</p>
@@ -703,6 +737,9 @@ export function createApp({ rateLimitOptions } = {}) {
         <p><strong>Имя:</strong> ${escapeHtml(customer.name)}</p>
         <p><strong>Телефон:</strong> ${escapeHtml(customer.phone)}</p>
         <p><strong>Email:</strong> ${escapeHtml(customer.email) || '—'}</p>
+        <div style="margin:12px 0;padding:10px 12px;border:1px solid #f59e0b;background:#fef3c7;color:#92400e;">
+          <strong>Проверка безопасности:</strong> проверьте email отправителя в теле письма перед ответом.
+        </div>
         <p><strong>Предпочтительный канал:</strong> ${escapeHtml(QUOTE_CHANNEL_LABELS[customer.preferredChannel] || customer.preferredChannel) || '—'}</p>
         <p><strong>Комментарий:</strong> ${escapeHtml(customer.comment) || '—'}</p>
 
@@ -726,43 +763,53 @@ export function createApp({ rateLimitOptions } = {}) {
         <p><strong>Общая сумма:</strong> ${totalPrice} ₽</p>
       `;
 
-      const replyTo = customer.email || undefined;
+        const replyTo = safeReplyTo(customer.email);
 
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM,
-        to: process.env.QUOTE_TO_EMAIL,
-        ...(replyTo ? { replyTo } : {}),
-        subject: 'Новая заявка на КП — ЮжУралЭлектроКабель',
-        html,
-      });
+        await sendMailWithRetry(
+          mailTransporter,
+          {
+            from: process.env.SMTP_FROM,
+            to: process.env.QUOTE_TO_EMAIL,
+            ...(replyTo ? { replyTo } : {}),
+            subject: 'Новая заявка на КП — ЮжУралЭлектроКабель',
+            html,
+          },
+          { ...mailSendOptions, event: 'quote.send' }
+        );
 
-      return res.json({
-        ok: true,
-        message: 'Заявка успешно отправлена',
-      });
-    } catch (error) {
-      logger.error('quote.send.failed', { err: error });
-      return createErrorResponse(res, 'Не удалось отправить заявку');
+        return res.json({
+          ok: true,
+          message: 'Заявка успешно отправлена',
+        });
+      } catch (error) {
+        logger.error('quote.send.failed', { err: error });
+        return createErrorResponse(res, 'Не удалось отправить заявку');
+      }
     }
-  });
+  );
 
-  app.post('/api/lead-request', requireJsonContentType, quoteRateLimiter, async (req, res) => {
-    try {
-      if (isHoneypotTriggered(req.body)) {
-        return res.json({ ok: true, message: 'Заявка отправлена. Мы скоро свяжемся с вами.' });
-      }
+  app.post(
+    '/api/lead-request',
+    requireJsonContentType,
+    quoteRateLimiter,
+    async (req, res) => {
+      try {
+        if (getBotSubmissionSignal(req)) {
+          return res.json({
+            ok: true,
+            message: 'Заявка отправлена. Мы скоро свяжемся с вами.',
+          });
+        }
 
-      const { name, phone, comment, source, createdAt } = req.body;
-      const contactName = String(name || '').trim();
-      const normalizedPhone = normalizePhoneInput(phone);
+        const { name, phone, comment, source, createdAt } = req.body;
+        const contactName = String(name || '').trim();
+        const normalizedPhone = normalizePhoneInput(phone);
 
-      if (normalizedPhone.replace(/\D/g, '').length < 10) {
-        return createErrorResponse(res, 'Укажите корректный телефон', 400);
-      }
+        if (!isValidRussianPhone(normalizedPhone)) {
+          return createErrorResponse(res, 'Укажите корректный телефон', 400);
+        }
 
-      const transporter = createTransporter();
-
-      const html = `
+        const html = `
         <h2>Новая короткая заявка</h2>
         <p><strong>Дата:</strong> ${escapeHtml(createdAt) || '—'}</p>
         <p><strong>Источник:</strong> ${escapeHtml(source) || '—'}</p>
@@ -771,22 +818,27 @@ export function createApp({ rateLimitOptions } = {}) {
         <p><strong>Комментарий:</strong> ${escapeHtml(comment) || '—'}</p>
       `;
 
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM,
-        to: process.env.QUOTE_TO_EMAIL,
-        subject: 'Новая короткая заявка — ЮжУралЭлектроКабель',
-        html,
-      });
+        await sendMailWithRetry(
+          mailTransporter,
+          {
+            from: process.env.SMTP_FROM,
+            to: process.env.QUOTE_TO_EMAIL,
+            subject: 'Новая короткая заявка — ЮжУралЭлектроКабель',
+            html,
+          },
+          { ...mailSendOptions, event: 'lead.send' }
+        );
 
-      return res.json({
-        ok: true,
-        message: 'Заявка отправлена. Мы скоро свяжемся с вами.',
-      });
-    } catch (error) {
-      logger.error('lead.send.failed', { err: error });
-      return createErrorResponse(res, 'Не удалось отправить заявку');
+        return res.json({
+          ok: true,
+          message: 'Заявка отправлена. Мы скоро свяжемся с вами.',
+        });
+      } catch (error) {
+        logger.error('lead.send.failed', { err: error });
+        return createErrorResponse(res, 'Не удалось отправить заявку');
+      }
     }
-  });
+  );
 
   return app;
 }
@@ -800,8 +852,16 @@ const isMain =
 // каталог должен работать без SMTP, — но громко предупреждаем, чтобы
 // «тихая» поломка форм не дотянула до прода. В тестах не вызывается.
 function warnIfSmtpMisconfigured() {
-  const required = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM', 'QUOTE_TO_EMAIL'];
-  const missing = required.filter((key) => !String(process.env[key] || '').trim());
+  const required = [
+    'SMTP_HOST',
+    'SMTP_USER',
+    'SMTP_PASS',
+    'SMTP_FROM',
+    'QUOTE_TO_EMAIL',
+  ];
+  const missing = required.filter(
+    (key) => !String(process.env[key] || '').trim()
+  );
   if (missing.length > 0) {
     logger.warn('startup.smtp_misconfigured', {
       missing,
@@ -811,7 +871,14 @@ function warnIfSmtpMisconfigured() {
 }
 
 if (isMain) {
-  warnIfSmtpMisconfigured();
+  try {
+    validateSiteUrlEnv();
+    warnIfSmtpMisconfigured();
+  } catch (error) {
+    logger.error('startup.env_invalid', { err: error });
+    process.exit(1);
+  }
+
   const app = createApp();
   app.listen(PORT, () => {
     logger.info('startup.listening', { port: PORT });

@@ -27,7 +27,11 @@ export function fetchProducts(signal, options = {}) {
     'page',
     'limit',
   ]) {
-    if (options[key] !== undefined && options[key] !== null && options[key] !== '') {
+    if (
+      options[key] !== undefined &&
+      options[key] !== null &&
+      options[key] !== ''
+    ) {
       params.set(key, String(options[key]));
     }
   }

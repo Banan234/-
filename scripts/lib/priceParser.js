@@ -188,7 +188,9 @@ function stripManufacturerPrefix(value) {
 }
 
 export function parseProductName(value) {
-  const { name: stripped, manufacturer } = stripManufacturerPrefix(normalizeText(value));
+  const { name: stripped, manufacturer } = stripManufacturerPrefix(
+    normalizeText(value)
+  );
   const source = stripped;
 
   if (!source) {
@@ -374,13 +376,15 @@ function roundTo(value, precision) {
 }
 
 function normalizeText(value) {
-  return String(value || '')
-    .replace(/\s+/g, ' ')
-    // Унифицируем оператор умножения в размерах (3x2.5, 3×2.5, 3 х 2.5 → 3х2.5).
-    // Важно: заменяем только между цифрами, чтобы не ломать латинские буквы
-    // в суффиксах вроде «LTx», «нг(А)-LS-LTx».
-    .replace(/(\d)\s*[×xXхХ]\s*(\d)/g, '$1х$2')
-    .trim();
+  return (
+    String(value || '')
+      .replace(/\s+/g, ' ')
+      // Унифицируем оператор умножения в размерах (3x2.5, 3×2.5, 3 х 2.5 → 3х2.5).
+      // Важно: заменяем только между цифрами, чтобы не ломать латинские буквы
+      // в суффиксах вроде «LTx», «нг(А)-LS-LTx».
+      .replace(/(\d)\s*[×xXхХ]\s*(\d)/g, '$1х$2')
+      .trim()
+  );
 }
 
 function normalizeCategory(value) {

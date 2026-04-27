@@ -95,7 +95,10 @@ function findMatcherOverride(product) {
     priceMatchers.find((matcher) => {
       if (!matcher || typeof matcher !== 'object') return false;
       if (normalizeMarkKey(matcher.mark) !== productMark) return false;
-      if (matcher.cores != null && Number(matcher.cores) !== Number(product.cores)) {
+      if (
+        matcher.cores != null &&
+        Number(matcher.cores) !== Number(product.cores)
+      ) {
         return false;
       }
       if (
@@ -104,7 +107,10 @@ function findMatcherOverride(product) {
       ) {
         return false;
       }
-      if (matcher.voltage != null && Number(matcher.voltage) !== Number(product.voltage)) {
+      if (
+        matcher.voltage != null &&
+        Number(matcher.voltage) !== Number(product.voltage)
+      ) {
         return false;
       }
       return true;
@@ -122,9 +128,15 @@ function applyPriceOverride(product) {
   let newPrice = product.price;
   if (typeof override.price === 'number') {
     newPrice = override.price;
-  } else if (typeof override.priceDivide === 'number' && override.priceDivide > 0) {
+  } else if (
+    typeof override.priceDivide === 'number' &&
+    override.priceDivide > 0
+  ) {
     newPrice = product.price / override.priceDivide;
-  } else if (typeof override.priceMultiply === 'number' && override.priceMultiply > 0) {
+  } else if (
+    typeof override.priceMultiply === 'number' &&
+    override.priceMultiply > 0
+  ) {
     newPrice = product.price * override.priceMultiply;
   }
   return { ...product, price: Math.round(newPrice * 1000) / 1000 };
@@ -217,7 +229,9 @@ function detectSchema(rows) {
     if (!isHeaderRow(row)) return;
     headerRowIndexes.push(index);
     for (const cell of row) {
-      const value = String(cell ?? '').trim().toLowerCase();
+      const value = String(cell ?? '')
+        .trim()
+        .toLowerCase();
       if (!value) continue;
       for (const token of REQUIRED_HEADER_TOKENS) {
         if (value.includes(token)) {
@@ -395,11 +409,18 @@ function parsePageRow(cells, sourceRow, category, rowIndex = null) {
   );
 }
 
-function createProductRecord(product, category, sourceRow = null, rowIndex = null) {
-  const normalized = applyPriceOverride(normalizeImportedProduct({
-    ...product,
-    category,
-  }));
+function createProductRecord(
+  product,
+  category,
+  sourceRow = null,
+  rowIndex = null
+) {
+  const normalized = applyPriceOverride(
+    normalizeImportedProduct({
+      ...product,
+      category,
+    })
+  );
 
   if (!normalized.name) {
     return {
@@ -539,13 +560,18 @@ async function loadPreviousProducts() {
     if (error.code === 'ENOENT') {
       return [];
     }
-    console.warn('Не удалось прочитать предыдущий products.json:', error.message);
+    console.warn(
+      'Не удалось прочитать предыдущий products.json:',
+      error.message
+    );
     return [];
   }
 }
 
 function productKey(product) {
-  return String(product?.fullName || product?.name || '').trim().toLowerCase();
+  return String(product?.fullName || product?.name || '')
+    .trim()
+    .toLowerCase();
 }
 
 function buildDiff(previous, current) {
@@ -783,10 +809,8 @@ function buildSuspiciousPriceStats(config, historySnapshots) {
   ]);
   const byUnit = {};
   const minimumSamples = Number(statsConfig.minimumSamples) || 0;
-  const thresholdPercentile =
-    Number(statsConfig.thresholdPercentile) || 0.99;
-  const thresholdMultiplier =
-    Number(statsConfig.thresholdMultiplier) || 1;
+  const thresholdPercentile = Number(statsConfig.thresholdPercentile) || 0.99;
+  const thresholdMultiplier = Number(statsConfig.thresholdMultiplier) || 1;
 
   for (const unit of [...units].sort()) {
     const prices = pricesByUnit.get(unit) || [];
@@ -924,9 +948,7 @@ function summarizeByCategory(products) {
     const key = product.category || 'Без категории';
     counts.set(key, (counts.get(key) || 0) + 1);
   }
-  return Object.fromEntries(
-    [...counts.entries()].sort((a, b) => b[1] - a[1])
-  );
+  return Object.fromEntries([...counts.entries()].sort((a, b) => b[1] - a[1]));
 }
 
 function buildClassificationReport(products, config) {
@@ -959,9 +981,7 @@ function buildClassificationReport(products, config) {
   }
 
   const topPrefixes = [...prefixMap.values()]
-    .sort(
-      (a, b) => b.count - a.count || a.prefix.localeCompare(b.prefix, 'ru')
-    )
+    .sort((a, b) => b.count - a.count || a.prefix.localeCompare(b.prefix, 'ru'))
     .slice(0, topPrefixLimit);
 
   return {
@@ -1013,8 +1033,7 @@ function extractUnrecognizedPrefix(product) {
 
   const manufacturer = String(product.manufacturer || '').trim();
   const withoutManufacturer =
-    manufacturer &&
-    source.toLowerCase().startsWith(manufacturer.toLowerCase())
+    manufacturer && source.toLowerCase().startsWith(manufacturer.toLowerCase())
       ? source.slice(manufacturer.length).replace(/^[-\s]+/, '')
       : source;
   const compact = withoutManufacturer.replace(/\s+/g, ' ').trim();
@@ -1834,8 +1853,19 @@ async function main() {
     `Реестр товаров: ${path.relative(projectRoot, registryFile)} · записей: ${Object.keys(registry.entries).length} · nextId: ${registry.nextId}`
   );
   if (seoSummary) {
+    const indexRel = path.relative(projectRoot, seoSummary.indexPath);
+    const robotsRel = path.relative(projectRoot, seoSummary.robotsPath);
+    const {
+      pages,
+      categories,
+      products: prodCount,
+      total,
+      productSitemaps,
+    } = seoSummary.counts;
+    const productSitemapInfo =
+      productSitemaps > 1 ? `, productSitemaps:${productSitemaps}` : '';
     console.log(
-      `SEO: ${path.relative(projectRoot, seoSummary.sitemapPath)} (${seoSummary.urlCount} URL) · ${path.relative(projectRoot, seoSummary.robotsPath)}`
+      `SEO: ${indexRel} (index → pages:${pages}, categories:${categories}, products:${prodCount}${productSitemapInfo}, total:${total} URL) · ${robotsRel}`
     );
   }
   console.log(
@@ -1843,7 +1873,9 @@ async function main() {
   );
   if (isDryRun) {
     console.log('');
-    console.log('--- DRY RUN: products.json / productRegistry.json / отчёты не записаны ---');
+    console.log(
+      '--- DRY RUN: products.json / productRegistry.json / отчёты не записаны ---'
+    );
   } else {
     console.log(`JSON-отчёт: ${path.relative(projectRoot, reportFile)}`);
     console.log(`HTML-отчёт: ${path.relative(projectRoot, reportHtmlFile)}`);

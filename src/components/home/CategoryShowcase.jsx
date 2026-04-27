@@ -46,24 +46,41 @@ export default function CategoryShowcase() {
     <section className="section home-category-showcase">
       <Container>
         <div className="home-category-showcase__head">
-          <h2 className="section-title section-title--left">Популярные категории</h2>
-          <p className="home-category-showcase__sub">Выберите нужный тип кабеля под вашу задачу</p>
+          <h2 className="section-title section-title--left">
+            Популярные категории
+          </h2>
+          <p className="home-category-showcase__sub">
+            Выберите нужный тип кабеля под вашу задачу
+          </p>
         </div>
 
-        <div className="home-category-showcase__grid" aria-label="Популярные категории каталога">
+        <div
+          className="home-category-showcase__grid"
+          aria-label="Популярные категории каталога"
+        >
           {categoryCards.map((item) => (
-            <Link key={item.title} to={item.to} className="home-category-showcase__card">
+            <Link
+              key={item.title}
+              to={item.to}
+              className="home-category-showcase__card"
+            >
               <div className="home-category-showcase__media">
                 <img
                   src={item.image}
                   alt={item.imageAlt}
                   className="home-category-showcase__image"
+                  width="560"
+                  height="320"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
 
               <div className="home-category-showcase__body">
                 <h3 className="home-category-showcase__title">{item.title}</h3>
-                <p className="home-category-showcase__examples">{item.examples}</p>
+                <p className="home-category-showcase__examples">
+                  {item.examples}
+                </p>
                 <span className="home-category-showcase__cta">
                   Перейти
                   <span aria-hidden="true">→</span>

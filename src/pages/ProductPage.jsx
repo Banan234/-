@@ -8,117 +8,16 @@ import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useSEO } from '../hooks/useSEO';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { trackEvent } from '../lib/analytics';
+import { captureException } from '../lib/errorTracking';
 import {
-  SITE_LEGAL_NAME,
-  SITE_NAME,
-  SITE_URL,
-  absoluteUrl,
-} from '../lib/siteConfig';
+  buildProductBreadcrumbJsonLd,
+  buildProductJsonLd,
+  getProductBreadcrumbs,
+} from '../lib/productSeo';
 import '../styles/sections/commerce.css';
 
 const BREADCRUMB_JSON_LD_ID = 'product-breadcrumb-json-ld';
 const PRODUCT_JSON_LD_ID = 'product-product-json-ld';
-
-function buildProductJsonLd(product) {
-  if (!product) return null;
-
-  const url = absoluteUrl(`/product/${product.slug}`);
-  const price = Number(product.price);
-  const hasPrice = Number.isFinite(price) && price > 0;
-  const stock = Number(product.stock);
-  const hasStock = Number.isFinite(stock) && stock > 0;
-  const brandName =
-    product.catalogBrand || product.manufacturer || SITE_LEGAL_NAME;
-
-  const data = {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.title || product.fullName || product.name,
-    sku: product.sku || String(product.id),
-    url,
-    description:
-      product.description ||
-      [
-        product.fullName || product.name,
-        product.catalogCategory,
-        product.catalogSection,
-      ]
-        .filter(Boolean)
-        .join(' · '),
-    brand: {
-      '@type': 'Brand',
-      name: brandName,
-    },
-    category: product.catalogCategory || product.catalogSection || undefined,
-  };
-
-  if (product.image) {
-    data.image = absoluteUrl(product.image);
-  }
-
-  if (product.mark) {
-    data.mpn = product.mark;
-  }
-
-  if (hasPrice) {
-    data.offers = {
-      '@type': 'Offer',
-      url,
-      priceCurrency: 'RUB',
-      price: price.toFixed(2),
-      availability: hasStock
-        ? 'https://schema.org/InStock'
-        : 'https://schema.org/PreOrder',
-      itemCondition: 'https://schema.org/NewCondition',
-      seller: {
-        '@type': 'Organization',
-        name: SITE_NAME,
-        url: SITE_URL,
-      },
-    };
-  }
-
-  return data;
-}
-
-function getCatalogPath(slug) {
-  return slug ? `/catalog/${slug}` : '/catalog';
-}
-
-function getProductBreadcrumbs(product) {
-  const items = [
-    { label: 'Главная', to: '/' },
-    { label: 'Каталог', to: '/catalog' },
-  ];
-  const hasSection = Boolean(product.catalogSection);
-  const hasCategory = Boolean(product.catalogCategory);
-  const isSameCatalogLevel =
-    (product.catalogSectionSlug &&
-      product.catalogSectionSlug === product.catalogCategorySlug) ||
-    product.catalogSection === product.catalogCategory;
-
-  if (hasSection) {
-    items.push({
-      label: product.catalogSection,
-      to: getCatalogPath(product.catalogSectionSlug),
-    });
-  }
-
-  if (hasCategory && !isSameCatalogLevel) {
-    items.push({
-      label: product.catalogCategory,
-      to: getCatalogPath(product.catalogCategorySlug),
-    });
-  }
-
-  items.push({
-    label: product.title,
-    to: `/product/${product.slug}`,
-    isCurrent: true,
-  });
-
-  return items;
-}
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -170,7 +69,10 @@ export default function ProductPage() {
           return;
         }
 
-        console.error(requestError);
+        captureException(requestError, {
+          source: 'ProductPage.loadProduct',
+          slug: typeof slug === 'string' ? slug : undefined,
+        });
         setError(requestError.message || 'Не удалось загрузить товар');
       } finally {
         setIsLoading(false);
@@ -182,20 +84,8 @@ export default function ProductPage() {
     return () => controller.abort();
   }, [slug]);
 
-  const breadcrumbJsonLd = product
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'BreadcrumbList',
-        itemListElement: getProductBreadcrumbs(product).map((item, index) => ({
-          '@type': 'ListItem',
-          position: index + 1,
-          name: item.label,
-          item: absoluteUrl(item.to),
-        })),
-      }
-    : null;
-
-  const productJsonLd = product ? buildProductJsonLd(product) : null;
+  const breadcrumbJsonLd = buildProductBreadcrumbJsonLd(product);
+  const productJsonLd = buildProductJsonLd(product);
 
   useJsonLd(BREADCRUMB_JSON_LD_ID, breadcrumbJsonLd);
   useJsonLd(PRODUCT_JSON_LD_ID, productJsonLd);
@@ -294,6 +184,10 @@ export default function ProductPage() {
               src={product.image}
               alt={product.title}
               className="product-page__image"
+              width="560"
+              height="320"
+              loading="eager"
+              decoding="async"
             />
           </div>
 

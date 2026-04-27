@@ -4,6 +4,7 @@ import HeroLeadForm from '../components/home/HeroLeadForm';
 import CategoryShowcase from '../components/home/CategoryShowcase';
 import StockProductsGrid from '../components/home/StockProductsGrid';
 import { fetchFeaturedProducts } from '../lib/productsApi';
+import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useJsonLd } from '../hooks/useJsonLd';
 import {
@@ -222,7 +223,7 @@ export default function HomePage() {
         setProducts(items);
       } catch (error) {
         if (error.name !== 'AbortError') {
-          console.error('Ошибка загрузки товаров на главной:', error);
+          captureException(error, { source: 'HomePage.loadFeatured' });
           setLoadError('Не удалось загрузить позиции из каталога.');
         }
       } finally {
@@ -239,7 +240,8 @@ export default function HomePage() {
       new CustomEvent('open-quote-modal', {
         detail: {
           title: 'Получить КП',
-          subtitle: 'Оставьте телефон и комментарий — подготовим предложение по вашей задаче.',
+          subtitle:
+            'Оставьте телефон и комментарий — подготовим предложение по вашей задаче.',
           submitLabel: 'Получить КП',
           source: 'CTA на главной',
         },
@@ -258,9 +260,12 @@ export default function HomePage() {
                 Кабель оптом со склада в Челябинске
               </h1>
               <p className="home-hero__subtitle">
-                Отгрузка от <span className="home-hero__subtitle-accent">1 дня</span> · Поставки по всей России
+                Отгрузка от{' '}
+                <span className="home-hero__subtitle-accent">1 дня</span> ·
+                Поставки по всей России
                 <br />
-                Рассчитаем КП за <span className="home-hero__subtitle-accent">15–30 минут</span>
+                Рассчитаем КП за{' '}
+                <span className="home-hero__subtitle-accent">15–30 минут</span>
               </p>
               <div className="home-hero__actions">
                 <button
@@ -315,16 +320,22 @@ export default function HomePage() {
         <Container>
           <div className="home-documents__layout">
             <div className="home-documents__copy">
-              <div className="home-documents__eyebrow">Документы для закупки</div>
+              <div className="home-documents__eyebrow">
+                Документы для закупки
+              </div>
               <h2 className="section-title section-title--left">
                 Скачать прайс и типовой договор
               </h2>
               <p className="home-documents__lead">
-                Скачать прайс-лист (Excel, обновлён сегодня) · Типовой договор поставки (PDF) · Реквизиты (PDF)
+                Скачать прайс-лист (Excel, обновлён сегодня) · Типовой договор
+                поставки (PDF) · Реквизиты (PDF)
               </p>
             </div>
 
-            <div className="home-documents__links" aria-label="Документы для скачивания">
+            <div
+              className="home-documents__links"
+              aria-label="Документы для скачивания"
+            >
               {procurementDocuments.map((doc) => (
                 <a
                   key={doc.href}
@@ -336,8 +347,12 @@ export default function HomePage() {
                     {doc.type}
                   </span>
                   <span className="home-documents__link-copy">
-                    <span className="home-documents__link-title">{doc.title}</span>
-                    <span className="home-documents__link-meta">{doc.meta}</span>
+                    <span className="home-documents__link-title">
+                      {doc.title}
+                    </span>
+                    <span className="home-documents__link-meta">
+                      {doc.meta}
+                    </span>
                   </span>
                   <span className="home-documents__download" aria-hidden="true">
                     ↓
@@ -353,17 +368,23 @@ export default function HomePage() {
         <Container>
           <div className="home-quality-docs__head">
             <div>
-              <div className="home-quality-docs__eyebrow">Гарантии качества</div>
+              <div className="home-quality-docs__eyebrow">
+                Гарантии качества
+              </div>
               <h2 className="section-title section-title--left">
                 Каждая отгрузка — с пакетом документов
               </h2>
             </div>
             <p className="home-quality-docs__lead">
-              УПД/ТОРГ-12, сертификаты соответствия, сертификат ПБ и протоколы испытаний по запросу для любой марки из поставки.
+              УПД/ТОРГ-12, сертификаты соответствия, сертификат ПБ и протоколы
+              испытаний по запросу для любой марки из поставки.
             </p>
           </div>
 
-          <div className="home-quality-docs__grid" aria-label="Документы качества">
+          <div
+            className="home-quality-docs__grid"
+            aria-label="Документы качества"
+          >
             {qualityDocuments.map((doc) => (
               <article key={doc.title} className="home-quality-docs__item">
                 <span className="home-quality-docs__icon" aria-hidden="true">
@@ -384,10 +405,13 @@ export default function HomePage() {
           <div className="home-workflow__intro">
             <div>
               <div className="home-workflow__eyebrow">Как мы работаем?</div>
-              <h2 className="section-title section-title--left">От заявки до отгрузки за 1 день</h2>
+              <h2 className="section-title section-title--left">
+                От заявки до отгрузки за 1 день
+              </h2>
             </div>
             <p className="home-workflow__lead">
-              3 шага без лишних звонков и долгих согласований: заявка, КП за 30 минут и отгрузка со склада.
+              3 шага без лишних звонков и долгих согласований: заявка, КП за 30
+              минут и отгрузка со склада.
             </p>
           </div>
 
@@ -427,13 +451,19 @@ export default function HomePage() {
         <Container>
           <div className="home-audience__head">
             <div className="home-audience__eyebrow">С кем мы работаем?</div>
-            <h2 className="section-title section-title--left">Работаем с теми, кому нужен быстрый и понятный закупочный процесс</h2>
+            <h2 className="section-title section-title--left">
+              Работаем с теми, кому нужен быстрый и понятный закупочный процесс
+            </h2>
             <p className="home-audience__sub">
-              Если у вас горят сроки, нужна ясность по наличию и требуется КП без лишней переписки, этот формат работы для вас.
+              Если у вас горят сроки, нужна ясность по наличию и требуется КП
+              без лишней переписки, этот формат работы для вас.
             </p>
           </div>
 
-          <div className="home-audience__grid" aria-label="Кому подходит работа с нами">
+          <div
+            className="home-audience__grid"
+            aria-label="Кому подходит работа с нами"
+          >
             {audienceSegments.map((item) => (
               <article key={item.title} className="home-audience__card">
                 <h3 className="home-audience__title">{item.title}</h3>
@@ -454,7 +484,8 @@ export default function HomePage() {
               </h2>
             </div>
             <p className="home-objections__lead">
-              Коротко о ценах, наличии, оплате, доставке и минимальной партии до того, как заявка уйдёт в закупки.
+              Коротко о ценах, наличии, оплате, доставке и минимальной партии до
+              того, как заявка уйдёт в закупки.
             </p>
           </div>
 

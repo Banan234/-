@@ -52,8 +52,7 @@ export default function DeliveryPage() {
         </div>
 
         <div className="info-note">
-          Для уточнения стоимости и сроков доставки свяжитесь с нами по
-          телефону{' '}
+          Для уточнения стоимости и сроков доставки свяжитесь с нами по телефону{' '}
           <a href="tel:+78005553552" className="info-note__link">
             8 800 555 35 52
           </a>{' '}

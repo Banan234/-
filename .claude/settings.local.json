@@ -3,10 +3,6 @@
     "NODE_TLS_REJECT_UNAUTHORIZED": "0"
   },
   "permissions": {
-    "allow": [
-      "WebFetch(*)",
-      "Bash(*)",
-      "mcp__Claude_Preview__preview_start"
-    ]
+    "allow": ["WebFetch(*)", "Bash(*)", "mcp__Claude_Preview__preview_start"]
   }
 }

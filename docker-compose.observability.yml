@@ -1,0 +1,81 @@
+# Опциональный self-hosted error-tracker. Поднимается отдельно от основного
+# стека, чтобы при «легковесном» деплое можно было не запускать.
+#
+# Запуск рядом с основным compose:
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+#
+# После старта:
+#   1. Зайти на http://<host>:8000, создать суперпользователя
+#      (docker compose exec glitchtip ./manage.py createsuperuser)
+#      или через переменные GLITCHTIP_*_SUPERUSER ниже.
+#   2. Создать проект → скопировать DSN → положить в .env как VITE_SENTRY_DSN.
+#   3. Пересобрать фронт: docker compose build web && docker compose up -d web.
+#
+# Источник: https://glitchtip.com/documentation/install#docker
+
+services:
+  glitchtip-postgres:
+    image: postgres:16-alpine
+    container_name: yuzhural-glitchtip-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: glitchtip
+      POSTGRES_USER: ${GLITCHTIP_PG_USER:-glitchtip}
+      POSTGRES_PASSWORD: ${GLITCHTIP_PG_PASSWORD:?set GLITCHTIP_PG_PASSWORD in .env}
+    volumes:
+      - glitchtip-pg:/var/lib/postgresql/data
+    networks:
+      - yuzhural-net
+
+  glitchtip-redis:
+    image: redis:7-alpine
+    container_name: yuzhural-glitchtip-redis
+    restart: unless-stopped
+    networks:
+      - yuzhural-net
+
+  glitchtip:
+    image: glitchtip/glitchtip:v4.1
+    container_name: yuzhural-glitchtip
+    restart: unless-stopped
+    depends_on:
+      - glitchtip-postgres
+      - glitchtip-redis
+    environment:
+      DATABASE_URL: postgres://${GLITCHTIP_PG_USER:-glitchtip}:${GLITCHTIP_PG_PASSWORD}@glitchtip-postgres:5432/glitchtip
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?set GLITCHTIP_SECRET_KEY in .env (openssl rand -hex 32)}
+      PORT: '8080'
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-consolemail://}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8000}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL:-glitchtip@example.ru}
+      CELERY_WORKER_AUTOSCALE: '1,3'
+      CELERY_WORKER_MAX_TASKS_PER_CHILD: '10000'
+    ports:
+      - '8000:8080'
+    networks:
+      - yuzhural-net
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip:v4.1
+    container_name: yuzhural-glitchtip-worker
+    restart: unless-stopped
+    depends_on:
+      - glitchtip-postgres
+      - glitchtip-redis
+    command: ./bin/run-celery-with-beat.sh
+    environment:
+      DATABASE_URL: postgres://${GLITCHTIP_PG_USER:-glitchtip}:${GLITCHTIP_PG_PASSWORD}@glitchtip-postgres:5432/glitchtip
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-consolemail://}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8000}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL:-glitchtip@example.ru}
+    networks:
+      - yuzhural-net
+
+volumes:
+  glitchtip-pg:
+
+networks:
+  yuzhural-net:
+    external: true
+    name: yuzhural-site_yuzhural-net

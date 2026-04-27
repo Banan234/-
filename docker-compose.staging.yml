@@ -1,0 +1,68 @@
+# Изолированное staging/preview-окружение рядом с production.
+# Запуск:
+#   docker compose -f docker-compose.staging.yml up -d --build
+#
+# По умолчанию публикует сайт на http://localhost:8080 и использует ./data-staging.
+# Для VPS задайте STAGING_SITE_URL, STAGING_HTTP_PORT и .env.staging.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: ${APP_IMAGE:-yuzhural-site-app}:${STAGING_DEPLOY_TAG:-staging}
+    container_name: yuzhural-staging-app
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      VITE_SENTRY_ENVIRONMENT: staging
+    expose:
+      - '3001'
+    volumes:
+      - ./data-staging:/app/data
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:3001/api/health']
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    networks:
+      - yuzhural-staging-net
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+      args:
+        SITE_URL: ${STAGING_SITE_URL:-http://localhost:8080}
+        VITE_SITE_URL: ${STAGING_SITE_URL:-http://localhost:8080}
+        VITE_YANDEX_METRIKA_ID: ${STAGING_YANDEX_METRIKA_ID:-}
+        VITE_SENTRY_DSN: ${STAGING_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: staging
+        VITE_SENTRY_RELEASE: ${STAGING_DEPLOY_TAG:-staging}
+        VITE_SENTRY_TRACES_SAMPLE_RATE: ${STAGING_SENTRY_TRACES_SAMPLE_RATE:-0}
+    image: ${WEB_IMAGE:-yuzhural-site-web}:${STAGING_DEPLOY_TAG:-staging}
+    container_name: yuzhural-staging-web
+    restart: unless-stopped
+    ports:
+      - '${STAGING_HTTP_PORT:-8080}:80'
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1/healthz']
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    networks:
+      - yuzhural-staging-net
+
+networks:
+  yuzhural-staging-net:
+    driver: bridge

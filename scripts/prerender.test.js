@@ -1,0 +1,341 @@
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  buildJsonLdScripts,
+  buildMetaTags,
+  buildProductBodyShell,
+  extractProductsPayload,
+  injectIntoTemplate,
+  loadProducts,
+  loadTemplate,
+  prerender,
+  validatePrerenderProducts,
+} from './prerender.js';
+import { SITE_URL } from '../src/lib/siteConfig.js';
+
+const template = `<!doctype html>
+<html lang="ru">
+  <head>
+    <title>Old title</title>
+    <meta name="description" content="old description">
+    <meta property="og:title" content="old og">
+    <meta name="twitter:title" content="old twitter">
+    <link rel="canonical" href="https://old.example/">
+    <script type="application/ld+json" id="old-ld">{"old":true}</script>
+    <script type="module" src="/assets/index.js"></script>
+  </head>
+  <body>
+    <div id="root"><main>Old app shell</main></div>
+  </body>
+</html>`;
+
+const product = {
+  id: 101,
+  slug: 'vvgng-ls-3h2-5',
+  title: 'ВВГнг(A)-LS 3х2,5',
+  fullName: 'Кабель ВВГнг(A)-LS 3х2,5',
+  name: 'ВВГнг(A)-LS',
+  mark: 'ВВГнг(A)-LS',
+  sku: 'SKU-101',
+  crossSection: '2,5',
+  cores: 3,
+  groundCores: 1,
+  voltage: 660,
+  price: 125.5,
+  stock: 42,
+  catalogSection: 'Силовой кабель',
+  catalogSectionSlug: 'silovoy-kabel',
+  catalogCategory: 'Кабель силовой',
+  catalogCategorySlug: 'kabel-silovoy',
+  manufacturer: 'Завод & Ко',
+  image: '/images/vvg.png',
+};
+
+const tempDirs = [];
+
+async function makeTempDir() {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'yuzhural-prerender-'));
+  tempDirs.push(dir);
+  return dir;
+}
+
+afterEach(async () => {
+  await Promise.all(
+    tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))
+  );
+  vi.restoreAllMocks();
+});
+
+describe('prerender HTML helpers', () => {
+  it('перезаписывает SEO-теги и root-shell без дублирования старого head', () => {
+    const html = injectIntoTemplate(template, {
+      headExtras: [
+        '<title>New title</title>',
+        '<meta name="description" content="new description">',
+        '<script type="application/ld+json" id="new-ld">{"new":true}</script>',
+      ].join('\n'),
+      bodyShell: '<section><h1>SEO shell</h1></section>',
+    });
+
+    expect(html).toContain('<title>New title</title>');
+    expect(html).toContain('new description');
+    expect(html).toContain(
+      '<div id="root"><section><h1>SEO shell</h1></section></div>'
+    );
+    expect(html).toContain(
+      '<script type="module" src="/assets/index.js"></script>'
+    );
+    expect(html).not.toContain('Old title');
+    expect(html).not.toContain('old description');
+    expect(html).not.toContain('old og');
+    expect(html).not.toContain('old twitter');
+    expect(html).not.toContain('https://old.example/');
+    expect(html.match(/name="description"/g)).toHaveLength(1);
+    expect(html.match(/application\/ld\+json/g)).toHaveLength(1);
+  });
+
+  it('экранирует HTML-спецсимволы в meta-тегах', () => {
+    const html = buildMetaTags({
+      title: 'Кабель "A&B" <test>',
+      description: '5 > 3 & 2 < 4',
+      canonical: 'https://example.test/product/a?x=1&y=2',
+      ogType: 'product',
+    });
+
+    expect(html).toContain(
+      '<title>Кабель &quot;A&amp;B&quot; &lt;test&gt;</title>'
+    );
+    expect(html).toContain('content="5 &gt; 3 &amp; 2 &lt; 4"');
+    expect(html).toContain('href="https://example.test/product/a?x=1&amp;y=2"');
+    expect(html).toContain('property="og:type" content="product"');
+  });
+
+  it('ограничивает meta/OG/Twitter description до 160 символов', () => {
+    const html = buildMetaTags({
+      title: 'Длинное описание',
+      description: 'Оптовая поставка кабеля со склада в Челябинске. '.repeat(8),
+      canonical: 'https://example.test/product/long-description',
+    });
+    const descriptions = [
+      ...html.matchAll(
+        /<(?:meta name="description"|meta property="og:description"|meta name="twitter:description") content="([^"]*)">/g
+      ),
+    ].map((match) => match[1]);
+
+    expect(descriptions).toHaveLength(3);
+    expect(descriptions.every((description) => description.length <= 160)).toBe(
+      true
+    );
+    expect(new Set(descriptions).size).toBe(1);
+  });
+
+  it('экранирует закрывающие теги внутри JSON-LD', () => {
+    const html = buildJsonLdScripts(
+      [
+        { '@type': 'Product', name: '</script><script>alert(1)</script>' },
+        null,
+      ],
+      'ld'
+    );
+
+    expect(html).toContain('id="ld-0"');
+    expect(html).toContain('\\u003c/script>');
+    expect(html).toContain('\\u003cscript>');
+    expect(html).not.toContain('id="ld-1"');
+    expect(html).not.toContain('</script><script>');
+  });
+
+  it('строит скрытый product-shell с хлебными крошками и характеристиками', () => {
+    const html = buildProductBodyShell({
+      ...product,
+      title: 'ВВГ <опасный тег>',
+      catalogCategory: 'Кабель & провод',
+    });
+
+    expect(html).toContain('<h1>ВВГ &lt;опасный тег&gt;</h1>');
+    expect(html).toContain('aria-label="Хлебные крошки"');
+    expect(html).toContain('Кабель &amp; провод');
+    expect(html).toContain('<dt>Жилы</dt><dd>3+1</dd>');
+    expect(html).toContain('<dt>Производитель</dt><dd>Завод &amp; Ко</dd>');
+    expect(html).not.toContain('<опасный тег>');
+  });
+});
+
+describe('prerender IO flow', () => {
+  it('читает template, пишет статические страницы и карточки товаров', async () => {
+    const distDir = await makeTempDir();
+    const productsFile = path.join(distDir, 'products.json');
+    const log = vi.fn();
+
+    await writeFile(path.join(distDir, 'index.html'), template, 'utf8');
+    await writeFile(productsFile, JSON.stringify({ items: [product] }), 'utf8');
+
+    await prerender({
+      outputDir: distDir,
+      productsPath: productsFile,
+      log,
+      warn: vi.fn(),
+    });
+
+    const homeHtml = await readFile(path.join(distDir, 'index.html'), 'utf8');
+    const catalogHtml = await readFile(
+      path.join(distDir, 'catalog', 'index.html'),
+      'utf8'
+    );
+    const productHtml = await readFile(
+      path.join(distDir, 'product', product.slug, 'index.html'),
+      'utf8'
+    );
+
+    expect(homeHtml).toContain('оптовая поставка кабельной продукции');
+    expect(catalogHtml).toContain('<h1>Каталог кабельной продукции</h1>');
+    expect(productHtml).toContain(
+      `<link rel="canonical" href="${SITE_URL}/product/${product.slug}">`
+    );
+    expect(productHtml).toContain(
+      '<meta property="og:type" content="product">'
+    );
+    expect(productHtml).toContain('"@type":"Product"');
+    expect(productHtml).toContain('"price":"125.50"');
+    expect(productHtml).toContain('<h1>ВВГнг(A)-LS 3х2,5</h1>');
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('[prerender] products: 1/1 pages')
+    );
+    expect(log).toHaveBeenCalledWith('[prerender] done.');
+  });
+
+  it('валидирует товары до записи статических и товарных страниц', async () => {
+    const distDir = await makeTempDir();
+    const productsFile = path.join(distDir, 'products.json');
+
+    await writeFile(path.join(distDir, 'index.html'), template, 'utf8');
+    await writeFile(
+      productsFile,
+      JSON.stringify({
+        items: [
+          {
+            slug: '../bad',
+            fullName: '',
+            id: 'not-id',
+            price: 'много',
+            image: { src: '/bad.png' },
+          },
+        ],
+      }),
+      'utf8'
+    );
+
+    await expect(
+      prerender({
+        outputDir: distDir,
+        productsPath: productsFile,
+        log: vi.fn(),
+        warn: vi.fn(),
+      })
+    ).rejects.toMatchObject({
+      name: 'PrerenderProductValidationError',
+      issues: expect.arrayContaining([
+        expect.objectContaining({ path: 'items[0].slug' }),
+        expect.objectContaining({ path: 'items[0].title/fullName/name' }),
+        expect.objectContaining({ path: 'items[0].sku' }),
+        expect.objectContaining({ path: 'items[0].id' }),
+        expect.objectContaining({ path: 'items[0].price' }),
+        expect.objectContaining({ path: 'items[0].image' }),
+      ]),
+    });
+
+    await expect(
+      readFile(path.join(distDir, 'catalog', 'index.html'), 'utf8')
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(
+      readFile(path.join(distDir, 'product', '..', 'bad', 'index.html'), 'utf8')
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('падает понятной ошибкой, если vite-шаблон без root', async () => {
+    const distDir = await makeTempDir();
+    await writeFile(path.join(distDir, 'index.html'), '<html></html>', 'utf8');
+
+    await expect(loadTemplate({ outputDir: distDir })).rejects.toThrow(
+      'dist/index.html не содержит <div id="root">'
+    );
+  });
+
+  it('возвращает пустой список товаров и предупреждение при отсутствии products.json', async () => {
+    const warn = vi.fn();
+
+    await expect(
+      loadProducts({
+        filePath: path.join(await makeTempDir(), 'missing-products.json'),
+        warn,
+      })
+    ).resolves.toEqual([]);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('data/products.json не найден')
+    );
+  });
+
+  it('не принимает products.json с неверной root-структурой', async () => {
+    expect(() => extractProductsPayload({ items: null })).toThrow(
+      'ожидался массив товаров или объект с массивом items'
+    );
+  });
+});
+
+describe('validatePrerenderProducts', () => {
+  it('принимает минимально пригодный для prerender товар', () => {
+    expect(() =>
+      validatePrerenderProducts([
+        {
+          slug: 'minimal-product-1',
+          fullName: 'Минимальный товар',
+          id: 1,
+          image: '/product-placeholder.svg',
+        },
+      ])
+    ).not.toThrow();
+  });
+
+  it('сообщает пути к повреждённым полям', () => {
+    let error;
+    try {
+      validatePrerenderProducts([
+        null,
+        {
+          slug: 'bad/product',
+          title: 123,
+          fullName: '',
+          name: '',
+          sku: '',
+          id: 0,
+          catalogCategorySlug: 'силовой-кабель',
+          stock: -1,
+          voltage: 'нет',
+        },
+      ]);
+    } catch (caughtError) {
+      error = caughtError;
+    }
+
+    expect(error).toMatchObject({
+      name: 'PrerenderProductValidationError',
+      issues: expect.arrayContaining([
+        expect.objectContaining({ path: 'items[1].voltage' }),
+      ]),
+    });
+    expect(error.message).toMatchInlineSnapshot(`
+      "[prerender] products.json не прошёл проверку схемы товара: 9 ошибок.
+      - items[0]: ожидался объект товара
+      - items[1].slug: обязательный URL-сегмент: латиница, цифры и дефисы без /, пробелов и query
+      - items[1].title/fullName/name: нужно хотя бы одно непустое название товара
+      - items[1].sku: нужен непустой sku или положительный числовой id для JSON-LD
+      - items[1].id: должен быть положительным целым числом
+      - items[1].title: должно быть строкой или null
+      - items[1].catalogCategorySlug: должен быть URL-сегментом: латиница, цифры и дефисы
+      - items[1].stock: должно быть числом >= 0
+      - items[1].voltage: должно быть числом > 0"
+    `);
+  });
+});

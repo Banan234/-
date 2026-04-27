@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import {
+  MAX_QUOTE_CUSTOMER_COMMENT_LENGTH,
+  MAX_QUOTE_ITEM_COMMENT_LENGTH,
+  MAX_QUOTE_ITEMS,
+} from '../../../lib/quoteValidation.js';
 import { validateForm } from './quoteFormValidation.js';
 
 const okForm = {
@@ -16,18 +21,36 @@ describe('validateForm', () => {
   });
 
   it('пустое имя и слишком короткое имя', () => {
-    expect(validateForm({ ...okForm, name: '' }, okItems).name).toBe('Введите имя');
-    expect(validateForm({ ...okForm, name: 'A' }, okItems).name).toMatch(/минимум/);
+    expect(validateForm({ ...okForm, name: '' }, okItems).name).toBe(
+      'Введите имя'
+    );
+    expect(validateForm({ ...okForm, name: 'A' }, okItems).name).toMatch(
+      /минимум/
+    );
   });
 
-  it('требует валидный телефон (≥10 цифр)', () => {
-    expect(validateForm({ ...okForm, phone: '' }, okItems).phone).toBe('Введите телефон');
-    expect(validateForm({ ...okForm, phone: '+7-900' }, okItems).phone).toMatch(/корректный/);
+  it('требует корректный российский телефон', () => {
+    expect(validateForm({ ...okForm, phone: '' }, okItems).phone).toBe(
+      'Введите телефон'
+    );
+    expect(validateForm({ ...okForm, phone: '+7-900' }, okItems).phone).toMatch(
+      /корректный/
+    );
+    expect(
+      validateForm({ ...okForm, phone: '0000000000' }, okItems).phone
+    ).toMatch(/корректный/);
+    expect(
+      validateForm({ ...okForm, phone: '1234567890' }, okItems).phone
+    ).toMatch(/корректный/);
   });
 
   it('email опционален при канале phone, но валидируется по формату если задан', () => {
-    expect(validateForm({ ...okForm, email: 'not-email' }, okItems).email).toMatch(/корректный/);
-    expect(validateForm({ ...okForm, email: 'a@b.ru' }, okItems).email).toBeUndefined();
+    expect(
+      validateForm({ ...okForm, email: 'not-email' }, okItems).email
+    ).toMatch(/корректный/);
+    expect(
+      validateForm({ ...okForm, email: 'a@b.ru' }, okItems).email
+    ).toBeUndefined();
   });
 
   it('канал email обязывает заполнить email — граничный случай', () => {
@@ -42,8 +65,34 @@ describe('validateForm', () => {
     expect(validateForm(okForm, []).cart).toBe('Корзина пуста');
   });
 
-  it('комментарий длиннее 1000 символов отклоняется', () => {
-    const longForm = { ...okForm, comment: 'x'.repeat(1001) };
-    expect(validateForm(longForm, okItems).comment).toMatch(/1000/);
+  it('ограничивает число позиций и комментарии позиций', () => {
+    expect(
+      validateForm(
+        okForm,
+        Array.from({ length: MAX_QUOTE_ITEMS + 1 }, (_, index) => ({
+          ...okItems[0],
+          id: index + 1,
+        }))
+      ).cart
+    ).toMatch(String(MAX_QUOTE_ITEMS));
+
+    expect(
+      validateForm(okForm, [
+        {
+          ...okItems[0],
+          comment: 'x'.repeat(MAX_QUOTE_ITEM_COMMENT_LENGTH + 1),
+        },
+      ]).cart
+    ).toMatch(String(MAX_QUOTE_ITEM_COMMENT_LENGTH));
+  });
+
+  it('комментарий длиннее лимита отклоняется', () => {
+    const longForm = {
+      ...okForm,
+      comment: 'x'.repeat(MAX_QUOTE_CUSTOMER_COMMENT_LENGTH + 1),
+    };
+    expect(validateForm(longForm, okItems).comment).toMatch(
+      String(MAX_QUOTE_CUSTOMER_COMMENT_LENGTH)
+    );
   });
 });

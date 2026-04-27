@@ -36,9 +36,7 @@ export default function PaymentPage() {
 
           <div className="info-card">
             <h2 className="info-card__title">Наличные</h2>
-            <p>
-              Принимаем наличные при самовывозе со склада в Челябинске.
-            </p>
+            <p>Принимаем наличные при самовывозе со склада в Челябинске.</p>
           </div>
 
           <div className="info-card">

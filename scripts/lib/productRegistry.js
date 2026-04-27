@@ -1,10 +1,39 @@
 import fs from 'fs/promises';
 
 const TRANSLIT = {
-  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh',
-  з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o',
-  п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts',
-  ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
 };
 
 function transliterate(value) {
@@ -22,16 +51,23 @@ function slugify(value) {
 
 export function buildStableKey(product) {
   const attrs = Array.isArray(product.attributes)
-    ? [...product.attributes].map((a) => String(a).toLowerCase().trim()).sort().join(',')
+    ? [...product.attributes]
+        .map((a) => String(a).toLowerCase().trim())
+        .sort()
+        .join(',')
     : '';
   const parts = [
-    String(product.mark || '').toLowerCase().trim(),
+    String(product.mark || '')
+      .toLowerCase()
+      .trim(),
     product.cores ?? '',
     product.crossSection ?? '',
     product.voltage ?? '',
     product.groundCores ?? '',
     product.groundSection ?? '',
-    String(product.manufacturer || '').toLowerCase().trim(),
+    String(product.manufacturer || '')
+      .toLowerCase()
+      .trim(),
     attrs,
   ];
   return parts.join('|');
@@ -66,14 +102,20 @@ export async function saveProductRegistry(filePath, registry) {
   await fs.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf-8');
 }
 
-export function assignStableIdentity(registry, product, now = new Date().toISOString()) {
+export function assignStableIdentity(
+  registry,
+  product,
+  now = new Date().toISOString()
+) {
   const stableKey = buildStableKey(product);
   let entry = registry.entries[stableKey];
 
   if (!entry) {
     const id = registry.nextId;
     registry.nextId += 1;
-    const slugBase = slugify(product.fullName || product.name || product.mark || 'product');
+    const slugBase = slugify(
+      product.fullName || product.name || product.mark || 'product'
+    );
     const slug = slugBase
       ? `${slugBase}-${id.toString(36)}`
       : `product-${id.toString(36)}`;

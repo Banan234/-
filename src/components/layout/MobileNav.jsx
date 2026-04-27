@@ -37,7 +37,12 @@ export default function MobileNav({
   }
 
   return (
-    <div className="mobile-nav" role="dialog" aria-modal="true" aria-label="Мобильное меню">
+    <div
+      className="mobile-nav"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Мобильное меню"
+    >
       <button
         type="button"
         className="mobile-nav__backdrop"
@@ -48,7 +53,14 @@ export default function MobileNav({
       <div className="mobile-nav__panel">
         <div className="mobile-nav__top">
           <Link to="/" className="mobile-nav__logo" onClick={onClose}>
-            <img src="/logo.png" alt="ЮжУралЭлектроКабель" />
+            <img
+              src="/logo.png"
+              alt="ЮжУралЭлектроКабель"
+              width="600"
+              height="160"
+              loading="lazy"
+              decoding="async"
+            />
           </Link>
 
           <button
@@ -66,7 +78,10 @@ export default function MobileNav({
             <div className="mobile-nav__section-title">Каталог</div>
             <div className="mobile-nav__catalog">
               {catalogMenu.map((group) => (
-                <details key={group.slug || group.title} className="mobile-nav__catalog-group">
+                <details
+                  key={group.slug || group.title}
+                  className="mobile-nav__catalog-group"
+                >
                   <summary>{group.title}</summary>
                   <div className="mobile-nav__catalog-links">
                     {group.links.map((link) => (
@@ -83,24 +98,47 @@ export default function MobileNav({
           <nav className="mobile-nav__section" aria-label="Основная навигация">
             <div className="mobile-nav__section-title">Разделы</div>
             <div className="mobile-nav__links">
-              <Link to="/catalog" onClick={onClose}>Весь каталог</Link>
-              <Link to="/delivery" onClick={onClose}>Доставка</Link>
-              <Link to="/payment" onClick={onClose}>Оплата</Link>
-              <Link to="/about" onClick={onClose}>О компании</Link>
-              <Link to="/contacts" onClick={onClose}>Контакты</Link>
+              <Link to="/catalog" onClick={onClose}>
+                Весь каталог
+              </Link>
+              <Link to="/delivery" onClick={onClose}>
+                Доставка
+              </Link>
+              <Link to="/payment" onClick={onClose}>
+                Оплата
+              </Link>
+              <Link to="/about" onClick={onClose}>
+                О компании
+              </Link>
+              <Link to="/contacts" onClick={onClose}>
+                Контакты
+              </Link>
             </div>
           </nav>
 
           <div className="mobile-nav__quick">
-            <Link to="/favorites" className="mobile-nav__quick-link" onClick={onClose}>
+            <Link
+              to="/favorites"
+              className="mobile-nav__quick-link"
+              onClick={onClose}
+            >
               Избранное
               {favoritesCount > 0 ? <span>{favoritesCount}</span> : null}
             </Link>
-            <Link to="/cart" className="mobile-nav__quick-link" onClick={onClose}>
+            <Link
+              to="/cart"
+              className="mobile-nav__quick-link"
+              onClick={onClose}
+            >
               Корзина
               {totalCount > 0 ? <span>{totalCount}</span> : null}
             </Link>
-            <a href="/price.xls" download className="mobile-nav__quick-link" onClick={onClose}>
+            <a
+              href="/price.xls"
+              download
+              className="mobile-nav__quick-link"
+              onClick={onClose}
+            >
               Скачать прайс
               <span>XLS</span>
             </a>
@@ -108,7 +146,11 @@ export default function MobileNav({
         </div>
 
         <div className="mobile-nav__footer">
-          <button type="button" className="mobile-nav__cta" onClick={handleQuoteClick}>
+          <button
+            type="button"
+            className="mobile-nav__cta"
+            onClick={handleQuoteClick}
+          >
             Получить КП
           </button>
           <a href="tel:+78005553552" className="mobile-nav__phone">

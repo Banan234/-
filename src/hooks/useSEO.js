@@ -7,6 +7,7 @@ import {
   SITE_URL,
   absoluteUrl,
 } from '../lib/siteConfig';
+import { normalizeMetaDescription } from '../lib/metaDescription';
 
 const DEFAULT_OG_IMAGE = absoluteUrl(SITE_LOGO_PATH);
 
@@ -53,6 +54,7 @@ export function useSEO({
   // даже если сама страница не передала canonical явно.
   const location = useLocation();
   const fullTitle = title ? `${title} — ${SITE_NAME}` : SITE_NAME;
+  const metaDescription = normalizeMetaDescription(description);
   const ogImage = image ? absoluteUrl(image) : DEFAULT_OG_IMAGE;
   const canonicalUrl = canonical
     ? absoluteUrl(canonical)
@@ -61,22 +63,22 @@ export function useSEO({
   useEffect(() => {
     document.title = fullTitle;
 
-    upsertMeta('name', 'description', description);
+    upsertMeta('name', 'description', metaDescription);
 
     upsertMeta('property', 'og:site_name', SITE_NAME);
     upsertMeta('property', 'og:locale', 'ru_RU');
     upsertMeta('property', 'og:type', ogType);
     upsertMeta('property', 'og:title', fullTitle);
-    upsertMeta('property', 'og:description', description);
+    upsertMeta('property', 'og:description', metaDescription);
     upsertMeta('property', 'og:url', canonicalUrl);
     upsertMeta('property', 'og:image', ogImage);
     upsertMeta('property', 'og:image:alt', fullTitle);
 
     upsertMeta('name', 'twitter:card', 'summary_large_image');
     upsertMeta('name', 'twitter:title', fullTitle);
-    upsertMeta('name', 'twitter:description', description);
+    upsertMeta('name', 'twitter:description', metaDescription);
     upsertMeta('name', 'twitter:image', ogImage);
 
     upsertLink('canonical', canonicalUrl);
-  }, [fullTitle, description, ogType, ogImage, canonicalUrl]);
+  }, [fullTitle, metaDescription, ogType, ogImage, canonicalUrl]);
 }

@@ -87,6 +87,10 @@ export default function ProductCard({ product, variant = 'default' }) {
           src={product.image}
           alt={product.title}
           className="product-card__image"
+          width="560"
+          height="320"
+          loading="lazy"
+          decoding="async"
         />
       </Link>
 

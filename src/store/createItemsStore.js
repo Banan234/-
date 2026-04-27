@@ -61,7 +61,9 @@ export function createItemsStore({
                   return {
                     items: state.items
                       .map((item) =>
-                        item.id === id ? { ...item, quantity: nextQuantity } : item
+                        item.id === id
+                          ? { ...item, quantity: nextQuantity }
+                          : item
                       )
                       .filter((item) => item.quantity > 0),
                   };

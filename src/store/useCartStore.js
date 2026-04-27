@@ -3,7 +3,10 @@ import { createItemsStore } from './createItemsStore.js';
 // Date.now() даёт коллизию при быстрых кликах (двойной клик «Добавить»
 // на одной миллисекунде → одинаковый id, и updateItemQuantity дёргает обе строки).
 function createManualId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;

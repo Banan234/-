@@ -1,106 +1,670 @@
 [
-  { "sourceCategory": "Кабель NYY, NUM",                                                          "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Кабель АВВГ, АВВГнг, АВВГнгls",                                           "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Кабель ВБбШВ, ВВБГ",                                                       "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Кабель ВВГ, ВВГнг, ВВГнгLS, ВВГнгхл, ВВГнгFRLS",                         "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Кабель алюминиевый из СПЭ - АПВПУ, АПВПГ,АПВБШВ",                         "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Кабель высоковольтный малой мощности КИМЭП-М",                             "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Кабель греющий",                                                            "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "Кабели нагревательные", "categorySlug": "kabeli-nagrevatelnye" },
-  { "sourceCategory": "Кабель медный из СПЭ - ПвВнг, ПВПУ, ППГ, ПВВГ",                          "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Кабель нефтепогружной КПБК",                                               "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "Кабели нефтепогружные", "categorySlug": "kabeli-neftepogr" },
-  { "sourceCategory": "Кабель с бумажной изоляцией ААШВ, ААБл, АСБ",                             "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Кабель универсальный силовой (низк.напр.) КУСИЛ",                          "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Кабель лифтовой",                                                          "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Силовой кабель",      "categorySlug": "silovoy-kabel" },
-  { "sourceCategory": "Провод нагревательный для бетона",                                         "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "Кабели нагревательные", "categorySlug": "kabeli-nagrevatelnye" },
-  { "sourceCategory": "Кабель ПНСВ",                                                              "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "Кабели нагревательные", "categorySlug": "kabeli-nagrevatelnye" },
+  {
+    "sourceCategory": "Кабель NYY, NUM",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель АВВГ, АВВГнг, АВВГнгls",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель ВБбШВ, ВВБГ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель ВВГ, ВВГнг, ВВГнгLS, ВВГнгхл, ВВГнгFRLS",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель алюминиевый из СПЭ - АПВПУ, АПВПГ,АПВБШВ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель высоковольтный малой мощности КИМЭП-М",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель греющий",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "Кабели нагревательные",
+    "categorySlug": "kabeli-nagrevatelnye"
+  },
+  {
+    "sourceCategory": "Кабель медный из СПЭ - ПвВнг, ПВПУ, ППГ, ПВВГ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель нефтепогружной КПБК",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "Кабели нефтепогружные",
+    "categorySlug": "kabeli-neftepogr"
+  },
+  {
+    "sourceCategory": "Кабель с бумажной изоляцией ААШВ, ААБл, АСБ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель универсальный силовой (низк.напр.) КУСИЛ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель лифтовой",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Силовой кабель",
+    "categorySlug": "silovoy-kabel"
+  },
+  {
+    "sourceCategory": "Провод нагревательный для бетона",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "Кабели нагревательные",
+    "categorySlug": "kabeli-nagrevatelnye"
+  },
+  {
+    "sourceCategory": "Кабель ПНСВ",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "Кабели нагревательные",
+    "categorySlug": "kabeli-nagrevatelnye"
+  },
 
-  { "sourceCategory": "Кабель АКВВГ, АКВВГнг",                                                    "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
-  { "sourceCategory": "Кабель КВВГ, КВВГнг, КВВГнгls",                                           "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
-  { "sourceCategory": "Кабель КВБбШ, КВБбШнг, КВБбШнгLS",                                        "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
-  { "sourceCategory": "Кабель КВСМВ",                                                             "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "LAN-кабели",  "categorySlug": "lan-kabeli" },
-  { "sourceCategory": "Кабель управления-КУПР,КУГВВ,НИКИ-КУВШЭ",                                  "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
-  { "sourceCategory": "Кабель для автоматизации КСКВЭВ",                                          "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
-  { "sourceCategory": "Кабель для промышл.автоматиз.и систем управл.КВМЭ",                        "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
-  { "sourceCategory": "Кабель универсальный для КИПиА:СКАБ",                                      "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
-  { "sourceCategory": "Кабель огнестойкий КСРЭВ",                                                 "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
-  { "sourceCategory": "Кабель монтажный для цифровых и аналоговых сист.",                         "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Монтажный кабель",    "categorySlug": "montazhnyy-kabel" },
+  {
+    "sourceCategory": "Кабель АКВВГ, АКВВГнг",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Контрольный кабель",
+    "categorySlug": "kontrolnyy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель КВВГ, КВВГнг, КВВГнгls",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Контрольный кабель",
+    "categorySlug": "kontrolnyy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель КВБбШ, КВБбШнг, КВБбШнгLS",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Контрольный кабель",
+    "categorySlug": "kontrolnyy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель КВСМВ",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "LAN-кабели",
+    "categorySlug": "lan-kabeli"
+  },
+  {
+    "sourceCategory": "Кабель управления-КУПР,КУГВВ,НИКИ-КУВШЭ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Контрольный кабель",
+    "categorySlug": "kontrolnyy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель для автоматизации КСКВЭВ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Контрольный кабель",
+    "categorySlug": "kontrolnyy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель для промышл.автоматиз.и систем управл.КВМЭ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Контрольный кабель",
+    "categorySlug": "kontrolnyy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель универсальный для КИПиА:СКАБ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Контрольный кабель",
+    "categorySlug": "kontrolnyy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель огнестойкий КСРЭВ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Контрольный кабель",
+    "categorySlug": "kontrolnyy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель монтажный для цифровых и аналоговых сист.",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Монтажный кабель",
+    "categorySlug": "montazhnyy-kabel"
+  },
 
-  { "sourceCategory": "Провод монтажный",                                                         "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Монтажный кабель",    "categorySlug": "montazhnyy-kabel" },
-  { "sourceCategory": "Провод монтажные и спец.назначения МПО, МГШВ, МСЭ",                       "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Монтажный кабель",    "categorySlug": "montazhnyy-kabel" },
-  { "sourceCategory": "Провод для монтажа подвижного рельс.состава НПП",                          "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "Кабели для подвижного состава", "categorySlug": "kabeli-podvizhnogo-sostava" },
-  { "sourceCategory": "Провод термостойкие монтажные",                                            "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Монтажный кабель",    "categorySlug": "montazhnyy-kabel" },
-  { "sourceCategory": "Кабель бортовой БПВЛ, ПТЛ, БИН, БИФМ-Н, БПДОЭ",                         "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "Бортовые провода", "categorySlug": "bortovye-provoda" },
-  { "sourceCategory": "Провод судовой",                                                           "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "Кабели судовые", "categorySlug": "kabeli-sudovye" },
+  {
+    "sourceCategory": "Провод монтажный",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Монтажный кабель",
+    "categorySlug": "montazhnyy-kabel"
+  },
+  {
+    "sourceCategory": "Провод монтажные и спец.назначения МПО, МГШВ, МСЭ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Монтажный кабель",
+    "categorySlug": "montazhnyy-kabel"
+  },
+  {
+    "sourceCategory": "Провод для монтажа подвижного рельс.состава НПП",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "Кабели для подвижного состава",
+    "categorySlug": "kabeli-podvizhnogo-sostava"
+  },
+  {
+    "sourceCategory": "Провод термостойкие монтажные",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Монтажный кабель",
+    "categorySlug": "montazhnyy-kabel"
+  },
+  {
+    "sourceCategory": "Кабель бортовой БПВЛ, ПТЛ, БИН, БИФМ-Н, БПДОЭ",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "Бортовые провода",
+    "categorySlug": "bortovye-provoda"
+  },
+  {
+    "sourceCategory": "Провод судовой",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "Кабели судовые",
+    "categorySlug": "kabeli-sudovye"
+  },
 
-  { "sourceCategory": "Провод Термоэлектродный",                                                  "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "Кабели термопарные", "categorySlug": "kabeli-termoparny" },
-  { "sourceCategory": "Провод неизолированный алюминиевый А, АС",                                 "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Провода",             "categorySlug": "provoda" },
-  { "sourceCategory": "Провод неизолированные гибкие М,МГ, фасонные МФ",                         "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Провода",             "categorySlug": "provoda" },
-  { "sourceCategory": "Провод антивибрационный",                                                  "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Провода",             "categorySlug": "provoda" },
-  { "sourceCategory": "Эмальпровод ПЭТВ, ПСДКТ",                                                 "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Провода",             "categorySlug": "provoda" },
-  { "sourceCategory": "Провод силовой теплостойкий ПВКФ",                                        "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Провода",             "categorySlug": "provoda" },
-  { "sourceCategory": "Провод изолированный алюминиевый СИП, АПВ",                               "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Провода",             "categorySlug": "provoda" },
+  {
+    "sourceCategory": "Провод Термоэлектродный",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "Кабели термопарные",
+    "categorySlug": "kabeli-termoparny"
+  },
+  {
+    "sourceCategory": "Провод неизолированный алюминиевый А, АС",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Провода",
+    "categorySlug": "provoda"
+  },
+  {
+    "sourceCategory": "Провод неизолированные гибкие М,МГ, фасонные МФ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Провода",
+    "categorySlug": "provoda"
+  },
+  {
+    "sourceCategory": "Провод антивибрационный",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Провода",
+    "categorySlug": "provoda"
+  },
+  {
+    "sourceCategory": "Эмальпровод ПЭТВ, ПСДКТ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Провода",
+    "categorySlug": "provoda"
+  },
+  {
+    "sourceCategory": "Провод силовой теплостойкий ПВКФ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Провода",
+    "categorySlug": "provoda"
+  },
+  {
+    "sourceCategory": "Провод изолированный алюминиевый СИП, АПВ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Провода",
+    "categorySlug": "provoda"
+  },
 
-  { "sourceCategory": "СИП-АРМАТУРА",                                                             "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "СИП-арматура",   "categorySlug": "sip-armatura" },
+  {
+    "sourceCategory": "СИП-АРМАТУРА",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "СИП-арматура",
+    "categorySlug": "sip-armatura"
+  },
 
-  { "sourceCategory": "Кабель оптический коаксиальный",                                           "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
-  { "sourceCategory": "Кабель импортный",                                                         "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Импортные кабели",     "categorySlug": "importnye-kabeli" },
-  { "sourceCategory": "Кабель микрофонный",                                                       "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
-  { "sourceCategory": "Кабель связи",                                                             "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
-  { "sourceCategory": "Кабель пожарный",                                                          "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели пожарной и охранной сигнализации", "categorySlug": "kabeli-pozharnoy-signalizacii" },
-  { "sourceCategory": "Кабель для пожарной и охран.сигнализации,противопож",                     "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели пожарной и охранной сигнализации", "categorySlug": "kabeli-pozharnoy-signalizacii" },
-  { "sourceCategory": "Кабель Радиочастотный РК",                                                 "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
-  { "sourceCategory": "Кабель и провода Авиакосмические КТФЭ",                                   "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
-  { "sourceCategory": "Кабель для подвижн.и фиксир.внутриприбор.и межприборн",                   "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
-  { "sourceCategory": "Кабель трибоэлектрический малогаборитный",                                 "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
-  { "sourceCategory": "Кабель для Атомной промышленности КПЭТИ",                                  "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
+  {
+    "sourceCategory": "Кабель оптический коаксиальный",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели связи",
+    "categorySlug": "kabeli-svyazi"
+  },
+  {
+    "sourceCategory": "Кабель импортный",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Импортные кабели",
+    "categorySlug": "importnye-kabeli"
+  },
+  {
+    "sourceCategory": "Кабель микрофонный",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели связи",
+    "categorySlug": "kabeli-svyazi"
+  },
+  {
+    "sourceCategory": "Кабель связи",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели связи",
+    "categorySlug": "kabeli-svyazi"
+  },
+  {
+    "sourceCategory": "Кабель пожарный",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели пожарной и охранной сигнализации",
+    "categorySlug": "kabeli-pozharnoy-signalizacii"
+  },
+  {
+    "sourceCategory": "Кабель для пожарной и охран.сигнализации,противопож",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели пожарной и охранной сигнализации",
+    "categorySlug": "kabeli-pozharnoy-signalizacii"
+  },
+  {
+    "sourceCategory": "Кабель Радиочастотный РК",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели связи",
+    "categorySlug": "kabeli-svyazi"
+  },
+  {
+    "sourceCategory": "Кабель и провода Авиакосмические КТФЭ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели связи",
+    "categorySlug": "kabeli-svyazi"
+  },
+  {
+    "sourceCategory": "Кабель для подвижн.и фиксир.внутриприбор.и межприборн",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели связи",
+    "categorySlug": "kabeli-svyazi"
+  },
+  {
+    "sourceCategory": "Кабель трибоэлектрический малогаборитный",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели связи",
+    "categorySlug": "kabeli-svyazi"
+  },
+  {
+    "sourceCategory": "Кабель для Атомной промышленности КПЭТИ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели связи",
+    "categorySlug": "kabeli-svyazi"
+  },
 
-  { "sourceCategory": "Кабель с резиновой изоляцией - КГ,КНР,РПШ,РКГМ,НРШМ",                   "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Гибкий кабель",       "categorySlug": "gibkiy-kabel" },
+  {
+    "sourceCategory": "Кабель с резиновой изоляцией - КГ,КНР,РПШ,РКГМ,НРШМ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Гибкий кабель",
+    "categorySlug": "gibkiy-kabel"
+  },
 
-  { "sourceCategory": "Наконечники,соединители,гильзы",                                           "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Наконечники и гильзы", "categorySlug": "nakonechniki-gilzy" },
-  { "sourceCategory": "Стяжки,держатели,крепёж-клипса,трубка термоусад.",                         "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Наконечники и гильзы", "categorySlug": "nakonechniki-gilzy" },
-  { "sourceCategory": "Плетёнка ПМЛ",                                                             "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Наконечники и гильзы", "categorySlug": "nakonechniki-gilzy" },
-  { "sourceCategory": "Муфты кабельные,вводные,соедин.,сальники",                                 "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Муфты кабельные",     "categorySlug": "mufty-kabelnye" },
-  { "sourceCategory": "Металлорукав,гофра",                                                       "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Металлорукав и гофра","categorySlug": "metallorukav-gofra" },
-  { "sourceCategory": "Полки,продукция (DKC)",                                                    "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Кабельные лотки",     "categorySlug": "kabelnye-lotki" },
-  { "sourceCategory": "Лоток водоотводящий",                                                      "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Кабельные лотки",     "categorySlug": "kabelnye-lotki" },
-  { "sourceCategory": "Барабаны кабельные",                                                       "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Кабельные лотки",     "categorySlug": "kabelnye-lotki" },
-  { "sourceCategory": "Коробки монтажные",                                                        "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Коробки монтажные",   "categorySlug": "korobki-montazhnye" },
-  { "sourceCategory": "Сжимы,клеммники",                                                          "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Сжимы и клеммники",   "categorySlug": "szhimy-klemmniki" },
-  { "sourceCategory": "Изоляторы",                                                                 "section": "Кабельная арматура", "sectionSlug": "kabelnaya-armatura", "category": "Наконечники и гильзы", "categorySlug": "nakonechniki-gilzy" },
+  {
+    "sourceCategory": "Наконечники,соединители,гильзы",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Наконечники и гильзы",
+    "categorySlug": "nakonechniki-gilzy"
+  },
+  {
+    "sourceCategory": "Стяжки,держатели,крепёж-клипса,трубка термоусад.",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Наконечники и гильзы",
+    "categorySlug": "nakonechniki-gilzy"
+  },
+  {
+    "sourceCategory": "Плетёнка ПМЛ",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Наконечники и гильзы",
+    "categorySlug": "nakonechniki-gilzy"
+  },
+  {
+    "sourceCategory": "Муфты кабельные,вводные,соедин.,сальники",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Муфты кабельные",
+    "categorySlug": "mufty-kabelnye"
+  },
+  {
+    "sourceCategory": "Металлорукав,гофра",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Металлорукав и гофра",
+    "categorySlug": "metallorukav-gofra"
+  },
+  {
+    "sourceCategory": "Полки,продукция (DKC)",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Кабельные лотки",
+    "categorySlug": "kabelnye-lotki"
+  },
+  {
+    "sourceCategory": "Лоток водоотводящий",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Кабельные лотки",
+    "categorySlug": "kabelnye-lotki"
+  },
+  {
+    "sourceCategory": "Барабаны кабельные",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Кабельные лотки",
+    "categorySlug": "kabelnye-lotki"
+  },
+  {
+    "sourceCategory": "Коробки монтажные",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Коробки монтажные",
+    "categorySlug": "korobki-montazhnye"
+  },
+  {
+    "sourceCategory": "Сжимы,клеммники",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Сжимы и клеммники",
+    "categorySlug": "szhimy-klemmniki"
+  },
+  {
+    "sourceCategory": "Изоляторы",
+    "section": "Кабельная арматура",
+    "sectionSlug": "kabelnaya-armatura",
+    "category": "Наконечники и гильзы",
+    "categorySlug": "nakonechniki-gilzy"
+  },
 
-  { "sourceCategory": "Автоматы",                                                                  "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Автоматы и рубильники",       "categorySlug": "avtomaty-rubilniki" },
-  { "sourceCategory": "Рубильники,разрядники,ограничители,разъединители",                         "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Автоматы и рубильники",       "categorySlug": "avtomaty-rubilniki" },
-  { "sourceCategory": "Реле",                                                                      "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Реле и пускатели",            "categorySlug": "rele-puskately" },
-  { "sourceCategory": "Пускатели,контакторы",                                                     "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Реле и пускатели",            "categorySlug": "rele-puskately" },
-  { "sourceCategory": "Гидротолкатели",                                                           "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Реле и пускатели",            "categorySlug": "rele-puskately" },
-  { "sourceCategory": "Эл. магниты",                                                              "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Реле и пускатели",            "categorySlug": "rele-puskately" },
-  { "sourceCategory": "Розетки, выключатели,вилки,звонок,колодки",                               "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Розетки и выключатели",       "categorySlug": "rozetki-vyklyuchateli" },
-  { "sourceCategory": "Выключатели конечные ВП,КУ,МП",                                           "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Розетки и выключатели",       "categorySlug": "rozetki-vyklyuchateli" },
-  { "sourceCategory": "Пульты КМЕ,ПКТ,ПКУ,ПКЕ",                                                 "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Пульты управления",           "categorySlug": "pulty-upravleniya" },
-  { "sourceCategory": "Крановое оборудование",                                                    "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Пульты управления",           "categorySlug": "pulty-upravleniya" },
-  { "sourceCategory": "Лампы,светильники",                                                        "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Освещение",                   "categorySlug": "osveshchenie" },
-  { "sourceCategory": "Предохранитель",                                                           "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Предохранители",              "categorySlug": "predokhraniteli" },
-  { "sourceCategory": "Шкафы",                                                                    "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Щитовое оборудование",        "categorySlug": "shchitovoe-oborudovanie" },
-  { "sourceCategory": "Щитки",                                                                    "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Щитовое оборудование",        "categorySlug": "shchitovoe-oborudovanie" },
-  { "sourceCategory": "Шины",                                                                     "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Щитовое оборудование",        "categorySlug": "shchitovoe-oborudovanie" },
-  { "sourceCategory": "Трансформаторы",                                                           "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Щитовое оборудование",        "categorySlug": "shchitovoe-oborudovanie" },
-  { "sourceCategory": "Частотные Преобразователи",                                                "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Щитовое оборудование",        "categorySlug": "shchitovoe-oborudovanie" },
-  { "sourceCategory": "Приборы:микрометр,вольтметр,амперметр...",                                "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Щитовое оборудование",        "categorySlug": "shchitovoe-oborudovanie" },
-  { "sourceCategory": "Дросели",                                                                  "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Щитовое оборудование",        "categorySlug": "shchitovoe-oborudovanie" },
-  { "sourceCategory": "Вспомагательные элементы и аксессуары",                                   "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Щитовое оборудование",        "categorySlug": "shchitovoe-oborudovanie" },
-  { "sourceCategory": "Крюки",                                                                    "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Щитовое оборудование",        "categorySlug": "shchitovoe-oborudovanie" },
+  {
+    "sourceCategory": "Автоматы",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Автоматы и рубильники",
+    "categorySlug": "avtomaty-rubilniki"
+  },
+  {
+    "sourceCategory": "Рубильники,разрядники,ограничители,разъединители",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Автоматы и рубильники",
+    "categorySlug": "avtomaty-rubilniki"
+  },
+  {
+    "sourceCategory": "Реле",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Реле и пускатели",
+    "categorySlug": "rele-puskately"
+  },
+  {
+    "sourceCategory": "Пускатели,контакторы",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Реле и пускатели",
+    "categorySlug": "rele-puskately"
+  },
+  {
+    "sourceCategory": "Гидротолкатели",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Реле и пускатели",
+    "categorySlug": "rele-puskately"
+  },
+  {
+    "sourceCategory": "Эл. магниты",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Реле и пускатели",
+    "categorySlug": "rele-puskately"
+  },
+  {
+    "sourceCategory": "Розетки, выключатели,вилки,звонок,колодки",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Розетки и выключатели",
+    "categorySlug": "rozetki-vyklyuchateli"
+  },
+  {
+    "sourceCategory": "Выключатели конечные ВП,КУ,МП",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Розетки и выключатели",
+    "categorySlug": "rozetki-vyklyuchateli"
+  },
+  {
+    "sourceCategory": "Пульты КМЕ,ПКТ,ПКУ,ПКЕ",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Пульты управления",
+    "categorySlug": "pulty-upravleniya"
+  },
+  {
+    "sourceCategory": "Крановое оборудование",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Пульты управления",
+    "categorySlug": "pulty-upravleniya"
+  },
+  {
+    "sourceCategory": "Лампы,светильники",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Освещение",
+    "categorySlug": "osveshchenie"
+  },
+  {
+    "sourceCategory": "Предохранитель",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Предохранители",
+    "categorySlug": "predokhraniteli"
+  },
+  {
+    "sourceCategory": "Шкафы",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Щитовое оборудование",
+    "categorySlug": "shchitovoe-oborudovanie"
+  },
+  {
+    "sourceCategory": "Щитки",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Щитовое оборудование",
+    "categorySlug": "shchitovoe-oborudovanie"
+  },
+  {
+    "sourceCategory": "Шины",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Щитовое оборудование",
+    "categorySlug": "shchitovoe-oborudovanie"
+  },
+  {
+    "sourceCategory": "Трансформаторы",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Щитовое оборудование",
+    "categorySlug": "shchitovoe-oborudovanie"
+  },
+  {
+    "sourceCategory": "Частотные Преобразователи",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Щитовое оборудование",
+    "categorySlug": "shchitovoe-oborudovanie"
+  },
+  {
+    "sourceCategory": "Приборы:микрометр,вольтметр,амперметр...",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Щитовое оборудование",
+    "categorySlug": "shchitovoe-oborudovanie"
+  },
+  {
+    "sourceCategory": "Дросели",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Щитовое оборудование",
+    "categorySlug": "shchitovoe-oborudovanie"
+  },
+  {
+    "sourceCategory": "Вспомагательные элементы и аксессуары",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Щитовое оборудование",
+    "categorySlug": "shchitovoe-oborudovanie"
+  },
+  {
+    "sourceCategory": "Крюки",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Щитовое оборудование",
+    "categorySlug": "shchitovoe-oborudovanie"
+  },
 
-  { "sourceCategory": "Изолента",                                                                 "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
-  { "sourceCategory": "Инструмент",                                                               "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
-  { "sourceCategory": "Металлопрокат",                                                            "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
-  { "sourceCategory": "Трубы",                                                                    "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
-  { "sourceCategory": ") Х/Б Изделия",                                                            "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
-  { "sourceCategory": "Шина автомобильная",                                                       "section": "Прочие товары", "sectionSlug": "prochie-tovary", "category": "Расходные материалы", "categorySlug": "raskhod-materialy" },
+  {
+    "sourceCategory": "Изолента",
+    "section": "Прочие товары",
+    "sectionSlug": "prochie-tovary",
+    "category": "Расходные материалы",
+    "categorySlug": "raskhod-materialy"
+  },
+  {
+    "sourceCategory": "Инструмент",
+    "section": "Прочие товары",
+    "sectionSlug": "prochie-tovary",
+    "category": "Расходные материалы",
+    "categorySlug": "raskhod-materialy"
+  },
+  {
+    "sourceCategory": "Металлопрокат",
+    "section": "Прочие товары",
+    "sectionSlug": "prochie-tovary",
+    "category": "Расходные материалы",
+    "categorySlug": "raskhod-materialy"
+  },
+  {
+    "sourceCategory": "Трубы",
+    "section": "Прочие товары",
+    "sectionSlug": "prochie-tovary",
+    "category": "Расходные материалы",
+    "categorySlug": "raskhod-materialy"
+  },
+  {
+    "sourceCategory": ") Х/Б Изделия",
+    "section": "Прочие товары",
+    "sectionSlug": "prochie-tovary",
+    "category": "Расходные материалы",
+    "categorySlug": "raskhod-materialy"
+  },
+  {
+    "sourceCategory": "Шина автомобильная",
+    "section": "Прочие товары",
+    "sectionSlug": "prochie-tovary",
+    "category": "Расходные материалы",
+    "categorySlug": "raskhod-materialy"
+  },
 
-  { "sourceCategory": "Кабель Герда, Соббит, Квип, МКЭШВ, КВЭВЭ, КВВЭ",                           "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Контрольный кабель",  "categorySlug": "kontrolnyy-kabel" },
-  { "sourceCategory": "Провод медный ПВ1,ПВ3,ПУВ,ПУГВ,ПГВА,НВ,ПВС,ШВВП,ПуГП",                    "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Провода",             "categorySlug": "provoda" },
-  { "sourceCategory": "Кабель Сигнальный блокировочный СБЗПу",                                     "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Кабели связи",        "categorySlug": "kabeli-svyazi" },
-  { "sourceCategory": "Кабель КВПЭфВП-5е",                                                        "section": "Специальные кабели", "sectionSlug": "specialnye-kabeli", "category": "LAN-кабели",          "categorySlug": "lan-kabeli" },
-  { "sourceCategory": "К А Б Е Л Ь Н А Я   П Р О Д У К Ц И Я",                                    "section": "Кабель и провод", "sectionSlug": "kabel-i-provod", "category": "Прочее",              "categorySlug": "prochee" },
-  { "sourceCategory": "Механизмы исполнительные",                                                  "section": "Электрооборудование", "sectionSlug": "elektrooborudovanie", "category": "Реле и пускатели", "categorySlug": "rele-puskately" }
+  {
+    "sourceCategory": "Кабель Герда, Соббит, Квип, МКЭШВ, КВЭВЭ, КВВЭ",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Контрольный кабель",
+    "categorySlug": "kontrolnyy-kabel"
+  },
+  {
+    "sourceCategory": "Провод медный ПВ1,ПВ3,ПУВ,ПУГВ,ПГВА,НВ,ПВС,ШВВП,ПуГП",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Провода",
+    "categorySlug": "provoda"
+  },
+  {
+    "sourceCategory": "Кабель Сигнальный блокировочный СБЗПу",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Кабели связи",
+    "categorySlug": "kabeli-svyazi"
+  },
+  {
+    "sourceCategory": "Кабель КВПЭфВП-5е",
+    "section": "Специальные кабели",
+    "sectionSlug": "specialnye-kabeli",
+    "category": "LAN-кабели",
+    "categorySlug": "lan-kabeli"
+  },
+  {
+    "sourceCategory": "К А Б Е Л Ь Н А Я   П Р О Д У К Ц И Я",
+    "section": "Кабель и провод",
+    "sectionSlug": "kabel-i-provod",
+    "category": "Прочее",
+    "categorySlug": "prochee"
+  },
+  {
+    "sourceCategory": "Механизмы исполнительные",
+    "section": "Электрооборудование",
+    "sectionSlug": "elektrooborudovanie",
+    "category": "Реле и пускатели",
+    "categorySlug": "rele-puskately"
+  }
 ]

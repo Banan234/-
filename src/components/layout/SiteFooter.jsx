@@ -8,9 +8,12 @@ export default function SiteFooter({ onOpenQuote }) {
         <div className="site-footer__cta-block">
           <div className="site-footer__cta-copy">
             <div className="site-footer__eyebrow">Готовы к сотрудничеству?</div>
-            <h2 className="site-footer__cta-title">Нужно коммерческое предложение?</h2>
+            <h2 className="site-footer__cta-title">
+              Нужно коммерческое предложение?
+            </h2>
             <p className="site-footer__cta-text">
-              Отправьте список нужных марок — подготовим КП с актуальными ценами в течение дня.
+              Отправьте список нужных марок — подготовим КП с актуальными ценами
+              в течение дня.
             </p>
           </div>
 
@@ -23,7 +26,10 @@ export default function SiteFooter({ onOpenQuote }) {
               Получить КП за 15 минут
             </button>
 
-            <div className="site-footer__quick-actions" aria-label="Быстрые контакты">
+            <div
+              className="site-footer__quick-actions"
+              aria-label="Быстрые контакты"
+            >
               <div className="site-footer__quick-actions-label">
                 или свяжитесь удобным способом:
               </div>
@@ -62,8 +68,12 @@ export default function SiteFooter({ onOpenQuote }) {
           <div className="site-footer__column">
             <h3 className="site-footer__title">Каталог</h3>
             <div className="site-footer__links">
-              <Link to="/catalog?category=Силовой%20кабель">Силовой кабель</Link>
-              <Link to="/catalog?category=Контрольный%20кабель">Контрольный кабель</Link>
+              <Link to="/catalog?category=Силовой%20кабель">
+                Силовой кабель
+              </Link>
+              <Link to="/catalog?category=Контрольный%20кабель">
+                Контрольный кабель
+              </Link>
               <Link to="/catalog?category=Кабели%20связи">Кабели связи</Link>
               <Link to="/catalog?category=Гибкий%20кабель">Гибкий кабель</Link>
               <Link to="/catalog">Весь каталог →</Link>
@@ -113,7 +123,8 @@ export default function SiteFooter({ onOpenQuote }) {
         </div>
 
         <div className="site-footer__legal">
-          © 2026 ЮжУралЭлектроКабель. Информация на сайте носит справочный характер и не является публичной офертой.
+          © 2026 ЮжУралЭлектроКабель. Информация на сайте носит справочный
+          характер и не является публичной офертой.
         </div>
       </Container>
     </footer>

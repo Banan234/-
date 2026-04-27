@@ -116,7 +116,9 @@ export async function generateQuotePdf({ items, customer = null } = {}) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
   const today = new Date();
-  const validUntil = new Date(today.getTime() + QUOTE_VALIDITY_DAYS * 24 * 3600 * 1000);
+  const validUntil = new Date(
+    today.getTime() + QUOTE_VALIDITY_DAYS * 24 * 3600 * 1000
+  );
   const quoteNumber = buildQuoteNumber(today);
 
   // ─── Шапка
@@ -128,17 +130,25 @@ export async function generateQuotePdf({ items, customer = null } = {}) {
   doc.setFontSize(9);
   doc.setTextColor(90);
   doc.text(COMPANY.legal, margin, 24);
-  doc.text(`г. ${COMPANY.city} · ${COMPANY.phone} · ${COMPANY.email} · ${COMPANY.site}`, margin, 28.5);
+  doc.text(
+    `г. ${COMPANY.city} · ${COMPANY.phone} · ${COMPANY.email} · ${COMPANY.site}`,
+    margin,
+    28.5
+  );
 
   // Номер и дата справа
   doc.setTextColor(20);
   doc.setFont(FONT_BOLD, 'normal');
   doc.setFontSize(11);
-  doc.text(`Коммерческое предложение`, pageWidth - margin, 18, { align: 'right' });
+  doc.text(`Коммерческое предложение`, pageWidth - margin, 18, {
+    align: 'right',
+  });
   doc.setFont(FONT_REGULAR, 'normal');
   doc.setFontSize(9);
   doc.text(`№ ${quoteNumber}`, pageWidth - margin, 24, { align: 'right' });
-  doc.text(`от ${formatDate(today)}`, pageWidth - margin, 28.5, { align: 'right' });
+  doc.text(`от ${formatDate(today)}`, pageWidth - margin, 28.5, {
+    align: 'right',
+  });
 
   // Линия-разделитель
   doc.setDrawColor(220);
@@ -153,11 +163,9 @@ export async function generateQuotePdf({ items, customer = null } = {}) {
     doc.text('Адресат:', margin, cursorY);
     doc.setFont(FONT_REGULAR, 'normal');
     doc.setFontSize(10);
-    const lines = [
-      customer.name,
-      customer.phone,
-      customer.email,
-    ].filter(Boolean);
+    const lines = [customer.name, customer.phone, customer.email].filter(
+      Boolean
+    );
     cursorY += 5;
     for (const line of lines) {
       doc.text(String(line), margin, cursorY);
@@ -261,11 +269,7 @@ export async function generateQuotePdf({ items, customer = null } = {}) {
   doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
   doc.setFontSize(8);
   doc.setTextColor(140);
-  doc.text(
-    `${COMPANY.legal} · ${COMPANY.site}`,
-    margin,
-    pageHeight - 10
-  );
+  doc.text(`${COMPANY.legal} · ${COMPANY.site}`, margin, pageHeight - 10);
   doc.text(
     `${quoteNumber} · ${formatDate(today)}`,
     pageWidth - margin,

@@ -12,20 +12,26 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "build": "vite build",
+    "prerender": "node scripts/prerender.js",
+    "build:prod": "vite build && node scripts/prerender.js",
     "preview": "vite preview",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@fontsource/roboto": "^5.2.10",
+    "@sentry/react": "^10.50.0",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
+    "helmet": "^8.1.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "nodemailer": "^8.0.4",
+    "proxy-addr": "^2.0.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.1",
@@ -33,10 +39,15 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.1",
+    "jsdom": "^29.0.2",
     "prettier": "^3.6.2",
-    "vite": "^7.1.7",
+    "vite": "^7.3.2",
     "vitest": "^4.1.5"
   }
 }

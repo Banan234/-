@@ -4,6 +4,11 @@ import Container from '../components/ui/Container';
 import { useCartStore } from '../store/useCartStore';
 import { useSEO } from '../hooks/useSEO';
 import { trackEvent } from '../lib/analytics';
+import { captureException } from '../lib/errorTracking';
+import {
+  MAX_QUOTE_ITEM_COMMENT_LENGTH,
+  MAX_QUOTE_ITEM_TITLE_LENGTH,
+} from '../../lib/quoteValidation.js';
 import '../styles/sections/commerce.css';
 
 const initialManualItem = {
@@ -38,7 +43,8 @@ export default function CartPage() {
       const { generateQuotePdf } = await import('../lib/quotePdf.js');
       await generateQuotePdf({ items });
       const total = items.reduce(
-        (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+        (sum, item) =>
+          sum + Number(item.price || 0) * Number(item.quantity || 0),
         0
       );
       trackEvent('price-download', {
@@ -48,7 +54,7 @@ export default function CartPage() {
         source: 'cart',
       });
     } catch (error) {
-      console.error(error);
+      captureException(error, { source: 'CartPage.buildPdf' });
       setPdfError(error.message || 'Не удалось сформировать PDF');
     } finally {
       setIsPdfBuilding(false);
@@ -89,6 +95,20 @@ export default function CartPage() {
       return;
     }
 
+    if (mark.length > MAX_QUOTE_ITEM_TITLE_LENGTH) {
+      setManualError(
+        `Наименование не должно превышать ${MAX_QUOTE_ITEM_TITLE_LENGTH} символов`
+      );
+      return;
+    }
+
+    if (manualItem.comment.trim().length > MAX_QUOTE_ITEM_COMMENT_LENGTH) {
+      setManualError(
+        `Комментарий не должен превышать ${MAX_QUOTE_ITEM_COMMENT_LENGTH} символов`
+      );
+      return;
+    }
+
     if (!Number.isFinite(quantity) || quantity <= 0) {
       setManualError('Укажите метраж или объём');
       return;
@@ -99,7 +119,9 @@ export default function CartPage() {
       name: mark,
       fullName: mark,
       mark,
-      shortDescription: manualItem.comment.trim() || 'Позиция добавлена вручную для запроса КП.',
+      shortDescription:
+        manualItem.comment.trim() ||
+        'Позиция добавлена вручную для запроса КП.',
       quantity,
       unit: manualItem.unit,
       comment: manualItem.comment.trim(),
@@ -114,8 +136,8 @@ export default function CartPage() {
           <div>
             <h1 className="page-title">Список для КП</h1>
             <p className="page-subtitle">
-              Соберите позиции, укажите метраж и отправьте список на расчёт.
-              Это не оформление оплаты.
+              Соберите позиции, укажите метраж и отправьте список на расчёт. Это
+              не оформление оплаты.
             </p>
           </div>
         </div>
@@ -133,7 +155,8 @@ export default function CartPage() {
           <div className="cart-manual__head">
             <h2 className="cart-manual__title">Добавить позицию вручную</h2>
             <p className="cart-manual__text">
-              Для срочной заявки: введите марку или описание кабеля, даже если позиции нет в каталоге.
+              Для срочной заявки: введите марку или описание кабеля, даже если
+              позиции нет в каталоге.
             </p>
           </div>
 
@@ -144,6 +167,7 @@ export default function CartPage() {
                 name="mark"
                 value={manualItem.mark}
                 onChange={handleManualChange}
+                maxLength={MAX_QUOTE_ITEM_TITLE_LENGTH}
                 placeholder="Например: ВВГнг-LS 3×2.5"
               />
             </label>
@@ -163,7 +187,11 @@ export default function CartPage() {
 
             <label className="cart-manual__field">
               <span>Ед.</span>
-              <select name="unit" value={manualItem.unit} onChange={handleManualChange}>
+              <select
+                name="unit"
+                value={manualItem.unit}
+                onChange={handleManualChange}
+              >
                 <option value="м">м</option>
                 <option value="шт">шт</option>
                 <option value="кг">кг</option>
@@ -177,16 +205,22 @@ export default function CartPage() {
                 name="comment"
                 value={manualItem.comment}
                 onChange={handleManualChange}
+                maxLength={MAX_QUOTE_ITEM_COMMENT_LENGTH}
                 placeholder="Например: нужен аналог, срочно"
               />
             </label>
 
-            <button type="submit" className="button-secondary cart-manual__submit">
+            <button
+              type="submit"
+              className="button-secondary cart-manual__submit"
+            >
               Добавить в список
             </button>
           </form>
 
-          {manualError ? <div className="field-error">{manualError}</div> : null}
+          {manualError ? (
+            <div className="field-error">{manualError}</div>
+          ) : null}
         </div>
 
         {items.length > 0 ? (
@@ -198,73 +232,87 @@ export default function CartPage() {
                 const lineTotal = Number(item.price || 0) * quantity;
 
                 return (
-                <article key={item.id} className="cart-item">
-                  <img
-                    src={item.image || '/product-placeholder.svg'}
-                    alt={item.title}
-                    className="cart-item__image"
-                  />
+                  <article key={item.id} className="cart-item">
+                    <img
+                      src={item.image || '/product-placeholder.svg'}
+                      alt={item.title}
+                      className="cart-item__image"
+                      width="560"
+                      height="320"
+                      loading="lazy"
+                      decoding="async"
+                    />
 
-                  <div className="cart-item__content">
-                    <div className="cart-item__meta">
-                      {item.sku ? <div className="cart-item__sku">SKU: {item.sku}</div> : null}
-                      <div className="cart-item__category">{item.category}</div>
-                    </div>
-
-                    <h2 className="cart-item__title">
-                      {item.slug ? (
-                        <Link
-                          to={`/product/${item.slug}`}
-                          className="cart-item__title-link"
-                        >
-                          {item.title}
-                        </Link>
-                      ) : (
-                        <span>{item.title}</span>
-                      )}
-                    </h2>
-
-                    {item.shortDescription ? (
-                      <p className="cart-item__description">{item.shortDescription}</p>
-                    ) : null}
-
-                    <div className="cart-item__price-row">
-                      <div className="cart-item__price">
-                        {Number(item.price || 0) > 0
-                          ? `${Number(item.price).toLocaleString('ru-RU')} ₽ / ${unit}`
-                          : 'Цена будет рассчитана в КП'}
+                    <div className="cart-item__content">
+                      <div className="cart-item__meta">
+                        {item.sku ? (
+                          <div className="cart-item__sku">SKU: {item.sku}</div>
+                        ) : null}
+                        <div className="cart-item__category">
+                          {item.category}
+                        </div>
                       </div>
-                      {lineTotal > 0 ? (
-                        <div className="cart-item__line-total">
-                          Предварительно: {lineTotal.toLocaleString('ru-RU')} ₽
-                        </div>
+
+                      <h2 className="cart-item__title">
+                        {item.slug ? (
+                          <Link
+                            to={`/product/${item.slug}`}
+                            className="cart-item__title-link"
+                          >
+                            {item.title}
+                          </Link>
+                        ) : (
+                          <span>{item.title}</span>
+                        )}
+                      </h2>
+
+                      {item.shortDescription ? (
+                        <p className="cart-item__description">
+                          {item.shortDescription}
+                        </p>
                       ) : null}
-                    </div>
 
-                    <div className="cart-item__actions">
-                      <label className="cart-item__quantity">
-                        <span>Метраж</span>
-                        <div className="cart-item__quantity-control">
-                          <input
-                            key={`${item.id}-${quantity}`}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            defaultValue={quantity}
-                            onBlur={(event) =>
-                              updateItemQuantity(item.id, event.target.value)
-                            }
-                          />
-                          <strong>{unit}</strong>
+                      <div className="cart-item__price-row">
+                        <div className="cart-item__price">
+                          {Number(item.price || 0) > 0
+                            ? `${Number(item.price).toLocaleString('ru-RU')} ₽ / ${unit}`
+                            : 'Цена будет рассчитана в КП'}
                         </div>
-                      </label>
+                        {lineTotal > 0 ? (
+                          <div className="cart-item__line-total">
+                            Предварительно: {lineTotal.toLocaleString('ru-RU')}{' '}
+                            ₽
+                          </div>
+                        ) : null}
+                      </div>
 
-                      <button type="button" onClick={() => removeItem(item.id)}>
-                        Удалить
-                      </button>
+                      <div className="cart-item__actions">
+                        <label className="cart-item__quantity">
+                          <span>Метраж</span>
+                          <div className="cart-item__quantity-control">
+                            <input
+                              key={`${item.id}-${quantity}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              defaultValue={quantity}
+                              onBlur={(event) =>
+                                updateItemQuantity(item.id, event.target.value)
+                              }
+                            />
+                            <strong>{unit}</strong>
+                          </div>
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                        >
+                          Удалить
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </article>
+                  </article>
                 );
               })}
             </div>
@@ -288,7 +336,9 @@ export default function CartPage() {
                   type="button"
                   className="button-primary cart-summary__quote"
                   onClick={() =>
-                    window.dispatchEvent(new CustomEvent('open-cart-quote-modal'))
+                    window.dispatchEvent(
+                      new CustomEvent('open-cart-quote-modal')
+                    )
                   }
                 >
                   Запросить коммерческое предложение
@@ -308,7 +358,11 @@ export default function CartPage() {
                   type="button"
                   className="button-secondary"
                   onClick={() => {
-                    if (window.confirm('Очистить список для КП? Все позиции будут удалены.')) {
+                    if (
+                      window.confirm(
+                        'Очистить список для КП? Все позиции будут удалены.'
+                      )
+                    ) {
                       clearCart();
                     }
                   }}

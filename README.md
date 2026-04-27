@@ -16,14 +16,15 @@ npm run dev            # фронт на 5173, API на 3001
 
 Полный набор команд:
 
-| Команда | Что делает |
-| --- | --- |
-| `npm run dev` | Vite + сервер, прокси /api/* |
-| `npm run build` | Прод-сборка в `dist/` |
-| `npm run preview` | Локальный smoke-тест прод-сборки |
-| `npx vitest run` | Тесты (39 кейсов) |
+| Команда                                           | Что делает                                                                              |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `npm run dev`                                     | Vite + сервер, прокси /api/\*                                                           |
+| `npm run build`                                   | Прод-сборка в `dist/`                                                                   |
+| `npm run preview`                                 | Локальный smoke-тест прод-сборки                                                        |
+| `npx vitest run`                                  | Тесты (39 кейсов)                                                                       |
+| `npm run e2e`                                     | Playwright E2E smoke/user-flow тесты                                                    |
 | `node scripts/importPrice.js [path/to/price.xls]` | Импорт прайса → `data/products.json`, отчёты, `public/sitemap.xml`, `public/robots.txt` |
-| `node scripts/importPrice.js --dry-run` | То же, но без записи файлов |
+| `node scripts/importPrice.js --dry-run`           | То же, но без записи файлов                                                             |
 
 ## Конфигурация (`.env`)
 
@@ -47,6 +48,12 @@ npm run dev            # фронт на 5173, API на 3001
    SMTP_PASS=<app password>
    SMTP_FROM="ООО ЮжУралЭлектроКабель <sale@yourdomain.ru>"
    QUOTE_TO_EMAIL=sale@yourdomain.ru
+   SMTP_POOL=true
+   SMTP_POOL_MAX_CONNECTIONS=2
+   SMTP_CONNECTION_TIMEOUT_MS=10000
+   SMTP_SOCKET_TIMEOUT_MS=20000
+   SMTP_SEND_TIMEOUT_MS=25000
+   SMTP_SEND_RETRIES=1
    ```
 4. Перезапустите `npm run dev`. Проверить можно так:
    ```bash
@@ -59,6 +66,24 @@ npm run dev            # фронт на 5173, API на 3001
 > иначе провайдер отклонит письмо. `Reply-To:` сервер подставляет из email
 > клиента только если он его сам указал в форме (поле опциональное).
 
+SMTP-транспорт создаётся один раз на Express app и по умолчанию работает через
+pool: `SMTP_POOL=true`, `SMTP_POOL_MAX_CONNECTIONS=2`,
+`SMTP_POOL_MAX_MESSAGES=100`. Handshake/socket ограничены таймаутами, а
+`sendMail` дополнительно обёрнут в `SMTP_SEND_TIMEOUT_MS` и один retry
+(`SMTP_SEND_RETRIES=1`) для временных сетевых ошибок и 4xx-ответов SMTP. Для
+медленного провайдера лучше увеличить таймауты, чем оставлять их бесконечными.
+
+### Reverse proxy
+
+`TRUSTED_PROXY_IPS` задаёт, от каких proxy Express принимает
+`X-Forwarded-For`. По умолчанию используется `loopback`, что подходит для
+Nginx на той же машине. Если перед приложением стоят CDN или балансер,
+укажите только их IP/CIDR через запятую, например:
+
+```env
+TRUSTED_PROXY_IPS=loopback,10.0.0.0/8,172.16.0.0/12
+```
+
 ### Аналитика
 
 `VITE_YANDEX_METRIKA_ID` — номер счётчика. Пустое значение полностью отключает
@@ -69,6 +94,7 @@ npm run dev            # фронт на 5173, API на 3001
 
 `SITE_URL` (для Node-скриптов) и `VITE_SITE_URL` (для сборки фронта) должны
 совпадать. Подставляются в:
+
 - `public/sitemap.xml` / `public/robots.txt` (генерация после импорта прайса);
 - `<link rel="canonical">`, `og:url`, JSON-LD (`Product.url`, `Organization.url`).
 
@@ -139,7 +165,7 @@ GitHub Actions schedule. Минимальный workflow:
 ```yaml
 # .github/workflows/import-price.yml
 on:
-  schedule: [{ cron: '30 1 * * *' }]   # 04:30 МСК
+  schedule: [{ cron: '30 1 * * *' }] # 04:30 МСК
 jobs:
   import:
     runs-on: ubuntu-latest
@@ -156,3 +182,65 @@ jobs:
 
 В случае ошибки импортёр завершается с ненулевым кодом — и cron, и Actions
 пришлют письмо/уведомление, ничего не теряется молча.
+
+## Docker deploy, staging и rollback
+
+Production compose использует immutable tag из `DEPLOY_TAG`. Не деплойте только
+`:latest`: rollback должен переключать compose на уже собранный предыдущий tag,
+а не пересобирать текущую рабочую директорию.
+
+### Staging / preview
+
+Staging изолирован от production: другие container names, порт, сеть и каталог
+данных. По умолчанию сайт доступен на `http://localhost:8080`.
+
+```bash
+cp .env.example .env.staging
+# В .env.staging задайте SMTP/QUOTE_TO_EMAIL, STAGING_SITE_URL и при необходимости
+# STAGING_HTTP_PORT, STAGING_SENTRY_DSN.
+
+mkdir -p data-staging
+cp data/products.json data/productRegistry.json data-staging/
+
+STAGING_DEPLOY_TAG=preview-$(git rev-parse --short HEAD) \
+  docker compose -f docker-compose.staging.yml up -d --build
+
+curl -fsS http://127.0.0.1:${STAGING_HTTP_PORT:-8080}/healthz
+```
+
+Если staging должен проверять свежий прайс отдельно от production, запускайте
+импорт внутри staging-контейнера: `docker compose -f docker-compose.staging.yml exec app npm run import:price:remote`.
+
+### Production release
+
+```bash
+export DEPLOY_TAG=$(date +%Y%m%d%H%M)-$(git rev-parse --short HEAD)
+export VITE_SENTRY_RELEASE=$DEPLOY_TAG
+
+docker compose build
+docker compose up -d --no-build
+docker compose ps
+curl -fsS http://127.0.0.1/healthz
+```
+
+Перед деплоем убедитесь, что на хосте есть `./data/products.json`: этот каталог
+смонтирован в `app` как `/app/data`, чтобы импорт прайса не терялся при
+пересоздании контейнера.
+
+### Rollback
+
+Rollback — это переключение `DEPLOY_TAG` на предыдущий рабочий release tag без
+`--build`.
+
+```bash
+export DEPLOY_TAG=<previous-good-tag>
+export VITE_SENTRY_RELEASE=$DEPLOY_TAG
+
+docker compose up -d --no-build
+docker compose ps
+curl -fsS http://127.0.0.1/healthz
+```
+
+Если образы хранятся в registry, перед `up` выполните `docker compose pull`.
+Если предыдущего образа нет локально или в registry, `--no-build` специально
+остановит rollback вместо того, чтобы случайно пересобрать новый образ.

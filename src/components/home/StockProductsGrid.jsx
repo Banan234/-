@@ -11,14 +11,16 @@ export default function StockProductsGrid({ products, isLoading, loadError }) {
   const cloneKeyRef = useRef(0);
   const [orderedProducts, setOrderedProducts] = useState(products);
   const [renderedProducts, setRenderedProducts] = useState(() =>
-    products.map((product) => ({ key: String(product.id), product })),
+    products.map((product) => ({ key: String(product.id), product }))
   );
   const [animationStyles, setAnimationStyles] = useState({});
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
     setOrderedProducts(products);
-    setRenderedProducts(products.map((product) => ({ key: String(product.id), product })));
+    setRenderedProducts(
+      products.map((product) => ({ key: String(product.id), product }))
+    );
     setAnimationStyles({});
     setIsAnimating(false);
   }, [products]);
@@ -46,7 +48,8 @@ export default function StockProductsGrid({ products, isLoading, loadError }) {
 
     const cardWidth = firstCard.getBoundingClientRect().width;
     const trackStyles = window.getComputedStyle(track);
-    const gap = Number.parseFloat(trackStyles.columnGap || trackStyles.gap || '0') || 0;
+    const gap =
+      Number.parseFloat(trackStyles.columnGap || trackStyles.gap || '0') || 0;
 
     return cardWidth + gap;
   }
@@ -156,11 +159,18 @@ export default function StockProductsGrid({ products, isLoading, loadError }) {
       <Container>
         <div className="home-stock-showcase__head section-head">
           <div>
-            <h2 className="section-title section-title--left">Из наличия на складе</h2>
-            <p className="home-stock-showcase__sub">Актуальные позиции, готовые к отгрузке</p>
+            <h2 className="section-title section-title--left">
+              Из наличия на складе
+            </h2>
+            <p className="home-stock-showcase__sub">
+              Актуальные позиции, готовые к отгрузке
+            </p>
           </div>
 
-          <Link to="/catalog" className="section-link home-stock-showcase__link">
+          <Link
+            to="/catalog"
+            className="section-link home-stock-showcase__link"
+          >
             Смотреть весь каталог
             <span aria-hidden="true">→</span>
           </Link>
@@ -171,7 +181,9 @@ export default function StockProductsGrid({ products, isLoading, loadError }) {
             Загружаем актуальные позиции...
           </div>
         ) : loadError ? (
-          <div className="catalog-empty catalog-empty--centered">{loadError}</div>
+          <div className="catalog-empty catalog-empty--centered">
+            {loadError}
+          </div>
         ) : (
           <div className="home-stock-showcase__carousel">
             <button
@@ -181,7 +193,15 @@ export default function StockProductsGrid({ products, isLoading, loadError }) {
               disabled={orderedProducts.length <= 1}
               aria-label="Показать предыдущие товары"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             </button>
@@ -203,7 +223,15 @@ export default function StockProductsGrid({ products, isLoading, loadError }) {
               disabled={orderedProducts.length <= 1}
               aria-label="Показать следующие товары"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="M9 18l6-6-6-6" />
               </svg>
             </button>

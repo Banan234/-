@@ -1,4 +1,10 @@
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Container from '../ui/Container';
 import Modal from '../ui/Modal';
@@ -7,10 +13,12 @@ import QuoteForm from '../quote/QuoteForm';
 import SiteFooter from './SiteFooter';
 import MobileNav from './MobileNav';
 import { fetchProductSuggestions } from '../../lib/productsApi';
+import { captureException } from '../../lib/errorTracking';
 import { useCartStore } from '../../store/useCartStore';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { trackEvent } from '../../lib/analytics';
 import { usePageviewTracking } from '../../hooks/usePageviewTracking';
+import { STORAGE_WRITE_FAILED_EVENT } from '../../lib/browserStorage';
 import catalogCategoriesData from '../../../data/catalogCategories.json';
 
 const cableSection = catalogCategoriesData.sections.find(
@@ -44,10 +52,28 @@ const catalogMenu = [
   {
     title: 'Некабельная продукция',
     slug: 'nekabelnaya-produkciya',
-    links: [{ label: 'Некабельная продукция', to: '/catalog/nekabelnaya-produkciya' }],
+    links: [
+      { label: 'Некабельная продукция', to: '/catalog/nekabelnaya-produkciya' },
+    ],
   },
 ];
 const SEARCH_SUGGESTIONS_LIMIT = 7;
+
+function buildStorageWarningMessage(key) {
+  if (key === 'yuzhural-cart') {
+    return 'Список для КП изменён только на этом экране: браузер не дал сохранить корзину. Уменьшите список или очистите место в браузере.';
+  }
+
+  if (key === 'yuzhural-favorites') {
+    return 'Избранное изменено только на этом экране: браузер не дал сохранить список. Освободите место в браузере, чтобы изменения не пропали после перезагрузки.';
+  }
+
+  if (key === 'yuzhural-quote-form') {
+    return 'Черновик формы не сохранился в браузере. Отправьте заявку сейчас или освободите место в браузере.';
+  }
+
+  return 'Браузер не дал сохранить изменения локально. Они видны сейчас, но могут пропасть после перезагрузки страницы.';
+}
 
 function normalizeSearchSuggestionKey(value) {
   return String(value || '')
@@ -98,6 +124,7 @@ export default function MainLayout() {
   const [isCatalogPinnedOpen, setIsCatalogPinnedOpen] = useState(false);
   const [activeCatalogIndex, setActiveCatalogIndex] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [storageWarning, setStorageWarning] = useState(null);
   const isCatalogPage = location.pathname.startsWith('/catalog');
   const catalogCloseTimeoutRef = useRef(null);
   const catalogWrapperRef = useRef(null);
@@ -168,6 +195,28 @@ export default function MainLayout() {
       window.removeEventListener('open-lead-modal', handleOpenLead);
       window.removeEventListener('open-quote-modal', handleOpenLead);
       window.removeEventListener('open-cart-quote-modal', handleOpenQuote);
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleStorageWriteFailed(event) {
+      const key = event.detail?.key || '';
+      setStorageWarning({
+        key,
+        message: buildStorageWarningMessage(key),
+      });
+    }
+
+    window.addEventListener(
+      STORAGE_WRITE_FAILED_EVENT,
+      handleStorageWriteFailed
+    );
+
+    return () => {
+      window.removeEventListener(
+        STORAGE_WRITE_FAILED_EVENT,
+        handleStorageWriteFailed
+      );
     };
   }, []);
 
@@ -289,7 +338,7 @@ export default function MainLayout() {
       })
       .catch((error) => {
         if (error.name !== 'AbortError') {
-          console.error('Ошибка загрузки подсказок поиска:', error);
+          captureException(error, { source: 'MainLayout.searchSuggestions' });
           setSearchSuggestions([]);
         }
       })
@@ -333,23 +382,61 @@ export default function MainLayout() {
 
   return (
     <div>
-      <header className={`site-header${isScrolled ? ' site-header--scrolled' : ''}`}>
+      <header
+        className={`site-header${isScrolled ? ' site-header--scrolled' : ''}`}
+      >
         <div className="site-header__topbar">
           <Container>
             <div className="site-header__topbar-inner">
               <div className="site-header__topbar-left">
                 <span className="topbar-item">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
                   Челябинск, ул. Южная, 9А
                 </span>
                 <span className="topbar-item">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
                   Пн–Пт 09:00–18:00
                 </span>
               </div>
               <div className="site-header__topbar-right">
                 <a href="/price.xls" download className="topbar-download">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
                     <path d="M12 3v12" />
                     <path d="m7 10 5 5 5-5" />
                     <path d="M5 21h14" />
@@ -373,6 +460,10 @@ export default function MainLayout() {
                   src="/logo.png"
                   alt="ЮжУралЭлектроКабель"
                   className="site-header__logo-image"
+                  width="600"
+                  height="160"
+                  loading="eager"
+                  decoding="async"
                 />
               </Link>
 
@@ -392,7 +483,8 @@ export default function MainLayout() {
                   onClick={() =>
                     openLeadModal({
                       title: 'Заказать звонок',
-                      subtitle: 'Оставьте телефон и комментарий — менеджер перезвонит в рабочее время.',
+                      subtitle:
+                        'Оставьте телефон и комментарий — менеджер перезвонит в рабочее время.',
                       submitLabel: 'Заказать звонок',
                       source: 'Кнопка в хедере',
                     })
@@ -514,19 +606,25 @@ export default function MainLayout() {
 
                 <NavLink
                   to="/delivery"
-                  className={({ isActive }) => `nav-link${isActive ? ' nav-link--active' : ''}`}
+                  className={({ isActive }) =>
+                    `nav-link${isActive ? ' nav-link--active' : ''}`
+                  }
                 >
                   Доставка
                 </NavLink>
                 <NavLink
                   to="/about"
-                  className={({ isActive }) => `nav-link${isActive ? ' nav-link--active' : ''}`}
+                  className={({ isActive }) =>
+                    `nav-link${isActive ? ' nav-link--active' : ''}`
+                  }
                 >
                   О компании
                 </NavLink>
                 <NavLink
                   to="/contacts"
-                  className={({ isActive }) => `nav-link${isActive ? ' nav-link--active' : ''}`}
+                  className={({ isActive }) =>
+                    `nav-link${isActive ? ' nav-link--active' : ''}`
+                  }
                 >
                   Контакты
                 </NavLink>
@@ -564,7 +662,8 @@ export default function MainLayout() {
 
                   {shouldShowSearchSuggestions ? (
                     <div className="site-header__search-suggestions">
-                      {isSearchCatalogLoading && searchSuggestions.length === 0 ? (
+                      {isSearchCatalogLoading &&
+                      searchSuggestions.length === 0 ? (
                         <div className="site-header__search-suggestion-status">
                           Загружаем марки...
                         </div>
@@ -575,7 +674,9 @@ export default function MainLayout() {
                             type="button"
                             className="site-header__search-suggestion"
                             onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => handleSearchSuggestionClick(suggestion.mark)}
+                            onClick={() =>
+                              handleSearchSuggestionClick(suggestion.mark)
+                            }
                           >
                             <span className="site-header__search-suggestion-mark">
                               {suggestion.mark}
@@ -646,6 +747,25 @@ export default function MainLayout() {
         </div>
       </header>
 
+      {storageWarning ? (
+        <div className="storage-warning" role="alert">
+          <Container>
+            <div className="storage-warning__inner">
+              <span className="storage-warning__text">
+                {storageWarning.message}
+              </span>
+              <button
+                type="button"
+                className="storage-warning__close"
+                onClick={() => setStorageWarning(null)}
+              >
+                Понятно
+              </button>
+            </div>
+          </Container>
+        </div>
+      ) : null}
+
       <MobileNav
         isOpen={isMobileNavOpen}
         catalogMenu={catalogMenu}
@@ -655,7 +775,8 @@ export default function MainLayout() {
         onOpenQuote={() =>
           openLeadModal({
             title: 'Получить КП',
-            subtitle: 'Оставьте телефон и список нужных позиций — подготовим коммерческое предложение.',
+            subtitle:
+              'Оставьте телефон и список нужных позиций — подготовим коммерческое предложение.',
             submitLabel: 'Получить КП',
             source: 'Мобильное меню',
           })
@@ -680,7 +801,9 @@ export default function MainLayout() {
           fallback={
             <div className="route-fallback" aria-busy="true" aria-live="polite">
               <span className="route-fallback__spinner" aria-hidden="true" />
-              <span className="route-fallback__text">Загружаем страницу...</span>
+              <span className="route-fallback__text">
+                Загружаем страницу...
+              </span>
             </div>
           }
         >
@@ -692,7 +815,8 @@ export default function MainLayout() {
         onOpenQuote={() =>
           openLeadModal({
             title: 'Получить КП',
-            subtitle: 'Оставьте телефон и список нужных позиций — подготовим коммерческое предложение.',
+            subtitle:
+              'Оставьте телефон и список нужных позиций — подготовим коммерческое предложение.',
             submitLabel: 'Получить КП',
             source: 'CTA в футере',
           })

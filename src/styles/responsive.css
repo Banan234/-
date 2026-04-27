@@ -157,6 +157,15 @@
   .site-header__topbar {
     display: none;
   }
+  .storage-warning__inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .storage-warning__close {
+    width: 100%;
+  }
   .site-header__main-inner {
     min-height: 74px;
     gap: 12px;

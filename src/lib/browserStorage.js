@@ -1,3 +1,38 @@
+export const STORAGE_WRITE_FAILED_EVENT = 'yuzhural:storage-write-failed';
+
+export function isStorageQuotaError(error) {
+  return Boolean(
+    error &&
+    (error.name === 'QuotaExceededError' ||
+      error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      error.code === 22 ||
+      error.code === 1014)
+  );
+}
+
+function emitStorageWriteFailure(key, error) {
+  const target = typeof window !== 'undefined' ? window : globalThis;
+  if (
+    !target ||
+    typeof target.dispatchEvent !== 'function' ||
+    typeof CustomEvent !== 'function'
+  ) {
+    return;
+  }
+
+  target.dispatchEvent(
+    new CustomEvent(STORAGE_WRITE_FAILED_EVENT, {
+      detail: {
+        key,
+        reason: isStorageQuotaError(error) ? 'quota' : 'write_failed',
+        isQuotaExceeded: isStorageQuotaError(error),
+        errorName: error?.name || '',
+        errorMessage: error?.message || '',
+      },
+    })
+  );
+}
+
 export function loadStoredJson(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -16,16 +51,21 @@ export function loadStoredJson(key, fallback) {
 export function saveStoredJson(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch (error) {
     console.error(`Ошибка сохранения "${key}" в localStorage:`, error);
+    emitStorageWriteFailure(key, error);
+    return false;
   }
 }
 
 export function removeStoredValue(key) {
   try {
     localStorage.removeItem(key);
+    return true;
   } catch (error) {
     console.error(`Ошибка удаления "${key}" из localStorage:`, error);
+    return false;
   }
 }
 
@@ -62,6 +102,7 @@ export function createMigratingItemsStorage() {
         localStorage.setItem(key, value);
       } catch (error) {
         console.error(`Ошибка сохранения "${key}" в localStorage:`, error);
+        emitStorageWriteFailure(key, error);
       }
     },
     removeItem: (key) => {
