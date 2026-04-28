@@ -710,6 +710,70 @@ describe('GET /api/products', () => {
   });
 });
 
+describe('POST /api/products/lookup', () => {
+  async function postLookup(localBaseUrl, body, headers = {}) {
+    return fetch(`${localBaseUrl}/api/products/lookup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it('возвращает found/missing по списку id', async () => {
+    const { app } = createProductCatalogApp();
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await postLookup(localBaseUrl, { ids: [101, 9999, 104] });
+      const data = await res.json();
+      expect(res.status).toBe(200);
+      expect(data.ok).toBe(true);
+      expect(data.found.map((item) => item.id)).toEqual([101, 104]);
+      expect(data.missing).toEqual([9999]);
+    });
+  });
+
+  it('игнорирует дубли и невалидные id', async () => {
+    const { app } = createProductCatalogApp();
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await postLookup(localBaseUrl, {
+        ids: [101, 101, 0, -3, 'abc', null, 104],
+      });
+      const data = await res.json();
+      expect(res.status).toBe(200);
+      expect(data.found.map((item) => item.id).sort()).toEqual([101, 104]);
+      expect(data.missing).toEqual([]);
+    });
+  });
+
+  it('400 при отсутствии массива ids', async () => {
+    const { app } = createProductCatalogApp();
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await postLookup(localBaseUrl, { foo: 'bar' });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  it('400 при превышении лимита по числу id', async () => {
+    const { app } = createProductCatalogApp();
+    await withTestServer(app, async (localBaseUrl) => {
+      const ids = Array.from({ length: 201 }, (_, i) => i + 1);
+      const res = await postLookup(localBaseUrl, { ids });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  it('415 без application/json', async () => {
+    const { app } = createProductCatalogApp();
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await fetch(`${localBaseUrl}/api/products/lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: 'ids=1',
+      });
+      expect(res.status).toBe(415);
+    });
+  });
+});
+
 describe('POST /api/quote', () => {
   it('happy path: валидный payload отправляет письмо и возвращает ok', async () => {
     const res = await postJson('/api/quote', validPayload);
@@ -786,6 +850,29 @@ describe('POST /api/quote', () => {
 
     expect(res.status).toBe(200);
     expect(data.ok).toBe(true);
+    expect(sendMailMock).not.toHaveBeenCalled();
+  });
+
+  it('honeypot — фейковый success ждёт response floor', async () => {
+    const app = createApp({
+      rateLimitOptions: { limit: 1000 },
+      formResponseDelayRange: { min: 40, max: 40 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const startedAt = Date.now();
+      const res = await postJsonTo(localBaseUrl, '/api/quote', {
+        ...validPayload,
+        company_website: 'https://spam.example',
+      });
+      const elapsedMs = Date.now() - startedAt;
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.ok).toBe(true);
+      expect(elapsedMs).toBeGreaterThanOrEqual(35);
+    });
+
     expect(sendMailMock).not.toHaveBeenCalled();
   });
 

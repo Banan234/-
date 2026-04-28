@@ -1,3 +1,5 @@
+import { messages } from '../../lib/messages.js';
+
 async function fetchJson(url, signal, fallbackMessage) {
   const response = await fetch(url, { signal });
   const result = await response.json();
@@ -37,14 +39,14 @@ export function fetchProducts(signal, options = {}) {
   }
   const query = params.toString();
   const url = query ? `/api/products?${query}` : '/api/products';
-  return fetchJson(url, signal, 'Не удалось загрузить каталог');
+  return fetchJson(url, signal, messages.errors.productApi.catalogLoadFailed);
 }
 
 export async function fetchFeaturedProducts(limit, signal) {
   const result = await fetchJson(
     `/api/products/featured?limit=${limit}`,
     signal,
-    'Не удалось загрузить позиции'
+    messages.errors.productApi.productsLoadFailed
   );
 
   return result.items;
@@ -54,7 +56,7 @@ export async function fetchRelatedProducts(slug, limit, signal) {
   const result = await fetchJson(
     `/api/products/${slug}/related?limit=${limit}`,
     signal,
-    'Не удалось загрузить похожие товары'
+    messages.errors.productApi.relatedProductsLoadFailed
   );
 
   return result.items;
@@ -67,7 +69,7 @@ export async function fetchProductSuggestions(search, limit, signal) {
   const result = await fetchJson(
     `/api/products/suggestions?${params.toString()}`,
     signal,
-    'Не удалось загрузить подсказки'
+    messages.errors.productApi.suggestionsLoadFailed
   );
 
   return result.items;
@@ -77,7 +79,7 @@ export async function fetchProductBySlug(slug, signal) {
   const result = await fetchJson(
     `/api/products/${slug}`,
     signal,
-    'Не удалось загрузить товар'
+    messages.errors.productApi.productLoadFailed
   );
 
   return result.item;

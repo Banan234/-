@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react';
 import HoneypotField from '../forms/HoneypotField';
 import { captureException } from '../../lib/errorTracking';
 import { isValidRussianPhone } from '../../../lib/quoteValidation.js';
+import { formatMessage, messages } from '../../../lib/messages.js';
 
 const quickCommentOptions = [
   { label: 'ВВГ', value: 'ВВГ' },
@@ -75,11 +76,11 @@ export default function HeroLeadForm({
     const normalizedPhone = normalizePhone(form.phone.trim());
 
     if (!isValidRussianPhone(normalizedPhone)) {
-      nextErrors.phone = 'Укажите корректный телефон';
+      nextErrors.phone = messages.errors.leadForm.phoneInvalid;
     }
 
     if (!form.consent) {
-      nextErrors.consent = 'Нужно согласие на обработку данных';
+      nextErrors.consent = messages.errors.leadForm.consentRequired;
     }
 
     return nextErrors;
@@ -140,7 +141,9 @@ export default function HeroLeadForm({
         },
         body: JSON.stringify({
           phone: form.phone.trim(),
-          comment: form.comment.trim() || `Короткая заявка: ${source}`,
+          comment:
+            form.comment.trim() ||
+            formatMessage(messages.text.leadDefaultCommentPrefix, { source }),
           source,
           createdAt: new Date().toLocaleString('ru-RU'),
           rendered_at: renderedAtRef.current,
@@ -152,18 +155,20 @@ export default function HeroLeadForm({
       const result = await response.json();
 
       if (!response.ok || !result.ok) {
-        throw new Error(result.message || 'Не удалось отправить заявку');
+        throw new Error(
+          result.message || messages.errors.leadForm.submitFailed
+        );
       }
 
       setIsSubmitted(true);
-      setServerMessage(result.message || 'Заявка отправлена');
+      setServerMessage(result.message || messages.success.leadSent);
       setForm(buildInitialForm(''));
       renderedAtRef.current = Date.now();
       setErrors({});
     } catch (error) {
       captureException(error, { source: 'HeroLeadForm.submit' });
       setIsSubmitted(false);
-      setServerMessage(error.message || 'Не удалось отправить заявку');
+      setServerMessage(error.message || messages.errors.leadForm.submitFailed);
     } finally {
       setIsSubmitting(false);
     }

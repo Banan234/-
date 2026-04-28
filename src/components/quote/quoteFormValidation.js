@@ -6,6 +6,7 @@ import {
   isValidEmail,
   isValidRussianPhone,
 } from '../../../lib/quoteValidation.js';
+import { formatMessage, messages } from '../../../lib/messages.js';
 
 export function normalizePhone(phone) {
   return String(phone || '').replace(/[^\d+]/g, '');
@@ -21,35 +22,40 @@ export function validateForm(form, items) {
   const preferredChannel = form?.preferredChannel;
 
   if (!name) {
-    errors.name = 'Введите имя';
+    errors.name = messages.errors.quoteForm.nameRequired;
   } else if (name.length < 2) {
-    errors.name = 'Имя должно содержать минимум 2 символа';
+    errors.name = messages.errors.quoteForm.nameTooShort;
   }
 
   if (!phone) {
-    errors.phone = 'Введите телефон';
+    errors.phone = messages.errors.quoteForm.phoneRequired;
   } else if (!isValidRussianPhone(phone)) {
-    errors.phone = 'Введите корректный телефон';
+    errors.phone = messages.errors.quoteForm.phoneInvalid;
   }
 
   // Email опционален. Проверяем формат только если поле заполнено,
   // либо если клиент сам выбрал email как канал связи.
   if (email) {
     if (!isValidEmail(email)) {
-      errors.email = 'Введите корректный email';
+      errors.email = messages.errors.quoteForm.emailInvalid;
     }
   } else if (preferredChannel === 'email') {
-    errors.email = 'Укажите email — выбран как способ связи';
+    errors.email = messages.errors.quoteForm.emailRequiredForChannel;
   }
 
   if (comment.length > MAX_QUOTE_CUSTOMER_COMMENT_LENGTH) {
-    errors.comment = `Комментарий не должен превышать ${MAX_QUOTE_CUSTOMER_COMMENT_LENGTH} символов`;
+    errors.comment = formatMessage(
+      messages.errors.quoteForm.customerCommentTooLong,
+      { max: MAX_QUOTE_CUSTOMER_COMMENT_LENGTH }
+    );
   }
 
   if (!Array.isArray(items) || items.length === 0) {
-    errors.cart = 'Корзина пуста';
+    errors.cart = messages.errors.quoteForm.cartEmpty;
   } else if (items.length > MAX_QUOTE_ITEMS) {
-    errors.cart = `В заявке не должно быть больше ${MAX_QUOTE_ITEMS} позиций`;
+    errors.cart = formatMessage(messages.errors.quoteForm.tooManyItems, {
+      max: MAX_QUOTE_ITEMS,
+    });
   } else if (
     items.some(
       (item) =>
@@ -57,7 +63,9 @@ export function validateForm(form, items) {
         MAX_QUOTE_ITEM_COMMENT_LENGTH
     )
   ) {
-    errors.cart = `Комментарий к позиции не должен превышать ${MAX_QUOTE_ITEM_COMMENT_LENGTH} символов`;
+    errors.cart = formatMessage(messages.errors.quoteForm.itemCommentTooLong, {
+      max: MAX_QUOTE_ITEM_COMMENT_LENGTH,
+    });
   }
 
   return errors;

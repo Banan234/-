@@ -14,6 +14,7 @@ import {
   buildProductJsonLd,
   getProductBreadcrumbs,
 } from '../lib/productSeo';
+import { messages } from '../../lib/messages.js';
 import '../styles/sections/commerce.css';
 
 const BREADCRUMB_JSON_LD_ID = 'product-breadcrumb-json-ld';
@@ -73,7 +74,9 @@ export default function ProductPage() {
           source: 'ProductPage.loadProduct',
           slug: typeof slug === 'string' ? slug : undefined,
         });
-        setError(requestError.message || 'Не удалось загрузить товар');
+        setError(
+          requestError.message || messages.errors.productApi.productLoadFailed
+        );
       } finally {
         setIsLoading(false);
       }
@@ -107,13 +110,14 @@ export default function ProductPage() {
     return (
       <section className="section">
         <Container>
-          <h1 className="page-title">Товар не найден</h1>
+          <h1 className="page-title">
+            {messages.errors.productApi.productNotFound}
+          </h1>
           <p className="page-subtitle">
-            {error ||
-              'Возможно, ссылка устарела или товар был удален из каталога.'}
+            {error || messages.errors.productApi.productNotFoundDescription}
           </p>
           <Link to="/catalog" className="button-primary">
-            Вернуться в каталог
+            {messages.text.backToCatalog}
           </Link>
         </Container>
       </section>

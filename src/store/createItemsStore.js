@@ -5,6 +5,18 @@ import { createMigratingItemsStorage } from '../lib/browserStorage.js';
 const identity = (item) => item;
 const keepExistingItem = (existingItem) => existingItem;
 const createNoExtraActions = () => ({});
+const NO_ITEM_LIMIT = Infinity;
+
+function normalizeItemLimit(maxItems) {
+  const limit = Number(maxItems);
+  return Number.isInteger(limit) && limit > 0 ? limit : NO_ITEM_LIMIT;
+}
+
+function applyItemLimit(items, maxItems) {
+  if (!Array.isArray(items)) return [];
+  if (!Number.isFinite(maxItems)) return items;
+  return items.slice(0, maxItems);
+}
 
 export function createItemsStore({
   name,
@@ -12,11 +24,14 @@ export function createItemsStore({
   prepareItem = identity,
   mergeItem = keepExistingItem,
   withQuantity = false,
+  maxItems = NO_ITEM_LIMIT,
   createExtraActions = createNoExtraActions,
 }) {
   if (!name) {
     throw new Error('createItemsStore requires a storage name');
   }
+
+  const itemLimit = normalizeItemLimit(maxItems);
 
   return create(
     persist(
@@ -24,26 +39,32 @@ export function createItemsStore({
         const baseActions = {
           items: [],
 
-          addItem: (item) =>
-            set((state) => {
-              const nextItem = prepareItem(item, state);
-              const existingItem = state.items.find(
-                (currentItem) => currentItem.id === nextItem.id
-              );
+          addItem: (item) => {
+            const state = get();
+            const nextItem = prepareItem(item, state);
+            const existingItem = state.items.find(
+              (currentItem) => currentItem.id === nextItem.id
+            );
 
-              if (existingItem) {
-                const mergedItem = mergeItem(existingItem, nextItem, state);
-                if (mergedItem === existingItem) return state;
+            if (existingItem) {
+              const mergedItem = mergeItem(existingItem, nextItem, state);
+              if (mergedItem === existingItem) return true;
 
-                return {
-                  items: state.items.map((currentItem) =>
-                    currentItem.id === nextItem.id ? mergedItem : currentItem
-                  ),
-                };
-              }
+              set({
+                items: state.items.map((currentItem) =>
+                  currentItem.id === nextItem.id ? mergedItem : currentItem
+                ),
+              });
+              return true;
+            }
 
-              return { items: [...state.items, nextItem] };
-            }),
+            if (state.items.length >= itemLimit) {
+              return false;
+            }
+
+            set({ items: [...state.items, nextItem] });
+            return true;
+          },
 
           removeItem: (id) =>
             set((state) => ({
@@ -92,6 +113,29 @@ export function createItemsStore({
         name,
         storage: createJSONStorage(() => createMigratingItemsStorage()),
         partialize: (state) => ({ items: state.items }),
+        migrate: (persistedState) => {
+          const nextState =
+            persistedState && typeof persistedState === 'object'
+              ? persistedState
+              : {};
+
+          return {
+            ...nextState,
+            items: applyItemLimit(nextState.items, itemLimit),
+          };
+        },
+        merge: (persistedState, currentState) => {
+          const nextState =
+            persistedState && typeof persistedState === 'object'
+              ? persistedState
+              : {};
+
+          return {
+            ...currentState,
+            ...nextState,
+            items: applyItemLimit(nextState.items, itemLimit),
+          };
+        },
         version,
       }
     )

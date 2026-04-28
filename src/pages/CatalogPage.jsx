@@ -6,6 +6,7 @@ import { fetchProducts } from '../lib/productsApi';
 import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useCatalogFilters } from '../hooks/useCatalogFilters';
+import { messages } from '../../lib/messages.js';
 import catalogCategoriesData from '../../data/catalogCategories.json';
 import '../styles/sections/commerce.css';
 
@@ -79,7 +80,9 @@ export default function CatalogPage() {
         }
 
         captureException(requestError, { source: 'CatalogPage.loadProducts' });
-        setError(requestError.message || 'Не удалось загрузить каталог');
+        setError(
+          requestError.message || messages.errors.productApi.catalogLoadFailed
+        );
       } finally {
         setIsLoading(false);
       }

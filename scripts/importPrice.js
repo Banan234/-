@@ -11,6 +11,9 @@ import {
 import { classifyProduct, decodeCable } from './lib/catalogClassifier.js';
 import {
   assignStableIdentity,
+  buildOrphanSpecIndex,
+  buildSlugRedirects,
+  buildStableKey,
   loadProductRegistry,
   saveProductRegistry,
 } from './lib/productRegistry.js';
@@ -41,6 +44,12 @@ const reportHtmlFile = path.join(projectRoot, 'data', 'import-report.html');
 const overridesFile = path.join(projectRoot, 'data', 'priceOverrides.json');
 const importConfigFile = path.join(projectRoot, 'data', 'importConfig.json');
 const registryFile = path.join(projectRoot, 'data', 'productRegistry.json');
+const redirectsFile = path.join(projectRoot, 'public', 'redirects.json');
+const redirectsNginxFile = path.join(
+  projectRoot,
+  'public',
+  'redirects.nginx.conf'
+);
 const publicDir = path.join(projectRoot, 'public');
 const catalogCategoriesFile = path.join(
   projectRoot,
@@ -81,7 +90,7 @@ async function loadPriceOverrides() {
   return priceOverrides;
 }
 
-function normalizeMarkKey(value) {
+export function normalizeMarkKey(value) {
   return String(value || '')
     .replace(/\s+/g, '')
     .toLowerCase();
@@ -157,7 +166,7 @@ async function loadImportConfig() {
   }
 }
 
-function mergeImportConfig(config) {
+export function mergeImportConfig(config) {
   return {
     suspiciousPriceThresholds: {
       ...DEFAULT_IMPORT_CONFIG.suspiciousPriceThresholds,
@@ -221,7 +230,7 @@ async function loadWorkbookRows() {
   }
 }
 
-function detectSchema(rows) {
+export function detectSchema(rows) {
   const headerRowIndexes = [];
   const detectedHeaders = new Set();
 
@@ -255,7 +264,7 @@ function detectSchema(rows) {
   };
 }
 
-function extractProducts(rows) {
+export function extractProducts(rows) {
   const result = createEmptyImportResult();
   result.totalRows = rows.length;
   result.categoriesSeen = new Set();
@@ -292,7 +301,7 @@ function extractProducts(rows) {
   return result;
 }
 
-function splitRowsIntoBlocks(rows) {
+export function splitRowsIntoBlocks(rows) {
   const headerIndexes = [];
 
   rows.forEach((row, index) => {
@@ -315,7 +324,7 @@ function splitRowsIntoBlocks(rows) {
   });
 }
 
-function buildBookReadingOrder(blocks) {
+export function buildBookReadingOrder(blocks) {
   const orderedPages = [];
 
   for (let index = 0; index < blocks.length; index += 2) {
@@ -352,13 +361,13 @@ function buildBookReadingOrder(blocks) {
   return orderedPages;
 }
 
-function pickPageCells(row, side) {
+export function pickPageCells(row, side) {
   const indexes = PAGE_COLUMNS[side];
 
   return indexes.map((columnIndex) => String(row?.[columnIndex] ?? '').trim());
 }
 
-function parsePageRow(cells, sourceRow, category, rowIndex = null) {
+export function parsePageRow(cells, sourceRow, category, rowIndex = null) {
   const filledCells = cells.filter(Boolean);
 
   if (filledCells.length === 0) {
@@ -409,7 +418,7 @@ function parsePageRow(cells, sourceRow, category, rowIndex = null) {
   );
 }
 
-function createProductRecord(
+export function createProductRecord(
   product,
   category,
   sourceRow = null,
@@ -480,7 +489,7 @@ function createProductRecord(
   };
 }
 
-function isHeaderRow(cells) {
+export function isHeaderRow(cells) {
   const joined = cells
     .map((cell) => String(cell ?? ''))
     .join(' ')
@@ -493,7 +502,7 @@ function isHeaderRow(cells) {
   );
 }
 
-function isCategoryRow(value) {
+export function isCategoryRow(value) {
   const normalized = value.trim();
 
   if (!normalized) {
@@ -510,7 +519,7 @@ function isCategoryRow(value) {
 // Эвристика для подзаголовков внутри страницы, когда parseCombinedCell
 // не смог распознать товар. Разрешаем цифры (например, «Кабель КВПЭфВП-5е»),
 // но отсекаем мусор: слишком короткое, без букв, одни числа.
-function looksLikeCategoryHeading(value) {
+export function looksLikeCategoryHeading(value) {
   const normalized = String(value || '').trim();
 
   if (normalized.length < 3) {
@@ -530,7 +539,7 @@ function looksLikeCategoryHeading(value) {
   return true;
 }
 
-function isServiceRow(cells) {
+export function isServiceRow(cells) {
   const joined = cells.join(' ').toLowerCase();
 
   return (
@@ -546,9 +555,52 @@ function isServiceRow(cells) {
   );
 }
 
+async function writeFileAtomic(filePath, data) {
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  let handle;
+  try {
+    handle = await fs.open(tmpPath, 'w');
+    await handle.writeFile(data);
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await fs.rename(tmpPath, filePath);
+  } catch (error) {
+    if (handle) {
+      await handle.close().catch(() => {});
+    }
+    await fs.unlink(tmpPath).catch(() => {});
+    throw error;
+  }
+}
+
 async function saveProducts(products) {
-  await fs.mkdir(path.dirname(outputFile), { recursive: true });
-  await fs.writeFile(outputFile, JSON.stringify(products, null, 2), 'utf-8');
+  await writeFileAtomic(outputFile, JSON.stringify(products, null, 2));
+}
+
+// Slug может попасть в URL только через [a-z0-9-], всё остальное транслит/чистка
+// в slugify. На всякий случай отбрасываем записи с подозрительными символами,
+// чтобы сгенерированная nginx-конфигурация не падала при reload.
+const SAFE_SLUG_RE = /^[a-z0-9-]+$/;
+
+export function buildRedirectsNginxConf(redirects) {
+  const lines = [
+    '# Сгенерировано scripts/importPrice.js — не редактируй вручную.',
+    '# Подключается из nginx.conf через include.',
+  ];
+  const entries = Object.entries(redirects || {})
+    .filter(
+      ([oldSlug, newSlug]) =>
+        SAFE_SLUG_RE.test(oldSlug) && SAFE_SLUG_RE.test(newSlug)
+    )
+    .sort(([a], [b]) => a.localeCompare(b));
+  for (const [oldSlug, newSlug] of entries) {
+    lines.push(
+      `location = /product/${oldSlug} { return 301 /product/${newSlug}; }`
+    );
+  }
+  return lines.join('\n') + '\n';
 }
 
 async function loadPreviousProducts() {
@@ -568,13 +620,13 @@ async function loadPreviousProducts() {
   }
 }
 
-function productKey(product) {
+export function productKey(product) {
   return String(product?.fullName || product?.name || '')
     .trim()
     .toLowerCase();
 }
 
-function buildDiff(previous, current) {
+export function buildDiff(previous, current) {
   const prevMap = new Map();
   for (const product of previous) {
     const key = productKey(product);
@@ -691,7 +743,7 @@ async function loadImportHistory(config) {
   }
 }
 
-function normalizeImportHistory(history) {
+export function normalizeImportHistory(history) {
   return {
     version: 1,
     imports: Array.isArray(history.imports)
@@ -700,7 +752,7 @@ function normalizeImportHistory(history) {
   };
 }
 
-function buildHistorySnapshot(products, { generatedAt, sourceFile }) {
+export function buildHistorySnapshot(products, { generatedAt, sourceFile }) {
   const unitPrices = {};
 
   for (const product of products) {
@@ -730,7 +782,7 @@ function buildHistorySnapshot(products, { generatedAt, sourceFile }) {
   };
 }
 
-function getHistoricalSnapshots(history, previousProducts, sourceFile) {
+export function getHistoricalSnapshots(history, previousProducts, sourceFile) {
   if (history.imports.length > 0) {
     return history.imports;
   }
@@ -759,17 +811,12 @@ async function saveImportHistory(config, history, snapshot) {
     imports: [...history.imports, snapshot].slice(-historyLimit),
   };
 
-  await fs.mkdir(path.dirname(historyFile), { recursive: true });
-  await fs.writeFile(
-    historyFile,
-    JSON.stringify(nextHistory, null, 2),
-    'utf-8'
-  );
+  await writeFileAtomic(historyFile, JSON.stringify(nextHistory, null, 2));
 
   return nextHistory;
 }
 
-function buildSuspiciousPriceStats(config, historySnapshots) {
+export function buildSuspiciousPriceStats(config, historySnapshots) {
   const statsConfig = config.suspiciousPriceStats;
   const configuredThresholds = config.suspiciousPriceThresholds;
   const pricesByUnit = new Map();
@@ -850,7 +897,7 @@ function buildSuspiciousPriceStats(config, historySnapshots) {
   };
 }
 
-function percentile(sortedValues, percentileValue) {
+export function percentile(sortedValues, percentileValue) {
   if (!Array.isArray(sortedValues) || sortedValues.length === 0) {
     return null;
   }
@@ -869,7 +916,7 @@ function percentile(sortedValues, percentileValue) {
   return lower + (upper - lower) * (index - lowerIndex);
 }
 
-function roundNullable(value, digits = 3) {
+export function roundNullable(value, digits = 3) {
   if (!Number.isFinite(value)) {
     return null;
   }
@@ -878,12 +925,12 @@ function roundNullable(value, digits = 3) {
   return Math.round(value * multiplier) / multiplier;
 }
 
-function toPositiveNumber(value) {
+export function toPositiveNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : null;
 }
 
-function detectSuspicious(products, priceStats) {
+export function detectSuspicious(products, priceStats) {
   const issues = [];
 
   for (const product of products) {
@@ -924,7 +971,7 @@ function detectSuspicious(products, priceStats) {
   return issues;
 }
 
-function formatThresholdSource(unitStats) {
+export function formatThresholdSource(unitStats) {
   if (unitStats.source === 'history') {
     const percentileLabel = Math.round(unitStats.thresholdPercentile * 100);
     return `p${percentileLabel} × ${unitStats.thresholdMultiplier} по истории`;
@@ -933,7 +980,7 @@ function formatThresholdSource(unitStats) {
   return 'importConfig.json';
 }
 
-function summarizeSkips(skippedRows) {
+export function summarizeSkips(skippedRows) {
   const byReason = new Map();
   for (const row of skippedRows) {
     const reason = row.reason || 'Без причины';
@@ -942,7 +989,7 @@ function summarizeSkips(skippedRows) {
   return Object.fromEntries(byReason);
 }
 
-function summarizeByCategory(products) {
+export function summarizeByCategory(products) {
   const counts = new Map();
   for (const product of products) {
     const key = product.category || 'Без категории';
@@ -1052,13 +1099,11 @@ function extractUnrecognizedPrefix(product) {
 }
 
 async function saveReport(report) {
-  await fs.mkdir(path.dirname(reportFile), { recursive: true });
-  await fs.writeFile(reportFile, JSON.stringify(report, null, 2), 'utf-8');
+  await writeFileAtomic(reportFile, JSON.stringify(report, null, 2));
 }
 
 async function saveHtmlReport(report) {
-  await fs.mkdir(path.dirname(reportHtmlFile), { recursive: true });
-  await fs.writeFile(reportHtmlFile, buildReportHtml(report), 'utf-8');
+  await writeFileAtomic(reportHtmlFile, buildReportHtml(report));
 }
 
 const numberFormatter = new Intl.NumberFormat('ru-RU', {
@@ -1623,15 +1668,60 @@ function buildReportHtml(report) {
 </html>`;
 }
 
+const PRICE_DOWNLOAD_TIMEOUT_MS =
+  Number(process.env.PRICE_DOWNLOAD_TIMEOUT_MS) || 60_000;
+const PRICE_DOWNLOAD_RETRIES = Number(process.env.PRICE_DOWNLOAD_RETRIES) || 3;
+
+async function fetchPriceWithTimeout(url, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new Error(`timeout ${timeoutMs}ms`)),
+    timeoutMs
+  );
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(
+        `Не удалось скачать прайс по URL ${url}: HTTP ${response.status}`
+      );
+    }
+    return Buffer.from(await response.arrayBuffer());
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isRetryableHttpError(error) {
+  // Network errors / timeouts ретраим всегда; HTTP ретраим только 5xx и 429.
+  const httpMatch = /HTTP (\d{3})/.exec(error?.message || '');
+  if (!httpMatch) return true;
+  const status = Number(httpMatch[1]);
+  return status >= 500 || status === 429;
+}
+
 async function downloadPriceFile() {
   console.log(`Скачивание прайса: ${priceUrl}`);
-  const response = await fetch(priceUrl);
-  if (!response.ok) {
-    throw new Error(
-      `Не удалось скачать прайс по URL ${priceUrl}: HTTP ${response.status}`
-    );
+  let buffer;
+  let lastError;
+  for (let attempt = 1; attempt <= PRICE_DOWNLOAD_RETRIES; attempt += 1) {
+    try {
+      buffer = await fetchPriceWithTimeout(priceUrl, PRICE_DOWNLOAD_TIMEOUT_MS);
+      break;
+    } catch (error) {
+      lastError = error;
+      if (attempt === PRICE_DOWNLOAD_RETRIES || !isRetryableHttpError(error)) {
+        throw error;
+      }
+      const backoffMs = 1000 * 2 ** (attempt - 1);
+      console.warn(
+        `Попытка ${attempt}/${PRICE_DOWNLOAD_RETRIES} провалена (${error.message}). Ретрай через ${backoffMs} мс.`
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
   }
-  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer) {
+    throw lastError || new Error('Не удалось скачать прайс');
+  }
   if (buffer.length === 0) {
     throw new Error(`Скачанный файл пустой: ${priceUrl}`);
   }
@@ -1689,8 +1779,18 @@ async function main() {
     };
   });
 
+  // Pre-pass: считаем стабильные ключи всех текущих позиций, чтобы
+  // отличить осиротевшие записи (исчезли из импорта) от просто новых.
+  // Только осиротевшие — кандидаты на rename по spec-ключу.
+  const currentStableKeys = new Set(
+    classifiedProducts.map((product) => buildStableKey(product))
+  );
+  const orphanIndex = buildOrphanSpecIndex(registry, currentStableKeys);
+
   const productsWithIdentity = classifiedProducts.map((product) => {
-    const identity = assignStableIdentity(registry, product, generatedAt);
+    const identity = assignStableIdentity(registry, product, generatedAt, {
+      orphanIndex,
+    });
     return {
       id: identity.id,
       slug: identity.slug,
@@ -1699,6 +1799,8 @@ async function main() {
     };
   });
 
+  const slugRedirects = buildSlugRedirects(registry);
+
   const products = productsWithIdentity.map(stripClassificationDiagnostics);
 
   let seoSummary = null;
@@ -1706,6 +1808,14 @@ async function main() {
   if (!isDryRun) {
     await saveProducts(products);
     await saveProductRegistry(registryFile, registry);
+    await writeFileAtomic(
+      redirectsFile,
+      JSON.stringify(slugRedirects, null, 2)
+    );
+    await writeFileAtomic(
+      redirectsNginxFile,
+      buildRedirectsNginxConf(slugRedirects)
+    );
 
     try {
       const categoriesRaw = await fs.readFile(catalogCategoriesFile, 'utf-8');
@@ -1852,6 +1962,12 @@ async function main() {
   console.log(
     `Реестр товаров: ${path.relative(projectRoot, registryFile)} · записей: ${Object.keys(registry.entries).length} · nextId: ${registry.nextId}`
   );
+  const redirectsCount = Object.keys(slugRedirects).length;
+  if (redirectsCount > 0) {
+    console.log(
+      `Slug-редиректы: ${path.relative(projectRoot, redirectsFile)} · ${redirectsCount} переименований`
+    );
+  }
   if (seoSummary) {
     const indexRel = path.relative(projectRoot, seoSummary.indexPath);
     const robotsRel = path.relative(projectRoot, seoSummary.robotsPath);
@@ -1883,7 +1999,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error('Ошибка импорта прайса:', error.message);
-  process.exitCode = 1;
-});
+const isMainModule =
+  import.meta.url === pathToFileURL(process.argv[1] || '').href;
+
+if (isMainModule) {
+  main().catch((error) => {
+    console.error('Ошибка импорта прайса:', error.message);
+    process.exitCode = 1;
+  });
+}

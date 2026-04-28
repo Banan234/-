@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { captureException } from '../lib/errorTracking';
+import { messages } from '../../lib/messages.js';
 
 // React ErrorBoundary, который ловит throw на этапе render/lifecycle
 // и сообщает в Sentry/GlitchTip через captureException. Без VITE_SENTRY_DSN
@@ -44,18 +45,17 @@ export class ErrorBoundary extends Component {
           }}
         >
           <h1 style={{ marginBottom: 16, fontSize: 24 }}>
-            Что-то пошло не так
+            {messages.errors.errorBoundary.title}
           </h1>
           <p style={{ marginBottom: 24, color: 'var(--muted)' }}>
-            Мы уже получили уведомление и разбираемся. Попробуйте перезагрузить
-            страницу — если ошибка повторится, позвоните нам.
+            {messages.errors.errorBoundary.description}
           </p>
           <button
             type="button"
             className="button-primary"
             onClick={this.handleReload}
           >
-            Перезагрузить страницу
+            {messages.text.errorBoundaryReload}
           </button>
         </div>
       );

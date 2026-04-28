@@ -8,7 +8,9 @@ test('home page opens quote modal and traps focus', async ({ page }) => {
   });
   await expect(heroHeading).toBeVisible();
 
-  const opener = page.getByRole('button', { name: 'Получить КП за 15 минут' });
+  const opener = page
+    .locator('.home-hero')
+    .getByRole('button', { name: /Получить КП за 15 минут/ });
   await opener.click();
 
   const dialog = page.getByRole('dialog', { name: 'Диалоговое окно' });

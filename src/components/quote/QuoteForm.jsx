@@ -8,6 +8,7 @@ import {
   removeStoredValue,
   saveStoredJson,
 } from '../../lib/browserStorage';
+import { messages } from '../../../lib/messages.js';
 import { MAX_QUOTE_CUSTOMER_COMMENT_LENGTH } from '../../../lib/quoteValidation.js';
 import { validateForm } from './quoteFormValidation';
 
@@ -166,7 +167,9 @@ export default function QuoteForm({
       const result = await response.json();
 
       if (!response.ok || !result.ok) {
-        throw new Error(result.message || 'Ошибка отправки');
+        throw new Error(
+          result.message || messages.errors.quoteForm.submitRequestFailed
+        );
       }
 
       trackEvent('quote-submit', {
@@ -176,7 +179,7 @@ export default function QuoteForm({
         hasEmail: Boolean(cleanedForm.email),
       });
       setIsSubmitted(true);
-      setServerMessage(result.message || 'Заявка успешно отправлена');
+      setServerMessage(result.message || messages.success.quoteSent);
       setErrors({});
       setForm(initialForm);
       renderedAtRef.current = Date.now();
@@ -187,7 +190,7 @@ export default function QuoteForm({
     } catch (error) {
       captureException(error, { source: 'QuoteForm.submit' });
       setIsSubmitted(false);
-      setServerMessage(error.message || 'Не удалось отправить заявку');
+      setServerMessage(error.message || messages.errors.quoteForm.submitFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -202,11 +205,11 @@ export default function QuoteForm({
 
       {items.length === 0 && !isSubmitted ? (
         <div className="form-error">
-          Корзина пуста. Добавьте товары из{' '}
+          {messages.text.cartEmptyPromptPrefix}{' '}
           <a href="/catalog" style={{ color: 'inherit', fontWeight: 700 }}>
             каталога
           </a>
-          , чтобы сформировать запрос КП.
+          {messages.text.cartEmptyPromptSuffix}
         </div>
       ) : null}
 

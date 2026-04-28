@@ -65,3 +65,10 @@ describe('nginx compression', () => {
     expect(config).toContain('gzip_vary on;');
   });
 });
+
+describe('nginx product prerender routing', () => {
+  it('serves flat product prerender files for pretty product URLs', () => {
+    expect(config).toContain('location ~ ^/product/([A-Za-z0-9-]+)/?$');
+    expect(config).toContain('try_files /product/$1.html /index.html;');
+  });
+});

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Container from '../components/ui/Container';
-import { useCartStore } from '../store/useCartStore';
+import { MAX_CART_ITEMS, useCartStore } from '../store/useCartStore';
 import { useSEO } from '../hooks/useSEO';
 import { trackEvent } from '../lib/analytics';
 import { captureException } from '../lib/errorTracking';
+import { formatMessage, messages } from '../../lib/messages.js';
 import {
   MAX_QUOTE_ITEM_COMMENT_LENGTH,
   MAX_QUOTE_ITEM_TITLE_LENGTH,
@@ -28,12 +29,64 @@ export default function CartPage() {
     description:
       'Список кабельно-проводниковой продукции для запроса коммерческого предложения.',
   });
-  const { items, addManualItem, updateItemQuantity, removeItem, clearCart } =
-    useCartStore();
+  const {
+    items,
+    addManualItem,
+    updateItemQuantity,
+    removeItem,
+    clearCart,
+    syncWithCatalog,
+  } = useCartStore();
   const [manualItem, setManualItem] = useState(initialManualItem);
   const [manualError, setManualError] = useState('');
   const [isPdfBuilding, setIsPdfBuilding] = useState(false);
   const [pdfError, setPdfError] = useState('');
+  const [syncNotice, setSyncNotice] = useState(null);
+  const syncRanRef = useRef(false);
+
+  useEffect(() => {
+    if (syncRanRef.current) return;
+    const catalogIds = items
+      .filter((item) => !item.manual)
+      .map((item) => Number(item.id))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    if (catalogIds.length === 0) {
+      syncRanRef.current = true;
+      return;
+    }
+    syncRanRef.current = true;
+    const controller = new AbortController();
+    fetch('/api/products/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: catalogIds }),
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (!data?.ok) return;
+        const summary = syncWithCatalog({
+          found: data.found,
+          missing: data.missing,
+        });
+        if (
+          summary.removed.length > 0 ||
+          summary.priceChanged.length > 0 ||
+          summary.slugChanged > 0
+        ) {
+          setSyncNotice(summary);
+        }
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        captureException(error, { source: 'CartPage.syncWithCatalog' });
+      });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleDownloadPdf() {
     if (items.length === 0) return;
@@ -55,13 +108,14 @@ export default function CartPage() {
       });
     } catch (error) {
       captureException(error, { source: 'CartPage.buildPdf' });
-      setPdfError(error.message || 'Не удалось сформировать PDF');
+      setPdfError(error.message || messages.errors.cart.pdfBuildFailed);
     } finally {
       setIsPdfBuilding(false);
     }
   }
 
   const positionsCount = items.length;
+  const isCartLimitReached = positionsCount >= MAX_CART_ITEMS;
   const totalLength = items.reduce((sum, item) => {
     if ((item.unit || '').toLowerCase() !== 'м') {
       return sum;
@@ -91,41 +145,63 @@ export default function CartPage() {
     const quantity = Number(manualItem.quantity);
 
     if (!mark) {
-      setManualError('Укажите марку или наименование позиции');
+      setManualError(messages.errors.cart.manualTitleRequired);
       return;
     }
 
     if (mark.length > MAX_QUOTE_ITEM_TITLE_LENGTH) {
       setManualError(
-        `Наименование не должно превышать ${MAX_QUOTE_ITEM_TITLE_LENGTH} символов`
+        formatMessage(messages.errors.cart.manualTitleTooLong, {
+          max: MAX_QUOTE_ITEM_TITLE_LENGTH,
+        })
       );
       return;
     }
 
     if (manualItem.comment.trim().length > MAX_QUOTE_ITEM_COMMENT_LENGTH) {
       setManualError(
-        `Комментарий не должен превышать ${MAX_QUOTE_ITEM_COMMENT_LENGTH} символов`
+        formatMessage(messages.errors.cart.manualCommentTooLong, {
+          max: MAX_QUOTE_ITEM_COMMENT_LENGTH,
+        })
       );
       return;
     }
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      setManualError('Укажите метраж или объём');
+      setManualError(messages.errors.cart.quantityRequired);
       return;
     }
 
-    addManualItem({
+    if (isCartLimitReached) {
+      setManualError(
+        formatMessage(messages.errors.cart.limitReached, {
+          max: MAX_CART_ITEMS,
+        })
+      );
+      return;
+    }
+
+    const wasAdded = addManualItem({
       title: mark,
       name: mark,
       fullName: mark,
       mark,
       shortDescription:
-        manualItem.comment.trim() ||
-        'Позиция добавлена вручную для запроса КП.',
+        manualItem.comment.trim() || messages.text.cartManualDefaultDescription,
       quantity,
       unit: manualItem.unit,
       comment: manualItem.comment.trim(),
     });
+
+    if (!wasAdded) {
+      setManualError(
+        formatMessage(messages.errors.cart.limitReached, {
+          max: MAX_CART_ITEMS,
+        })
+      );
+      return;
+    }
+
     setManualItem(initialManualItem);
   }
 
@@ -148,6 +224,36 @@ export default function CartPage() {
             <Link to="/catalog" className="button-primary">
               Перейти в каталог
             </Link>
+          </div>
+        ) : null}
+
+        {syncNotice ? (
+          <div className="cart-sync-notice" role="status">
+            <strong>Каталог обновился — список актуализирован.</strong>
+            <ul>
+              {syncNotice.removed.length > 0 ? (
+                <li>
+                  Сняты с поставки и удалены: {syncNotice.removed.length}
+                  {syncNotice.removed.length <= 3
+                    ? ` (${syncNotice.removed.map((p) => p.title).join(', ')})`
+                    : ''}
+                </li>
+              ) : null}
+              {syncNotice.priceChanged.length > 0 ? (
+                <li>Обновлены цены: {syncNotice.priceChanged.length}</li>
+              ) : null}
+              {syncNotice.slugChanged > 0 ? (
+                <li>Обновлены ссылки: {syncNotice.slugChanged}</li>
+              ) : null}
+            </ul>
+            <button
+              type="button"
+              className="cart-sync-notice__dismiss"
+              onClick={() => setSyncNotice(null)}
+              aria-label="Скрыть уведомление"
+            >
+              ×
+            </button>
           </div>
         ) : null}
 
@@ -319,7 +425,10 @@ export default function CartPage() {
 
             <div className="cart-summary">
               <div className="cart-summary__counts">
-                <span>Позиций: {formatNumber(positionsCount)}</span>
+                <span>
+                  Позиций: {formatNumber(positionsCount)} /{' '}
+                  {formatNumber(MAX_CART_ITEMS)}
+                </span>
                 <span>Общая длина: {formatNumber(totalLength)} м</span>
                 <span className="cart-summary__total">
                   Предварительная сумма:{' '}

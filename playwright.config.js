@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = Number(process.env.E2E_PORT || 5173);
+const PORT = Number(process.env.E2E_PORT || 4173);
+const API_PORT = Number(process.env.E2E_API_PORT || 3101);
 const baseURL = process.env.E2E_BASE_URL || `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
@@ -20,15 +21,16 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'npm run start',
+    command: `npx concurrently -k "vite --host 127.0.0.1 --port ${PORT} --strictPort" "node server.js"`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
     env: {
       ...process.env,
-      PORT: '3001',
+      PORT: String(API_PORT),
       ALLOWED_ORIGINS: baseURL,
       CATALOG_PRODUCTS_FILE: './e2e/fixtures/products.json',
+      VITE_API_PROXY_TARGET: `http://127.0.0.1:${API_PORT}`,
       VITE_YANDEX_METRIKA_ID: '',
       VITE_SENTRY_DSN: '',
     },

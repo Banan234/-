@@ -91,7 +91,10 @@
   font-weight: 600;
   color: #35556d;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 .quote-channel input {
   position: absolute;

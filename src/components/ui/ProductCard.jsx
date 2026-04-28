@@ -68,7 +68,8 @@ export default function ProductCard({ product, variant = 'default' }) {
   }
 
   function handleAddToCart() {
-    addItem(product);
+    const wasAdded = addItem(product);
+    if (!wasAdded) return;
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 1500);
   }

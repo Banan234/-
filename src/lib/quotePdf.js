@@ -11,6 +11,7 @@ import {
   SITE_PHONE_DISPLAY,
   SITE_URL,
 } from './siteConfig.js';
+import { formatMessage, messages } from '../../lib/messages.js';
 
 const COMPANY = {
   name: SITE_NAME,
@@ -48,7 +49,7 @@ async function fetchFontBase64(url) {
   const response = await fetch(url, { cache: 'force-cache' });
 
   if (!response.ok) {
-    throw new Error(`Не удалось загрузить шрифт для PDF: ${url}`);
+    throw new Error(formatMessage(messages.errors.pdf.fontLoadFailed, { url }));
   }
 
   return arrayBufferToBase64(await response.arrayBuffer());
@@ -100,7 +101,7 @@ function buildQuoteNumber(date) {
 
 export async function generateQuotePdf({ items, customer = null } = {}) {
   if (!Array.isArray(items) || items.length === 0) {
-    throw new Error('Невозможно сформировать КП: список позиций пуст.');
+    throw new Error(messages.errors.pdf.emptyItems);
   }
 
   const [{ default: jsPDF }, autoTableModule] = await Promise.all([

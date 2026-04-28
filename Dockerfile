@@ -13,7 +13,7 @@ RUN npm ci
 
 # ---------- 2. Сборка фронта (vite → dist/) + prerender SEO ----------
 # build:prod = vite build && scripts/prerender.js. Prerender пишет
-# dist/product/<slug>/index.html для каждой карточки + статика главной/
+# dist/product/<slug>.html для каждой карточки + статика главной/
 # каталога/контактов. Требует data/products.json в build-контексте.
 FROM node:20-slim AS build
 USER node

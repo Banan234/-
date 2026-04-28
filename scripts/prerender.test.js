@@ -5,11 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildJsonLdScripts,
   buildMetaTags,
+  buildCompactProductBodyShell,
   buildProductBodyShell,
   extractProductsPayload,
   injectIntoTemplate,
+  injectIntoThinTemplate,
   loadProducts,
   loadTemplate,
+  minifyPrerenderHtml,
   prerender,
   validatePrerenderProducts,
 } from './prerender.js';
@@ -96,6 +99,39 @@ describe('prerender HTML helpers', () => {
     expect(html.match(/application\/ld\+json/g)).toHaveLength(1);
   });
 
+  it('строит компактный product HTML без fallback-комментариев и старых SEO-тегов', () => {
+    const html = injectIntoThinTemplate(template, {
+      headExtras: [
+        '<title>Product title</title>',
+        '<meta name="description" content="product description">',
+      ].join('\n'),
+      bodyShell: '<section><h1>SEO shell</h1></section>',
+    });
+
+    expect(html).toContain('<!doctype html><html lang="ru"><head>');
+    expect(html).toContain('<title>Product title</title>');
+    expect(html).toContain(
+      '<meta name="description" content="product description">'
+    );
+    expect(html).toContain(
+      '<script type="module" src="/assets/index.js"></script>'
+    );
+    expect(html).toContain(
+      '<div id="root"><section><h1>SEO shell</h1></section></div>'
+    );
+    expect(html).not.toContain('Old title');
+    expect(html).not.toContain('old description');
+    expect(html).not.toContain('old og');
+    expect(html).not.toContain('old twitter');
+    expect(html).not.toContain('<!--');
+  });
+
+  it('минифицирует безопасные промежутки между тегами', () => {
+    expect(minifyPrerenderHtml('<div>\n  <span>Текст</span>\n</div>')).toBe(
+      '<div><span>Текст</span></div>'
+    );
+  });
+
   it('экранирует HTML-спецсимволы в meta-тегах', () => {
     const html = buildMetaTags({
       title: 'Кабель "A&B" <test>',
@@ -161,6 +197,15 @@ describe('prerender HTML helpers', () => {
     expect(html).toContain('<dt>Производитель</dt><dd>Завод &amp; Ко</dd>');
     expect(html).not.toContain('<опасный тег>');
   });
+
+  it('строит компактный product-shell без дублирования JSON-LD данных', () => {
+    const html = buildCompactProductBodyShell(product);
+
+    expect(html).toContain('<h1>ВВГнг(A)-LS 3х2,5</h1>');
+    expect(html).toContain('<p>');
+    expect(html).not.toContain('<nav');
+    expect(html).not.toContain('<dl');
+  });
 });
 
 describe('prerender IO flow', () => {
@@ -185,7 +230,7 @@ describe('prerender IO flow', () => {
       'utf8'
     );
     const productHtml = await readFile(
-      path.join(distDir, 'product', product.slug, 'index.html'),
+      path.join(distDir, 'product', `${product.slug}.html`),
       'utf8'
     );
 
@@ -200,9 +245,12 @@ describe('prerender IO flow', () => {
     expect(productHtml).toContain('"@type":"Product"');
     expect(productHtml).toContain('"price":"125.50"');
     expect(productHtml).toContain('<h1>ВВГнг(A)-LS 3х2,5</h1>');
+    expect(productHtml).not.toContain('<nav');
+    expect(productHtml).not.toContain('<dl');
     expect(log).toHaveBeenCalledWith(
       expect.stringContaining('[prerender] products: 1/1 pages')
     );
+    expect(productHtml).not.toContain('OpenGraph / Twitter');
     expect(log).toHaveBeenCalledWith('[prerender] done.');
   });
 

@@ -9,6 +9,6 @@
     // Prototype pollution / ReDoS на доверенном входе → приемлемый риск.
     // Рассматриваем миграцию на exceljs отдельной задачей.
     "GHSA-4r6h-8v6p-xvw6",
-    "GHSA-5pgg-2g8v-p4x9"
-  ]
+    "GHSA-5pgg-2g8v-p4x9",
+  ],
 }

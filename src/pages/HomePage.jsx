@@ -7,6 +7,7 @@ import { fetchFeaturedProducts } from '../lib/productsApi';
 import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useJsonLd } from '../hooks/useJsonLd';
+import { messages } from '../../lib/messages.js';
 import {
   SITE_ADDRESS,
   SITE_DESCRIPTION,
@@ -224,7 +225,7 @@ export default function HomePage() {
       } catch (error) {
         if (error.name !== 'AbortError') {
           captureException(error, { source: 'HomePage.loadFeatured' });
-          setLoadError('Не удалось загрузить позиции из каталога.');
+          setLoadError(messages.errors.home.featuredLoadFailed);
         }
       } finally {
         setIsLoading(false);

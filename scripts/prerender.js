@@ -4,6 +4,8 @@
 // и минимальным body-shell, чтобы Яндекс/боты, которые не выполняют JS,
 // видели осмысленный контент. На пользователях с JS работает SPA как раньше:
 // React.createRoot(...) при гидрации перезаписывает содержимое #root.
+// Карточки товара пишутся плоско в dist/product/<slug>.html, чтобы не плодить
+// тысячи директорий и не раздувать Docker layer/block-size overhead.
 //
 // Запуск: node scripts/prerender.js
 // Зависит от: dist/index.html (из vite build), data/products.json (из импортёра).
@@ -419,6 +421,16 @@ export function buildProductBodyShell(product) {
 </div>`.trim();
 }
 
+export function buildCompactProductBodyShell(product) {
+  const description = buildProductMetaDescription(product);
+  const heading =
+    product.title || product.fullName || product.name || product.mark || '';
+
+  return `<div class="prerender-only" style="display:none"><h1>${escapeHtml(
+    heading
+  )}</h1><p>${escapeHtml(description)}</p></div>`;
+}
+
 export function buildStaticBodyShell(route) {
   const crumbs =
     route.path === '/'
@@ -440,7 +452,19 @@ export function injectIntoTemplate(template, { headExtras, bodyShell }) {
   // Стираем уже существующий <title> и наши же мета-теги, чтобы повторный
   // прогон не дублировал теги (если кто-то запустит prerender на уже
   // обработанном dist).
-  let html = template
+  let html = stripPrerenderManagedHead(template);
+
+  html = html.replace('</head>', `    ${headExtras}\n  </head>`);
+  html = html.replace(
+    /<div id="root">[\s\S]*?<\/div>/,
+    `<div id="root">${bodyShell}</div>`
+  );
+
+  return html;
+}
+
+export function stripPrerenderManagedHead(html) {
+  return html
     .replace(/<title>[^<]*<\/title>/i, '')
     .replace(/<meta\s+name="description"[^>]*>/gi, '')
     .replace(/<meta\s+property="og:[^"]*"[^>]*>/gi, '')
@@ -450,14 +474,38 @@ export function injectIntoTemplate(template, { headExtras, bodyShell }) {
       /<script[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/gi,
       ''
     );
+}
 
-  html = html.replace('</head>', `    ${headExtras}\n  </head>`);
-  html = html.replace(
-    /<div id="root">[\s\S]*?<\/div>/,
-    `<div id="root">${bodyShell}</div>`
+export function minifyPrerenderHtml(html) {
+  return html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/>\s+</g, '><')
+    .trim();
+}
+
+function getRuntimeHeadShell(template) {
+  const strippedTemplate = stripPrerenderManagedHead(template);
+  const match = strippedTemplate.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  return minifyPrerenderHtml(match?.[1] || '');
+}
+
+export function injectIntoThinTemplate(template, { headExtras, bodyShell }) {
+  const runtimeHeadShell = getRuntimeHeadShell(template);
+
+  return minifyPrerenderHtml(
+    [
+      '<!doctype html>',
+      '<html lang="ru">',
+      '<head>',
+      runtimeHeadShell,
+      headExtras,
+      '</head>',
+      '<body>',
+      `<div id="root">${bodyShell}</div>`,
+      '</body>',
+      '</html>',
+    ].join('')
   );
-
-  return html;
 }
 
 async function ensureDir(dir) {
@@ -473,6 +521,16 @@ export async function writeRoute(
   const dir = trimmed ? path.join(outputDir, trimmed) : outputDir;
   await ensureDir(dir);
   await fs.writeFile(path.join(dir, 'index.html'), html, 'utf8');
+}
+
+export async function writeProductRoute(
+  slug,
+  html,
+  { outputDir = distDir } = {}
+) {
+  const dir = path.join(outputDir, 'product');
+  await ensureDir(dir);
+  await fs.writeFile(path.join(dir, `${slug}.html`), html, 'utf8');
 }
 
 export async function loadTemplate({ outputDir = distDir } = {}) {
@@ -551,6 +609,11 @@ export async function prerenderProducts(
     validatePrerenderProducts(products);
   }
 
+  await fs.rm(path.join(outputDir, 'product'), {
+    recursive: true,
+    force: true,
+  });
+
   let written = 0;
   for (const product of products) {
     const canonical = absoluteUrl(`/product/${product.slug}`);
@@ -578,15 +641,15 @@ export async function prerenderProducts(
       buildJsonLdScripts([breadcrumbLd, productLd], 'product-ld'),
     ].join('\n    ');
 
-    const html = injectIntoTemplate(template, {
+    const html = injectIntoThinTemplate(template, {
       headExtras,
-      bodyShell: buildProductBodyShell(product),
+      bodyShell: buildCompactProductBodyShell(product),
     });
-    await writeRoute(`/product/${product.slug}`, html, { outputDir });
+    await writeProductRoute(product.slug, html, { outputDir });
     written += 1;
   }
   log?.(
-    `[prerender] products: ${written}/${products.length} pages → dist/product/<slug>/index.html`
+    `[prerender] products: ${written}/${products.length} pages → dist/product/<slug>.html`
   );
 }
 

@@ -1,5 +1,7 @@
 node_modules/
 dist/
+test-results/
+playwright-report/
 .DS_Store
 .env
 
@@ -9,3 +11,5 @@ data/productRegistry.json
 data/import-history.json
 data/import-report.json
 data/import-report.html
+public/redirects.json
+public/redirects.nginx.conf

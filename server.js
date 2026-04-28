@@ -9,10 +9,12 @@ import rateLimit from 'express-rate-limit';
 import { pathToFileURL } from 'url';
 import { createCatalogStore } from './lib/catalog.js';
 import {
+  MAX_QUOTE_ITEMS,
   MAX_QUOTE_PAYLOAD_BYTES,
   isValidQuoteRequest,
   isValidRussianPhone,
 } from './lib/quoteValidation.js';
+import { formatMessage, messages } from './lib/messages.js';
 import { accessLog, logger } from './lib/logger.js';
 import {
   CANONICAL_CATEGORY_ORDER,
@@ -33,7 +35,13 @@ const PORT = process.env.PORT || 3001;
 const CATALOG_CACHE_TTL_SECONDS = 60;
 const CATALOG_CACHE_TTL_MS = CATALOG_CACHE_TTL_SECONDS * 1000;
 const HSTS_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+// Anti-bot time trap: 2s is low enough for browser autofill/manual submit,
+// but cuts off scripts that POST immediately after loading the form.
 const MIN_FORM_RENDER_MS = 2_000;
+// Response floor for form endpoints. Honeypot/fast-submit branches return a
+// fake success without SMTP; this delay keeps that branch from being trivially
+// distinguishable from a real sendMail path by response timing.
+const FORM_RESPONSE_DELAY_RANGE_MS = Object.freeze({ min: 1_200, max: 2_600 });
 const DEFAULT_TRUSTED_PROXY_IPS = 'loopback';
 const DEFAULT_SMTP_CONNECTION_TIMEOUT_MS = 10_000;
 const DEFAULT_SMTP_GREETING_TIMEOUT_MS = 10_000;
@@ -132,9 +140,10 @@ function escapeHtml(value) {
 function requireJsonContentType(req, res, next) {
   const contentType = req.headers['content-type'] || '';
   if (!contentType.toLowerCase().includes('application/json')) {
-    return res
-      .status(415)
-      .json({ ok: false, message: 'Ожидается Content-Type: application/json' });
+    return res.status(415).json({
+      ok: false,
+      message: messages.errors.api.expectedJsonContentType,
+    });
   }
   return next();
 }
@@ -337,6 +346,58 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isTestRuntime() {
+  return process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+}
+
+function getDefaultFormResponseDelayRange() {
+  if (isTestRuntime()) return { min: 0, max: 0 };
+  return FORM_RESPONSE_DELAY_RANGE_MS;
+}
+
+function normalizeFormResponseDelayRange(range) {
+  const min = Number(range?.min);
+  const max = Number(range?.max);
+  const normalizedMin = Number.isFinite(min) ? Math.max(0, Math.floor(min)) : 0;
+  const normalizedMax = Number.isFinite(max)
+    ? Math.max(normalizedMin, Math.floor(max))
+    : normalizedMin;
+
+  return { min: normalizedMin, max: normalizedMax };
+}
+
+function pickFormResponseDelayMs(range) {
+  const { min, max } = range;
+  if (max <= min) return min;
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+async function waitForFormResponseFloor(startedAt, targetDelayMs) {
+  const elapsedMs = Date.now() - startedAt;
+  await wait(targetDelayMs - elapsedMs);
+}
+
+async function sendFormJson(res, startedAt, targetDelayMs, body, status = 200) {
+  await waitForFormResponseFloor(startedAt, targetDelayMs);
+  return res.status(status).json(body);
+}
+
+async function sendFormErrorResponse(
+  res,
+  startedAt,
+  targetDelayMs,
+  message,
+  status = 500
+) {
+  return sendFormJson(
+    res,
+    startedAt,
+    targetDelayMs,
+    { ok: false, message },
+    status
+  );
+}
+
 export function isRetryableMailError(error) {
   const responseCode = Number(error?.responseCode);
   if (
@@ -443,11 +504,15 @@ export function createApp({
   }),
   mailTransporter = createTransporter(),
   mailSendOptions = getMailSendOptions(),
+  formResponseDelayRange = getDefaultFormResponseDelayRange(),
 } = {}) {
   const app = express();
   app.set('etag', false);
   app.set('trust proxy', trustProxy);
   app.locals.mailTransporter = mailTransporter;
+  const normalizedFormResponseDelayRange = normalizeFormResponseDelayRange(
+    formResponseDelayRange
+  );
 
   // 3 заявки/час с одного IP. B2B-снабженец редко шлёт КП чаще; для абуза
   // (массовая рассылка через нашу SMTP, перебор email replyTo) этот лимит уже
@@ -459,7 +524,7 @@ export function createApp({
     legacyHeaders: false,
     message: {
       ok: false,
-      message: 'Слишком много заявок. Попробуйте через час или позвоните нам.',
+      message: messages.errors.api.quoteRateLimited,
     },
     ...rateLimitOptions,
   });
@@ -505,7 +570,7 @@ export function createApp({
     if (err && err.type === 'entity.too.large') {
       return res
         .status(413)
-        .json({ ok: false, message: 'Слишком большой запрос' });
+        .json({ ok: false, message: messages.errors.api.payloadTooLarge });
     }
     return next(err);
   });
@@ -592,7 +657,7 @@ export function createApp({
       });
     } catch (error) {
       logger.error('catalog.list.failed', { err: error });
-      return createErrorResponse(res, 'Не удалось загрузить каталог');
+      return createErrorResponse(res, messages.errors.api.catalogLoadFailed);
     }
   });
 
@@ -616,7 +681,7 @@ export function createApp({
       });
     } catch (error) {
       logger.error('catalog.featured.failed', { err: error });
-      return createErrorResponse(res, 'Не удалось загрузить позиции');
+      return createErrorResponse(res, messages.errors.api.productsLoadFailed);
     }
   });
 
@@ -633,7 +698,10 @@ export function createApp({
       });
     } catch (error) {
       logger.error('catalog.suggestions.failed', { err: error });
-      return createErrorResponse(res, 'Не удалось загрузить подсказки');
+      return createErrorResponse(
+        res,
+        messages.errors.api.suggestionsLoadFailed
+      );
     }
   });
 
@@ -647,7 +715,7 @@ export function createApp({
       if (!product) {
         return res.status(404).json({
           ok: false,
-          message: 'Товар не найден',
+          message: messages.errors.api.productNotFound,
         });
       }
 
@@ -667,7 +735,10 @@ export function createApp({
         err: error,
         slug: req.params.slug,
       });
-      return createErrorResponse(res, 'Не удалось загрузить похожие товары');
+      return createErrorResponse(
+        res,
+        messages.errors.api.relatedProductsLoadFailed
+      );
     }
   });
 
@@ -680,7 +751,7 @@ export function createApp({
       if (!item) {
         return res.status(404).json({
           ok: false,
-          message: 'Товар не найден',
+          message: messages.errors.api.productNotFound,
         });
       }
 
@@ -693,7 +764,58 @@ export function createApp({
         err: error,
         slug: req.params.slug,
       });
-      return createErrorResponse(res, 'Не удалось загрузить товар');
+      return createErrorResponse(res, messages.errors.api.productLoadFailed);
+    }
+  });
+
+  // Сверка корзины/избранного с актуальным каталогом. Клиент шлёт массив
+  // стабильных id, в ответ — список найденных позиций (актуальные slug,
+  // price, unit, stock, name) и список отсутствующих. Сверка по id, а не
+  // по slug, чтобы переименования не выглядели как удаление товара.
+  app.post('/api/products/lookup', requireJsonContentType, async (req, res) => {
+    try {
+      const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : null;
+      if (!rawIds) {
+        return createErrorResponse(
+          res,
+          messages.errors.api.idsArrayExpected,
+          400
+        );
+      }
+      if (rawIds.length > MAX_QUOTE_ITEMS) {
+        return createErrorResponse(
+          res,
+          formatMessage(messages.errors.api.tooManyIds, {
+            max: MAX_QUOTE_ITEMS,
+          }),
+          400
+        );
+      }
+      const requestedIds = [];
+      const seen = new Set();
+      for (const value of rawIds) {
+        const id = Number(value);
+        if (!Number.isFinite(id) || id <= 0 || seen.has(id)) continue;
+        seen.add(id);
+        requestedIds.push(id);
+      }
+
+      const items = await catalogStore.loadCatalogProducts();
+      const listItems = catalogStore.getCatalogProductListItems(items);
+      const byId = new Map(listItems.map((item) => [item.id, item]));
+
+      const found = [];
+      const missing = [];
+      for (const id of requestedIds) {
+        const item = byId.get(id);
+        if (item) found.push(item);
+        else missing.push(id);
+      }
+
+      return res.json({ ok: true, found, missing });
+    } catch (error) {
+      logger.error('catalog.lookup.failed', { err: error });
+      return createErrorResponse(res, messages.errors.api.lookupFailed);
     }
   });
 
@@ -702,9 +824,17 @@ export function createApp({
     requireJsonContentType,
     quoteRateLimiter,
     async (req, res) => {
+      const formResponseStartedAt = Date.now();
+      const formResponseDelayMs = pickFormResponseDelayMs(
+        normalizedFormResponseDelayRange
+      );
+
       try {
         if (getBotSubmissionSignal(req)) {
-          return res.json({ ok: true, message: 'Заявка успешно отправлена' });
+          return sendFormJson(res, formResponseStartedAt, formResponseDelayMs, {
+            ok: true,
+            message: messages.success.quoteSent,
+          });
         }
 
         const {
@@ -725,7 +855,13 @@ export function createApp({
         const quoteRequest = { ...req.body, customer, items };
 
         if (!isValidQuoteRequest(quoteRequest)) {
-          return createErrorResponse(res, 'Некорректные данные заявки', 400);
+          return sendFormErrorResponse(
+            res,
+            formResponseStartedAt,
+            formResponseDelayMs,
+            messages.errors.api.invalidQuoteRequest,
+            400
+          );
         }
 
         const html = `
@@ -777,13 +913,18 @@ export function createApp({
           { ...mailSendOptions, event: 'quote.send' }
         );
 
-        return res.json({
+        return sendFormJson(res, formResponseStartedAt, formResponseDelayMs, {
           ok: true,
-          message: 'Заявка успешно отправлена',
+          message: messages.success.quoteSent,
         });
       } catch (error) {
         logger.error('quote.send.failed', { err: error });
-        return createErrorResponse(res, 'Не удалось отправить заявку');
+        return sendFormErrorResponse(
+          res,
+          formResponseStartedAt,
+          formResponseDelayMs,
+          messages.errors.api.quoteSendFailed
+        );
       }
     }
   );
@@ -793,11 +934,16 @@ export function createApp({
     requireJsonContentType,
     quoteRateLimiter,
     async (req, res) => {
+      const formResponseStartedAt = Date.now();
+      const formResponseDelayMs = pickFormResponseDelayMs(
+        normalizedFormResponseDelayRange
+      );
+
       try {
         if (getBotSubmissionSignal(req)) {
-          return res.json({
+          return sendFormJson(res, formResponseStartedAt, formResponseDelayMs, {
             ok: true,
-            message: 'Заявка отправлена. Мы скоро свяжемся с вами.',
+            message: messages.success.leadSentDetailed,
           });
         }
 
@@ -806,7 +952,13 @@ export function createApp({
         const normalizedPhone = normalizePhoneInput(phone);
 
         if (!isValidRussianPhone(normalizedPhone)) {
-          return createErrorResponse(res, 'Укажите корректный телефон', 400);
+          return sendFormErrorResponse(
+            res,
+            formResponseStartedAt,
+            formResponseDelayMs,
+            messages.errors.api.phoneInvalid,
+            400
+          );
         }
 
         const html = `
@@ -829,13 +981,18 @@ export function createApp({
           { ...mailSendOptions, event: 'lead.send' }
         );
 
-        return res.json({
+        return sendFormJson(res, formResponseStartedAt, formResponseDelayMs, {
           ok: true,
-          message: 'Заявка отправлена. Мы скоро свяжемся с вами.',
+          message: messages.success.leadSentDetailed,
         });
       } catch (error) {
         logger.error('lead.send.failed', { err: error });
-        return createErrorResponse(res, 'Не удалось отправить заявку');
+        return sendFormErrorResponse(
+          res,
+          formResponseStartedAt,
+          formResponseDelayMs,
+          messages.errors.api.quoteSendFailed
+        );
       }
     }
   );

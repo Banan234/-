@@ -92,6 +92,136 @@ describe('QuoteForm render flow', () => {
     expect(emailInput).toHaveAccessibleDescription(emailError.textContent);
   });
 
+  it('показывает ошибку, когда сервер возвращает ok:false', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ ok: false, message: 'Сервис временно недоступен' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<QuoteForm itemsOverride={[quoteItem]} />);
+
+    await fillRequiredFields(user);
+    await user.click(
+      screen.getByRole('button', { name: /Отправить запрос КП/ })
+    );
+
+    expect(
+      await screen.findByText('Сервис временно недоступен')
+    ).toBeInTheDocument();
+    // Ошибка ⇒ нет success-сообщения, форма не очистилась
+    expect(screen.queryByText(/Заявка/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Имя/)).toHaveValue('Иван Петров');
+    expect(screen.getByLabelText(/Телефон/)).toHaveValue('+7 900 123-45-67');
+  });
+
+  it('показывает понятную ошибку при network failure', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockRejectedValue(new Error('Network down'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<QuoteForm itemsOverride={[quoteItem]} />);
+
+    await fillRequiredFields(user);
+    await user.click(
+      screen.getByRole('button', { name: /Отправить запрос КП/ })
+    );
+
+    expect(await screen.findByText('Network down')).toBeInTheDocument();
+    // Кнопка снова активна — пользователь может повторить
+    const submitButton = screen.getByRole('button', {
+      name: /Отправить запрос КП/,
+    });
+    expect(submitButton).not.toBeDisabled();
+  });
+
+  it('блокирует кнопку и меняет лейбл во время отправки', async () => {
+    const user = userEvent.setup();
+    let resolveFetch;
+    const pending = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValue(pending);
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<QuoteForm itemsOverride={[quoteItem]} />);
+
+    await fillRequiredFields(user);
+    await user.click(
+      screen.getByRole('button', { name: /Отправить запрос КП/ })
+    );
+
+    // Во время полёта кнопка дизейблится и меняет текст
+    const submittingBtn = await screen.findByRole('button', {
+      name: 'Отправка...',
+    });
+    expect(submittingBtn).toBeDisabled();
+
+    // Резолвим — после успеха кнопка возвращается
+    resolveFetch({
+      ok: true,
+      json: async () => ({ ok: true, message: 'Готово' }),
+    });
+
+    expect(await screen.findByText('Готово')).toBeInTheDocument();
+  });
+
+  it('успешно отправляет с email-каналом, когда email указан', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, message: 'Принято' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<QuoteForm itemsOverride={[quoteItem]} />);
+
+    await fillRequiredFields(user);
+    await user.type(
+      screen.getByRole('textbox', { name: /Email/ }),
+      'buyer@company.ru'
+    );
+    await user.click(screen.getByLabelText('Email'));
+    await user.click(
+      screen.getByRole('button', { name: /Отправить запрос КП/ })
+    );
+
+    expect(await screen.findByText('Принято')).toBeInTheDocument();
+    const [, request] = fetchMock.mock.calls[0];
+    const payload = JSON.parse(request.body);
+    expect(payload.customer.preferredChannel).toBe('email');
+    expect(payload.customer.email).toBe('buyer@company.ru');
+  });
+
+  it('очищает форму и комментарий после успешной отправки', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, message: 'OK' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<QuoteForm itemsOverride={[quoteItem]} />);
+
+    await fillRequiredFields(user);
+    await user.type(
+      screen.getByLabelText(/Комментарий/),
+      'Срочно, до конца недели'
+    );
+    await user.click(
+      screen.getByRole('button', { name: /Отправить запрос КП/ })
+    );
+
+    await screen.findByText('OK');
+
+    expect(screen.getByLabelText(/Имя/)).toHaveValue('');
+    expect(screen.getByLabelText(/Телефон/)).toHaveValue('');
+    expect(screen.getByLabelText(/Комментарий/)).toHaveValue('');
+    // Канал по умолчанию — phone
+    expect(screen.getByLabelText('Звонок')).toBeChecked();
+  });
+
   it('связывает обязательные поля с ошибками через aria-describedby', async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn();
