@@ -10,6 +10,10 @@ import { trackEvent } from '../../lib/analytics';
 import { useCatalogFilters } from '../../hooks/useCatalogFilters';
 
 const PAGE_SIZE = 24;
+const CATALOG_SEARCH_ID = 'catalog-search';
+const PRICE_MIN_ID = 'price-min';
+const PRICE_MAX_ID = 'price-max';
+const SORT_SELECT_ID = 'sort-select';
 
 function getPageNumbers(currentPage, totalPages) {
   if (totalPages <= 7) {
@@ -355,7 +359,11 @@ export default function ProductListingView({
             commitSearch();
           }}
         >
+          <label className="visually-hidden" htmlFor={CATALOG_SEARCH_ID}>
+            Поиск по каталогу
+          </label>
           <input
+            id={CATALOG_SEARCH_ID}
             type="search"
             name="catalog-search"
             className="catalog-search-bar__input"
@@ -390,7 +398,11 @@ export default function ProductListingView({
           }}
         >
           <span className="catalog-price-range__label">Цена, ₽</span>
+          <label className="visually-hidden" htmlFor={PRICE_MIN_ID}>
+            Цена от, ₽
+          </label>
           <input
+            id={PRICE_MIN_ID}
             type="number"
             inputMode="numeric"
             min="0"
@@ -401,7 +413,11 @@ export default function ProductListingView({
             onBlur={commitPriceRange}
           />
           <span className="catalog-price-range__dash">—</span>
+          <label className="visually-hidden" htmlFor={PRICE_MAX_ID}>
+            Цена до, ₽
+          </label>
           <input
+            id={PRICE_MAX_ID}
             type="number"
             inputMode="numeric"
             min="0"
@@ -627,10 +643,14 @@ export default function ProductListingView({
       {!error && (
         <div className="catalog-filter-summary">
           <div className="catalog-filter-panel__sort">
-            <label className="catalog-filter-panel__sort-label">
+            <label
+              className="catalog-filter-panel__sort-label"
+              htmlFor={SORT_SELECT_ID}
+            >
               Сортировка:
             </label>
             <select
+              id={SORT_SELECT_ID}
               value={sortBy}
               onChange={(e) =>
                 updateParam(
@@ -670,6 +690,7 @@ export default function ProductListingView({
             className="catalog-grid-anchor"
             aria-hidden="true"
           />
+          <h2 className="visually-hidden">Товары каталога</h2>
           <div className="products-grid products-grid--catalog">
             {visibleProducts.map((product) => (
               <ProductCard key={product.id} product={product} />

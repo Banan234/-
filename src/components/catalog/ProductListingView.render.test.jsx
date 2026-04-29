@@ -107,7 +107,10 @@ describe('ProductListingView render flow', () => {
     const user = userEvent.setup();
     const { getSearchParam } = renderListing();
 
-    await user.type(screen.getByRole('searchbox'), 'АВВГ');
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Поиск по каталогу' }),
+      'АВВГ'
+    );
     await user.keyboard('{Enter}');
 
     await waitFor(() => expect(getSearchParam('search')).toBe('АВВГ'));
@@ -133,8 +136,8 @@ describe('ProductListingView render flow', () => {
     const user = userEvent.setup();
     const { getSearchParam } = renderListing();
 
-    await user.type(screen.getByPlaceholderText('от'), '100');
-    await user.type(screen.getByPlaceholderText('до'), '200');
+    await user.type(screen.getByLabelText('Цена от, ₽'), '100');
+    await user.type(screen.getByLabelText('Цена до, ₽'), '200');
     await user.click(screen.getByRole('button', { name: 'OK' }));
 
     await waitFor(() => {
@@ -143,5 +146,44 @@ describe('ProductListingView render flow', () => {
     });
     expect(screen.getByText('ВВГнг-LS 3x2.5')).toBeInTheDocument();
     expect(screen.queryByText('АВВГ 4x16')).not.toBeInTheDocument();
+  });
+
+  it('связывает поля каталога с явными labels', () => {
+    renderListing();
+
+    expect(screen.getByLabelText('Поиск по каталогу')).toHaveAttribute(
+      'id',
+      'catalog-search'
+    );
+    expect(screen.getByLabelText('Поиск по каталогу')).toHaveAttribute(
+      'type',
+      'search'
+    );
+    expect(screen.getByLabelText('Цена от, ₽')).toHaveAttribute(
+      'id',
+      'price-min'
+    );
+    expect(screen.getByLabelText('Цена от, ₽')).toHaveAttribute(
+      'placeholder',
+      'от'
+    );
+    expect(screen.getByLabelText('Цена до, ₽')).toHaveAttribute(
+      'id',
+      'price-max'
+    );
+    expect(screen.getByLabelText('Цена до, ₽')).toHaveAttribute(
+      'placeholder',
+      'до'
+    );
+    expect(screen.getByLabelText('Сортировка:')).toHaveAttribute(
+      'id',
+      'sort-select'
+    );
+    expect(screen.getByLabelText('Сортировка:')).toHaveClass(
+      'catalog-filter-panel__sort-select'
+    );
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Товары каталога' })
+    ).toBeInTheDocument();
   });
 });

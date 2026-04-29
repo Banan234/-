@@ -23,6 +23,8 @@ npm run dev            # фронт на 5173, API на 3001
 | `npm run preview`                                 | Локальный smoke-тест прод-сборки                                                        |
 | `npx vitest run`                                  | Тесты (39 кейсов)                                                                       |
 | `npm run e2e`                                     | Playwright E2E smoke/user-flow тесты                                                    |
+| `npm run load:test`                               | Короткий нагрузочный прогон API; настраивается `API_BASE`, `LOAD_CONCURRENCY`           |
+| `npm run load:soak`                               | Длинный soak-прогон API на 30 минут для контроля RSS/event loop                         |
 | `node scripts/importPrice.js [path/to/price.xls]` | Импорт прайса → `data/products.json`, отчёты, `public/sitemap.xml`, `public/robots.txt` |
 | `node scripts/importPrice.js --dry-run`           | То же, но без записи файлов                                                             |
 
@@ -52,7 +54,6 @@ npm run dev            # фронт на 5173, API на 3001
    SMTP_POOL_MAX_CONNECTIONS=2
    SMTP_CONNECTION_TIMEOUT_MS=10000
    SMTP_SOCKET_TIMEOUT_MS=20000
-   SMTP_SEND_TIMEOUT_MS=25000
    SMTP_SEND_RETRIES=1
    ```
 4. Перезапустите `npm run dev`. Проверить можно так:
@@ -69,9 +70,10 @@ npm run dev            # фронт на 5173, API на 3001
 SMTP-транспорт создаётся один раз на Express app и по умолчанию работает через
 pool: `SMTP_POOL=true`, `SMTP_POOL_MAX_CONNECTIONS=2`,
 `SMTP_POOL_MAX_MESSAGES=100`. Handshake/socket ограничены таймаутами, а
-`sendMail` дополнительно обёрнут в `SMTP_SEND_TIMEOUT_MS` и один retry
-(`SMTP_SEND_RETRIES=1`) для временных сетевых ошибок и 4xx-ответов SMTP. Для
-медленного провайдера лучше увеличить таймауты, чем оставлять их бесконечными.
+`sendMail` делает один retry (`SMTP_SEND_RETRIES=1`) для временных сетевых
+ошибок и 4xx-ответов SMTP. Внешний HTTP-timeout вокруг `sendMail` не ставим:
+он не отменяет уже начатую SMTP-операцию и может показать ошибку при фактически
+доставленном письме.
 
 ### Reverse proxy
 
@@ -82,6 +84,36 @@ Nginx на той же машине. Если перед приложением 
 
 ```env
 TRUSTED_PROXY_IPS=loopback,10.0.0.0/8,172.16.0.0/12
+```
+
+В Docker compose production/staging значение по умолчанию — `uniquelocal`,
+чтобы Express доверял `X-Forwarded-For` от Nginx в bridge-сети и rate-limit
+форм считался по реальному клиентскому IP, а не по IP контейнера Nginx.
+
+### Логи и нагрузочные проверки
+
+Access-log пишет JSON в stdout/stderr, но под production-нагрузкой успешные
+`2xx/3xx` запросы семплируются через `ACCESS_LOG_SUCCESS_SAMPLE_RATE`
+(по умолчанию 10%). `4xx/5xx` и успешные запросы медленнее `ACCESS_LOG_SLOW_MS`
+логируются всегда. Это снижает риск, что Docker/stdout станет bottleneck при
+наплыве посетителей.
+
+`/api/health` публичный и отдаёт только liveness-данные. Runtime-метрики
+доступны отдельно на `/api/runtime` только при заданном `INTERNAL_METRICS_TOKEN`
+и запросе с `Authorization: Bearer <token>`: RSS/heap в MB, active requests,
+CPU usage и event-loop delay. Для локального stress-test:
+
+```bash
+npm run server
+API_BASE=http://127.0.0.1:3001 LOAD_CONCURRENCY=10,50,100 LOAD_DURATION_SEC=60 npm run load:test
+```
+
+Для проверки статики вместе с API сначала соберите и поднимите preview:
+
+```bash
+npm run build
+npm run preview -- --host 127.0.0.1 --port 4173
+STATIC_BASE=http://127.0.0.1:4173 npm run load:test
 ```
 
 ### Аналитика
@@ -115,9 +147,12 @@ src/
 scripts/
   importPrice.js           # чтение Excel → products.json + отчёты + SEO
   lib/siteSeo.js           # генератор sitemap.xml/robots.txt
+shared/
+  messages.js              # общие тексты ошибок/успеха для фронта и API
+  quoteValidation.js       # общая серверная/клиентская валидация заявок
+  catalogCategories.json   # статичное дерево категорий каталога
 data/
   products.json            # выход импортёра, читается сервером
-  catalogCategories.json   # дерево категорий каталога
   productRegistry.json     # стабильные id/slug между импортами
 public/
   sitemap.xml, robots.txt  # перезаписываются importPrice.js
@@ -141,6 +176,12 @@ node scripts/importPrice.js https://kabelhome.ru/upload/price.xls   # альте
 `data/productRegistry.json`, `public/sitemap.xml`, `public/robots.txt`.
 
 HTML-отчёт открывается прямо из консоли (выводится ссылка `file://...`).
+
+Если импорт запускается внутри Docker app-контейнера, compose задаёт
+`PUBLIC_ARTIFACTS_DIR=/app/data/public`: туда пишутся `price.xls`,
+`redirects.*`, `sitemap*.xml`, `robots.txt` и runtime HTML карточек
+`product/<slug>.html`, а Nginx отдаёт эти файлы поверх версий, собранных в
+web-образ.
 
 ### Автоматический ежедневный импорт (production)
 
@@ -225,7 +266,10 @@ curl -fsS http://127.0.0.1/healthz
 
 Перед деплоем убедитесь, что на хосте есть `./data/products.json`: этот каталог
 смонтирован в `app` как `/app/data`, чтобы импорт прайса не терялся при
-пересоздании контейнера.
+пересоздании контейнера. Runtime-артефакты импорта для Nginx лежат в
+`./data/public` и создаются автоматически при импорте внутри app-контейнера.
+`web` сначала отдаёт runtime HTML карточек из `./data/public/product`, затем
+fallback из build-time prerender в образе.
 
 ### Rollback
 

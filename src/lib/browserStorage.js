@@ -34,8 +34,11 @@ function emitStorageWriteFailure(key, error) {
 }
 
 export function loadStoredJson(key, fallback) {
+  const storage = getLocalStorage();
+  if (!storage) return fallback;
+
   try {
-    const raw = localStorage.getItem(key);
+    const raw = storage.getItem(key);
 
     if (!raw) {
       return fallback;
@@ -49,8 +52,11 @@ export function loadStoredJson(key, fallback) {
 }
 
 export function saveStoredJson(key, value) {
+  const storage = getLocalStorage();
+  if (!storage) return false;
+
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    storage.setItem(key, JSON.stringify(value));
     return true;
   } catch (error) {
     console.error(`Ошибка сохранения "${key}" в localStorage:`, error);
@@ -60,13 +66,34 @@ export function saveStoredJson(key, value) {
 }
 
 export function removeStoredValue(key) {
+  const storage = getLocalStorage();
+  if (!storage) return false;
+
   try {
-    localStorage.removeItem(key);
+    storage.removeItem(key);
     return true;
   } catch (error) {
     console.error(`Ошибка удаления "${key}" из localStorage:`, error);
     return false;
   }
+}
+
+function getLocalStorage() {
+  if (import.meta.env?.SSR && import.meta.env?.MODE !== 'test') return null;
+
+  const storage =
+    typeof window !== 'undefined' && window.localStorage
+      ? window.localStorage
+      : globalThis.localStorage;
+  if (!storage) return null;
+  if (
+    typeof storage.getItem !== 'function' ||
+    typeof storage.setItem !== 'function' ||
+    typeof storage.removeItem !== 'function'
+  ) {
+    return null;
+  }
+  return storage;
 }
 
 /**
@@ -80,8 +107,11 @@ export function removeStoredValue(key) {
 export function createMigratingItemsStorage() {
   return {
     getItem: (key) => {
+      const storage = getLocalStorage();
+      if (!storage) return null;
+
       try {
-        const raw = localStorage.getItem(key);
+        const raw = storage.getItem(key);
         if (!raw) return null;
 
         const parsed = JSON.parse(raw);
@@ -98,16 +128,22 @@ export function createMigratingItemsStorage() {
       }
     },
     setItem: (key, value) => {
+      const storage = getLocalStorage();
+      if (!storage) return;
+
       try {
-        localStorage.setItem(key, value);
+        storage.setItem(key, value);
       } catch (error) {
         console.error(`Ошибка сохранения "${key}" в localStorage:`, error);
         emitStorageWriteFailure(key, error);
       }
     },
     removeItem: (key) => {
+      const storage = getLocalStorage();
+      if (!storage) return;
+
       try {
-        localStorage.removeItem(key);
+        storage.removeItem(key);
       } catch (error) {
         console.error(`Ошибка удаления "${key}" из localStorage:`, error);
       }

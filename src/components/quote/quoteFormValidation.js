@@ -5,8 +5,8 @@ import {
   MAX_QUOTE_ITEMS,
   isValidEmail,
   isValidRussianPhone,
-} from '../../../lib/quoteValidation.js';
-import { formatMessage, messages } from '../../../lib/messages.js';
+} from '../../../shared/quoteValidation.js';
+import { formatMessage, messages } from '../../../shared/messages.js';
 
 export function normalizePhone(phone) {
   return String(phone || '').replace(/[^\d+]/g, '');

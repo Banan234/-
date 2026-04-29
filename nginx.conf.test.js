@@ -69,6 +69,30 @@ describe('nginx compression', () => {
 describe('nginx product prerender routing', () => {
   it('serves flat product prerender files for pretty product URLs', () => {
     expect(config).toContain('location ~ ^/product/([A-Za-z0-9-]+)/?$');
-    expect(config).toContain('try_files /product/$1.html /index.html;');
+    expect(config).toContain(
+      'try_files /runtime-data/public/product/$1.html /html/product/$1.html /html/index.html;'
+    );
+  });
+});
+
+describe('nginx runtime import artifacts', () => {
+  it('serves updated price, robots and sitemaps before build-time fallbacks', () => {
+    expect(config).toContain('root /usr/share/nginx/html;');
+    expect(config).toContain(
+      'location ~ ^/(robots\\.txt|sitemap(?:-[A-Za-z0-9-]+)?\\.xml|price\\.xls)$'
+    );
+    expect(config).toContain('root /usr/share/nginx;');
+    expect(config).toContain(
+      'try_files /runtime-data/public/$1 /html/$1 =404;'
+    );
+  });
+
+  it('loads slug redirects from the runtime data directory only', () => {
+    const runtimeInclude =
+      'include /usr/share/nginx/runtime-data/public/redirects.nginx.conf*;';
+    const buildInclude = 'include /usr/share/nginx/html/redirects.nginx.conf*;';
+
+    expect(config).toContain(runtimeInclude);
+    expect(config).not.toContain(buildInclude);
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useCartStore } from '../../store/useCartStore';
 import { trackEvent } from '../../lib/analytics';
+import { expectOkApiJson } from '../../lib/apiResponse';
 import { captureException } from '../../lib/errorTracking';
 import HoneypotField from '../forms/HoneypotField';
 import {
@@ -8,8 +9,8 @@ import {
   removeStoredValue,
   saveStoredJson,
 } from '../../lib/browserStorage';
-import { messages } from '../../../lib/messages.js';
-import { MAX_QUOTE_CUSTOMER_COMMENT_LENGTH } from '../../../lib/quoteValidation.js';
+import { messages } from '../../../shared/messages.js';
+import { MAX_QUOTE_CUSTOMER_COMMENT_LENGTH } from '../../../shared/quoteValidation.js';
 import { validateForm } from './quoteFormValidation';
 
 const FORM_STORAGE_KEY = 'yuzhural-quote-form';
@@ -164,13 +165,10 @@ export default function QuoteForm({
         body: JSON.stringify(orderPayload),
       });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.ok) {
-        throw new Error(
-          result.message || messages.errors.quoteForm.submitRequestFailed
-        );
-      }
+      const result = await expectOkApiJson(
+        response,
+        messages.errors.quoteForm.submitRequestFailed
+      );
 
       trackEvent('quote-submit', {
         items: totalCount,

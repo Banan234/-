@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import nodemailer from 'nodemailer';
 import proxyaddr from 'proxy-addr';
 import rateLimit from 'express-rate-limit';
+import { monitorEventLoopDelay } from 'perf_hooks';
 import { pathToFileURL } from 'url';
 import { createCatalogStore } from './lib/catalog.js';
 import {
@@ -13,8 +14,8 @@ import {
   MAX_QUOTE_PAYLOAD_BYTES,
   isValidQuoteRequest,
   isValidRussianPhone,
-} from './lib/quoteValidation.js';
-import { formatMessage, messages } from './lib/messages.js';
+} from './shared/quoteValidation.js';
+import { formatMessage, messages } from './shared/messages.js';
 import { accessLog, logger } from './lib/logger.js';
 import {
   CANONICAL_CATEGORY_ORDER,
@@ -34,6 +35,8 @@ dotenv.config();
 const PORT = process.env.PORT || 3001;
 const CATALOG_CACHE_TTL_SECONDS = 60;
 const CATALOG_CACHE_TTL_MS = CATALOG_CACHE_TTL_SECONDS * 1000;
+const DEFAULT_FEATURED_PRODUCTS_LIMIT = 10;
+const MAX_FEATURED_PRODUCTS_LIMIT = 50;
 const HSTS_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 // Anti-bot time trap: 2s is low enough for browser autofill/manual submit,
 // but cuts off scripts that POST immediately after loading the form.
@@ -46,9 +49,9 @@ const DEFAULT_TRUSTED_PROXY_IPS = 'loopback';
 const DEFAULT_SMTP_CONNECTION_TIMEOUT_MS = 10_000;
 const DEFAULT_SMTP_GREETING_TIMEOUT_MS = 10_000;
 const DEFAULT_SMTP_SOCKET_TIMEOUT_MS = 20_000;
-const DEFAULT_SMTP_SEND_TIMEOUT_MS = 25_000;
 const DEFAULT_SMTP_SEND_RETRIES = 1;
 const DEFAULT_SMTP_RETRY_DELAY_MS = 750;
+const RUNTIME_EVENT_LOOP_DELAY = monitorEventLoopDelay({ resolution: 20 });
 const RETRYABLE_MAIL_ERROR_CODES = new Set([
   'ECONNABORTED',
   'ECONNECTION',
@@ -59,6 +62,8 @@ const RETRYABLE_MAIL_ERROR_CODES = new Set([
   'ETIMEDOUT',
   'EAI_AGAIN',
 ]);
+
+RUNTIME_EVENT_LOOP_DELAY.enable();
 
 const API_CSP_DIRECTIVES = Object.freeze({
   defaultSrc: ["'none'"],
@@ -186,6 +191,31 @@ function applyCatalogCache(res) {
   );
 }
 
+function getFeaturedProducts(items, limit) {
+  return [...items]
+    .sort((a, b) => {
+      const promotedDiff = (b.promoted ? 1 : 0) - (a.promoted ? 1 : 0);
+      if (promotedDiff !== 0) return promotedDiff;
+      return (b.stock || 0) - (a.stock || 0);
+    })
+    .slice(0, limit);
+}
+
+async function warmCatalogCaches({
+  catalogStore,
+  catalogQueryStore,
+  warmFeatured,
+  featuredLimit = DEFAULT_FEATURED_PRODUCTS_LIMIT,
+}) {
+  const items = await catalogStore.loadCatalogProducts();
+  catalogStore.getCatalogProductListItems(items);
+  catalogQueryStore.getCatalogSections(items);
+  if (warmFeatured) {
+    await warmFeatured(items, featuredLimit);
+  }
+  return items.length;
+}
+
 function parseBooleanEnv(value, fallback) {
   const normalized = String(value ?? '')
     .trim()
@@ -205,6 +235,60 @@ function parseIntegerEnv(value, fallback, { min = 1, max = Infinity } = {}) {
 function readNonEmptyEnv(value) {
   const normalized = String(value ?? '').trim();
   return normalized || null;
+}
+
+function getBearerToken(req) {
+  const authorization = String(req.get('authorization') || '').trim();
+  const match = /^Bearer\s+(.+)$/i.exec(authorization);
+  return match ? match[1].trim() : '';
+}
+
+function hasInternalMetricsAccess(req) {
+  const token = readNonEmptyEnv(process.env.INTERNAL_METRICS_TOKEN);
+  if (!token) return false;
+
+  return (
+    getBearerToken(req) === token ||
+    String(req.get('x-internal-metrics-token') || '').trim() === token
+  );
+}
+
+function bytesToMb(value) {
+  return Math.round((value / 1024 / 1024) * 10) / 10;
+}
+
+function nanosecondsToMs(value) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round((value / 1e6) * 10) / 10;
+}
+
+export function getRuntimeHealthSnapshot({
+  activeRequests = 0,
+  eventLoopDelay = RUNTIME_EVENT_LOOP_DELAY,
+} = {}) {
+  const memory = process.memoryUsage();
+  const cpu = process.cpuUsage();
+  return {
+    pid: process.pid,
+    node: process.version,
+    activeRequests,
+    memoryMb: {
+      rss: bytesToMb(memory.rss),
+      heapTotal: bytesToMb(memory.heapTotal),
+      heapUsed: bytesToMb(memory.heapUsed),
+      external: bytesToMb(memory.external),
+      arrayBuffers: bytesToMb(memory.arrayBuffers),
+    },
+    eventLoopDelayMs: {
+      mean: nanosecondsToMs(eventLoopDelay.mean),
+      p95: nanosecondsToMs(eventLoopDelay.percentile(95)),
+      max: nanosecondsToMs(eventLoopDelay.max),
+    },
+    cpuUsageMs: {
+      user: Math.round(cpu.user / 1000),
+      system: Math.round(cpu.system / 1000),
+    },
+  };
 }
 
 function normalizeCanonicalSiteUrl(value, key) {
@@ -298,11 +382,6 @@ export function getSmtpTransportOptions(env = process.env) {
 
 export function getMailSendOptions(env = process.env) {
   return {
-    timeoutMs: parseIntegerEnv(
-      env.SMTP_SEND_TIMEOUT_MS,
-      DEFAULT_SMTP_SEND_TIMEOUT_MS,
-      { min: 1_000, max: 300_000 }
-    ),
     maxRetries: parseIntegerEnv(
       env.SMTP_SEND_RETRIES,
       DEFAULT_SMTP_SEND_RETRIES,
@@ -318,27 +397,6 @@ export function getMailSendOptions(env = process.env) {
 
 export function createTransporter(env = process.env) {
   return nodemailer.createTransport(getSmtpTransportOptions(env));
-}
-
-function createMailTimeoutError(timeoutMs) {
-  const error = new Error(`SMTP send timed out after ${timeoutMs} ms`);
-  error.code = 'SMTP_SEND_TIMEOUT';
-  return error;
-}
-
-function withTimeout(promise, timeoutMs) {
-  if (!timeoutMs) return promise;
-
-  let timer;
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      timer = setTimeout(
-        () => reject(createMailTimeoutError(timeoutMs)),
-        timeoutMs
-      );
-    }),
-  ]).finally(() => clearTimeout(timer));
 }
 
 function wait(ms) {
@@ -417,7 +475,6 @@ export async function sendMailWithRetry(
   mailOptions,
   {
     event = 'smtp.send',
-    timeoutMs = DEFAULT_SMTP_SEND_TIMEOUT_MS,
     maxRetries = DEFAULT_SMTP_SEND_RETRIES,
     retryDelayMs = DEFAULT_SMTP_RETRY_DELAY_MS,
   } = {}
@@ -426,7 +483,7 @@ export async function sendMailWithRetry(
 
   for (let attempt = 1; attempt <= totalAttempts; attempt += 1) {
     try {
-      return await withTimeout(transporter.sendMail(mailOptions), timeoutMs);
+      return await transporter.sendMail(mailOptions);
     } catch (error) {
       if (attempt >= totalAttempts || !isRetryableMailError(error)) {
         throw error;
@@ -505,14 +562,55 @@ export function createApp({
   mailTransporter = createTransporter(),
   mailSendOptions = getMailSendOptions(),
   formResponseDelayRange = getDefaultFormResponseDelayRange(),
+  warmCatalogOnStart = false,
 } = {}) {
   const app = express();
   app.set('etag', false);
   app.set('trust proxy', trustProxy);
   app.locals.mailTransporter = mailTransporter;
+  app.locals.activeRequests = 0;
+  app.locals.catalogWarmupPromise = null;
+  let featuredProductsCache = null;
   const normalizedFormResponseDelayRange = normalizeFormResponseDelayRange(
     formResponseDelayRange
   );
+
+  async function getFeaturedProductsResponse(limit, allItems) {
+    const items = allItems || (await catalogStore.loadCatalogProducts());
+
+    if (
+      featuredProductsCache &&
+      featuredProductsCache.catalogItems === items &&
+      featuredProductsCache.limit === limit
+    ) {
+      return featuredProductsCache.responseItems;
+    }
+
+    const featured = getFeaturedProducts(items, limit);
+    const responseItems = catalogStore.getCatalogProductListItems(featured);
+    featuredProductsCache = {
+      catalogItems: items,
+      limit,
+      responseItems,
+    };
+    return responseItems;
+  }
+
+  if (warmCatalogOnStart) {
+    app.locals.catalogWarmupPromise = warmCatalogCaches({
+      catalogStore,
+      catalogQueryStore,
+      warmFeatured: getFeaturedProductsResponse,
+    })
+      .then((count) => {
+        logger.info('startup.catalog_warmed', { count });
+        return count;
+      })
+      .catch((error) => {
+        logger.error('startup.catalog_warm_failed', { err: error });
+        return 0;
+      });
+  }
 
   // 3 заявки/час с одного IP. B2B-снабженец редко шлёт КП чаще; для абуза
   // (массовая рассылка через нашу SMTP, перебор email replyTo) этот лимит уже
@@ -539,6 +637,18 @@ export function createApp({
     .filter(Boolean);
 
   app.use(accessLog());
+  app.use((req, res, next) => {
+    app.locals.activeRequests += 1;
+    let finished = false;
+    const markFinished = () => {
+      if (finished) return;
+      finished = true;
+      app.locals.activeRequests = Math.max(0, app.locals.activeRequests - 1);
+    };
+    res.on('finish', markFinished);
+    res.on('close', markFinished);
+    next();
+  });
   app.use(
     cors({
       origin(origin, callback) {
@@ -575,10 +685,32 @@ export function createApp({
     return next(err);
   });
 
-  // Liveness-проба для Nginx/Docker/k8s. Никакого I/O — отвечает мгновенно
-  // и подтверждает, что процесс жив и event loop не залип.
+  // Публичная liveness-проба для Nginx/Docker/k8s. Никакого I/O и никаких
+  // runtime-деталей: этот endpoint проксируется наружу через /api/*.
   app.get('/api/health', (req, res) => {
-    res.json({ ok: true, uptime: process.uptime(), ts: Date.now() });
+    res.json({
+      ok: true,
+      uptime: process.uptime(),
+      ts: Date.now(),
+    });
+  });
+
+  app.get('/api/runtime', (req, res) => {
+    if (!hasInternalMetricsAccess(req)) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Не найдено',
+      });
+    }
+
+    return res.json({
+      ok: true,
+      uptime: process.uptime(),
+      ts: Date.now(),
+      runtime: getRuntimeHealthSnapshot({
+        activeRequests: app.locals.activeRequests,
+      }),
+    });
   });
 
   app.get('/api/products', async (req, res) => {
@@ -665,19 +797,15 @@ export function createApp({
     try {
       applyCatalogCache(res);
 
-      const limit = parseLimit(req.query.limit, 10, 50);
-      const items = await catalogStore.loadCatalogProducts();
-      const featured = [...items]
-        .sort((a, b) => {
-          const promotedDiff = (b.promoted ? 1 : 0) - (a.promoted ? 1 : 0);
-          if (promotedDiff !== 0) return promotedDiff;
-          return (b.stock || 0) - (a.stock || 0);
-        })
-        .slice(0, limit);
+      const limit = parseLimit(
+        req.query.limit,
+        DEFAULT_FEATURED_PRODUCTS_LIMIT,
+        MAX_FEATURED_PRODUCTS_LIMIT
+      );
 
       return res.json({
         ok: true,
-        items: catalogStore.getCatalogProductListItems(featured),
+        items: await getFeaturedProductsResponse(limit),
       });
     } catch (error) {
       logger.error('catalog.featured.failed', { err: error });
@@ -1036,7 +1164,7 @@ if (isMain) {
     process.exit(1);
   }
 
-  const app = createApp();
+  const app = createApp({ warmCatalogOnStart: true });
   app.listen(PORT, () => {
     logger.info('startup.listening', { port: PORT });
   });

@@ -4,13 +4,14 @@ import Container from '../components/ui/Container';
 import { MAX_CART_ITEMS, useCartStore } from '../store/useCartStore';
 import { useSEO } from '../hooks/useSEO';
 import { trackEvent } from '../lib/analytics';
+import { expectOkApiJson } from '../lib/apiResponse';
 import { captureException } from '../lib/errorTracking';
-import { formatMessage, messages } from '../../lib/messages.js';
+import { formatMessage, messages } from '../../shared/messages.js';
 import {
   MAX_QUOTE_ITEM_COMMENT_LENGTH,
   MAX_QUOTE_ITEM_TITLE_LENGTH,
-} from '../../lib/quoteValidation.js';
-import '../styles/sections/commerce.css';
+} from '../../shared/quoteValidation.js';
+import '../styles/sections/cart-favorites.css';
 
 const initialManualItem = {
   mark: '',
@@ -28,6 +29,7 @@ export default function CartPage() {
     title: 'Список для КП',
     description:
       'Список кабельно-проводниковой продукции для запроса коммерческого предложения.',
+    noindex: true,
   });
   const {
     items,
@@ -62,12 +64,10 @@ export default function CartPage() {
       body: JSON.stringify({ ids: catalogIds }),
       signal: controller.signal,
     })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
+      .then((response) =>
+        expectOkApiJson(response, messages.errors.api.lookupFailed)
+      )
       .then((data) => {
-        if (!data?.ok) return;
         const summary = syncWithCatalog({
           found: data.found,
           missing: data.missing,

@@ -1,9 +1,9 @@
 // Build-time prerender для статических страниц и карточек товаров.
-// Запускается после `vite build` и пишет в dist/<route>/index.html
-// HTML-шаблоны с заполненным <head> (title, meta, OG, Twitter, JSON-LD)
-// и минимальным body-shell, чтобы Яндекс/боты, которые не выполняют JS,
-// видели осмысленный контент. На пользователях с JS работает SPA как раньше:
-// React.createRoot(...) при гидрации перезаписывает содержимое #root.
+// Запускается после `vite build && vite build --ssr src/entry-server.jsx`
+// и пишет в dist/<route>/index.html HTML-шаблоны с заполненным <head>
+// (title, meta, OG, Twitter, JSON-LD) и настоящей React-разметкой в #root.
+// Клиентский entry затем делает hydrateRoot(...), поэтому стартовая геометрия
+// страницы не меняется из-за замены SEO-shell на приложение.
 // Карточки товара пишутся плоско в dist/product/<slug>.html, чтобы не плодить
 // тысячи директорий и не раздувать Docker layer/block-size overhead.
 //
@@ -12,6 +12,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import { fileURLToPath } from 'url';
 import {
   buildProductBreadcrumbJsonLd,
@@ -33,6 +34,7 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
 const productsFile = path.join(repoRoot, 'data', 'products.json');
+const serverEntryFile = 'entry-server.js';
 
 export const STATIC_ROUTES = [
   {
@@ -358,9 +360,17 @@ export function buildJsonLdScripts(payloads, idPrefix = 'prerender') {
     .join('\n    ');
 }
 
+export function buildPrerenderDataScript(data) {
+  if (!data || Object.keys(data).length === 0) return '';
+
+  return `<script>window.__YUZHURAL_PRERENDER_DATA__=${JSON.stringify(
+    data
+  ).replace(/</g, '\\u003c')};</script>`;
+}
+
 export function buildBreadcrumbsHtml(crumbs) {
   return [
-    '<nav aria-label="Хлебные крошки" class="prerender-only" style="display:none">',
+    '<nav aria-label="Хлебные крошки" class="prerender-only">',
     '  <ol>',
     ...crumbs.map(
       (item) =>
@@ -379,9 +389,8 @@ export function buildProductBodyShell(product) {
   const heading =
     product.title || product.fullName || product.name || product.mark || '';
 
-  // Минимальный shell для краулеров. Скрыт от пользователя через
-  // class="prerender-only" + display:none — React при mount() всё равно
-  // снесёт содержимое #root и отрисует SPA, так что флэша не будет.
+  // Минимальный shell для краулеров и пользователей без JS. Он видимый, чтобы
+  // не превращать prerender в скрытый SEO-блок; React при mount() заменит #root.
   const specs = [];
   if (product.mark) specs.push(['Марка', product.mark]);
   if (product.crossSection)
@@ -402,7 +411,7 @@ export function buildProductBodyShell(product) {
   const specsHtml =
     specs.length > 0
       ? [
-          '<dl class="prerender-only" style="display:none">',
+          '<dl class="prerender-only">',
           ...specs.map(
             ([label, value]) =>
               `  <dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`
@@ -412,7 +421,7 @@ export function buildProductBodyShell(product) {
       : '';
 
   return `
-<div class="prerender-only" style="display:none">
+<div class="prerender-only">
   <h1>${escapeHtml(heading)}</h1>
   <p>${escapeHtml(description)}</p>
   ${buildBreadcrumbsHtml(crumbs)}
@@ -426,7 +435,7 @@ export function buildCompactProductBodyShell(product) {
   const heading =
     product.title || product.fullName || product.name || product.mark || '';
 
-  return `<div class="prerender-only" style="display:none"><h1>${escapeHtml(
+  return `<div class="prerender-only"><h1>${escapeHtml(
     heading
   )}</h1><p>${escapeHtml(description)}</p></div>`;
 }
@@ -441,14 +450,17 @@ export function buildStaticBodyShell(route) {
         ];
 
   return `
-<div class="prerender-only" style="display:none">
+<div class="prerender-only">
   <h1>${escapeHtml(route.h1)}</h1>
   <p>${escapeHtml(route.intro)}</p>
   ${buildBreadcrumbsHtml(crumbs)}
 </div>`.trim();
 }
 
-export function injectIntoTemplate(template, { headExtras, bodyShell }) {
+export function injectIntoTemplate(
+  template,
+  { headExtras, bodyShell, bodyEndExtras = '' }
+) {
   // Стираем уже существующий <title> и наши же мета-теги, чтобы повторный
   // прогон не дублировал теги (если кто-то запустит prerender на уже
   // обработанном dist).
@@ -459,6 +471,9 @@ export function injectIntoTemplate(template, { headExtras, bodyShell }) {
     /<div id="root">[\s\S]*?<\/div>/,
     `<div id="root">${bodyShell}</div>`
   );
+  if (bodyEndExtras) {
+    html = html.replace('</body>', `    ${bodyEndExtras}\n  </body>`);
+  }
 
   return html;
 }
@@ -489,7 +504,10 @@ function getRuntimeHeadShell(template) {
   return minifyPrerenderHtml(match?.[1] || '');
 }
 
-export function injectIntoThinTemplate(template, { headExtras, bodyShell }) {
+export function injectIntoThinTemplate(
+  template,
+  { headExtras, bodyShell, bodyEndExtras = '' }
+) {
   const runtimeHeadShell = getRuntimeHeadShell(template);
 
   return minifyPrerenderHtml(
@@ -502,10 +520,39 @@ export function injectIntoThinTemplate(template, { headExtras, bodyShell }) {
       '</head>',
       '<body>',
       `<div id="root">${bodyShell}</div>`,
+      bodyEndExtras,
       '</body>',
       '</html>',
     ].join('')
   );
+}
+
+export async function loadServerRenderer({ outputDir = distDir } = {}) {
+  process.env.NODE_ENV ||= 'production';
+
+  const entryPath = path.join(outputDir, 'server', serverEntryFile);
+  try {
+    await fs.access(entryPath);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      throw new Error(
+        `[prerender] SSR bundle не найден: ${entryPath}. Запустите npm run build:ssr перед prerender.`
+      );
+    }
+    throw error;
+  }
+
+  const moduleUrl = pathToFileURL(entryPath);
+  moduleUrl.search = `v=${Date.now()}`;
+  const serverModule = await import(moduleUrl.href);
+
+  if (typeof serverModule.render !== 'function') {
+    throw new Error(
+      `[prerender] ${entryPath} должен экспортировать функцию render(url, options).`
+    );
+  }
+
+  return serverModule.render;
 }
 
 async function ensureDir(dir) {
@@ -575,7 +622,7 @@ export async function loadProducts({
 
 export async function prerenderStatic(
   template,
-  { outputDir = distDir, log = console.log } = {}
+  { outputDir = distDir, log = console.log, renderApp } = {}
 ) {
   for (const route of STATIC_ROUTES) {
     const canonical = absoluteUrl(route.path);
@@ -589,7 +636,9 @@ export async function prerenderStatic(
     ].join('\n    ');
     const html = injectIntoTemplate(template, {
       headExtras,
-      bodyShell: buildStaticBodyShell(route),
+      bodyShell: renderApp
+        ? await renderApp(route.path, { prerenderData: {} })
+        : buildStaticBodyShell(route),
     });
     await writeRoute(route.path, html, { outputDir });
   }
@@ -603,7 +652,7 @@ export async function prerenderStatic(
 export async function prerenderProducts(
   template,
   products,
-  { outputDir = distDir, log = console.log, validate = true } = {}
+  { outputDir = distDir, log = console.log, validate = true, renderApp } = {}
 ) {
   if (validate) {
     validatePrerenderProducts(products);
@@ -629,6 +678,7 @@ export async function prerenderProducts(
     const ogImage = product.image ? absoluteUrl(product.image) : undefined;
     const productLd = buildProductJsonLd(product);
     const breadcrumbLd = buildProductBreadcrumbJsonLd(product);
+    const prerenderData = { product };
 
     const headExtras = [
       buildMetaTags({
@@ -643,7 +693,10 @@ export async function prerenderProducts(
 
     const html = injectIntoThinTemplate(template, {
       headExtras,
-      bodyShell: buildCompactProductBodyShell(product),
+      bodyShell: renderApp
+        ? await renderApp(`/product/${product.slug}`, { prerenderData })
+        : buildCompactProductBodyShell(product),
+      bodyEndExtras: buildPrerenderDataScript(prerenderData),
     });
     await writeProductRoute(product.slug, html, { outputDir });
     written += 1;
@@ -658,15 +711,18 @@ export async function prerender({
   productsPath = productsFile,
   log = console.log,
   warn = console.warn,
+  renderApp,
 } = {}) {
   const template = await loadTemplate({ outputDir });
   const products = await loadProducts({ filePath: productsPath, warn });
   validatePrerenderProducts(products, { source: productsPath });
-  await prerenderStatic(template, { outputDir, log });
+  const routeRenderer = renderApp || (await loadServerRenderer({ outputDir }));
+  await prerenderStatic(template, { outputDir, log, renderApp: routeRenderer });
   await prerenderProducts(template, products, {
     outputDir,
     log,
     validate: false,
+    renderApp: routeRenderer,
   });
   log?.('[prerender] done.');
 }

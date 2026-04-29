@@ -1,14 +1,9 @@
-import { messages } from '../../lib/messages.js';
+import { messages } from '../../shared/messages.js';
+import { expectOkApiJson } from './apiResponse.js';
 
 async function fetchJson(url, signal, fallbackMessage) {
   const response = await fetch(url, { signal });
-  const result = await response.json();
-
-  if (!response.ok || !result.ok) {
-    throw new Error(result.message || fallbackMessage);
-  }
-
-  return result;
+  return expectOkApiJson(response, fallbackMessage);
 }
 
 export function fetchProducts(signal, options = {}) {

@@ -1,0 +1,193 @@
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { CABLE_SECTION_NAME, CATALOG_MENU } from './catalogMenuData';
+
+const CATALOG_DROPDOWN_ID = 'catalog-dropdown';
+
+export default function HeaderCatalogMenu() {
+  const location = useLocation();
+  const isCatalogPage = location.pathname.startsWith('/catalog');
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isCatalogPinnedOpen, setIsCatalogPinnedOpen] = useState(false);
+  const [activeCatalogIndex, setActiveCatalogIndex] = useState(0);
+  const catalogCloseTimeoutRef = useRef(null);
+  const catalogWrapperRef = useRef(null);
+  const activeCatalogGroup =
+    CATALOG_MENU[activeCatalogIndex] || CATALOG_MENU[0];
+
+  function clearCatalogCloseTimeout() {
+    if (catalogCloseTimeoutRef.current) {
+      clearTimeout(catalogCloseTimeoutRef.current);
+      catalogCloseTimeoutRef.current = null;
+    }
+  }
+
+  function closeCatalogAfterNavigation() {
+    clearCatalogCloseTimeout();
+    setIsCatalogOpen(false);
+    setIsCatalogPinnedOpen(false);
+  }
+
+  function openCatalogMenu() {
+    clearCatalogCloseTimeout();
+    setIsCatalogOpen(true);
+  }
+
+  function closeCatalogMenu() {
+    if (isCatalogPinnedOpen) {
+      return;
+    }
+
+    clearCatalogCloseTimeout();
+
+    catalogCloseTimeoutRef.current = setTimeout(() => {
+      setIsCatalogOpen(false);
+      catalogCloseTimeoutRef.current = null;
+    }, 140);
+  }
+
+  function pinCatalogMenuOpen() {
+    clearCatalogCloseTimeout();
+    setIsCatalogPinnedOpen(true);
+    setIsCatalogOpen(true);
+  }
+
+  useEffect(() => {
+    setIsCatalogOpen(false);
+    setIsCatalogPinnedOpen(false);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        catalogWrapperRef.current &&
+        !catalogWrapperRef.current.contains(event.target)
+      ) {
+        clearCatalogCloseTimeout();
+        setIsCatalogOpen(false);
+        setIsCatalogPinnedOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        clearCatalogCloseTimeout();
+        setIsCatalogOpen(false);
+        setIsCatalogPinnedOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+      clearCatalogCloseTimeout();
+    };
+  }, []);
+
+  return (
+    <>
+      <div
+        ref={catalogWrapperRef}
+        className="catalog-wrapper"
+        onMouseLeave={closeCatalogMenu}
+      >
+        <button
+          type="button"
+          className={`catalog-button ${
+            isCatalogPage || isCatalogOpen ? 'catalog-button--active' : ''
+          }`}
+          onMouseEnter={openCatalogMenu}
+          onClick={pinCatalogMenuOpen}
+          aria-controls={CATALOG_DROPDOWN_ID}
+          aria-expanded={isCatalogOpen}
+        >
+          <span className="catalog-button__icon" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span>Каталог</span>
+        </button>
+
+        {isCatalogOpen && (
+          <>
+            <div
+              className="catalog-hover-bridge"
+              onMouseEnter={openCatalogMenu}
+              onMouseLeave={closeCatalogMenu}
+            />
+
+            <div
+              id={CATALOG_DROPDOWN_ID}
+              className="catalog-dropdown"
+              onMouseEnter={openCatalogMenu}
+              onMouseLeave={closeCatalogMenu}
+            >
+              <div className="catalog-dropdown__sidebar">
+                <div className="catalog-dropdown__sidebar-title">
+                  {CABLE_SECTION_NAME}
+                </div>
+                {CATALOG_MENU.map((group, index) => (
+                  <Link
+                    key={group.title}
+                    to={group.links[0]?.to || '/catalog'}
+                    className={`catalog-dropdown__sidebar-item ${
+                      activeCatalogIndex === index
+                        ? 'catalog-dropdown__sidebar-item--active'
+                        : ''
+                    }`}
+                    onMouseEnter={() => setActiveCatalogIndex(index)}
+                    onClick={closeCatalogAfterNavigation}
+                  >
+                    {group.title}
+                  </Link>
+                ))}
+              </div>
+
+              <div className="catalog-dropdown__content">
+                <div className="catalog-dropdown__group">
+                  <div className="catalog-dropdown__group-title">
+                    {activeCatalogGroup.title}
+                  </div>
+
+                  <div className="catalog-dropdown__group-subtitle">
+                    Выберите нужную подкатегорию и перейдите в каталог.
+                  </div>
+
+                  <div className="catalog-dropdown__links catalog-dropdown__links--wide">
+                    {activeCatalogGroup.links.map((link) => (
+                      <Link
+                        key={link.label}
+                        to={link.to}
+                        className="catalog-dropdown__link"
+                        onClick={closeCatalogAfterNavigation}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {isCatalogPinnedOpen && (
+        <button
+          type="button"
+          className="catalog-page-lock"
+          aria-label="Закрыть каталог"
+          onClick={() => {
+            clearCatalogCloseTimeout();
+            setIsCatalogOpen(false);
+            setIsCatalogPinnedOpen(false);
+          }}
+        />
+      )}
+    </>
+  );
+}

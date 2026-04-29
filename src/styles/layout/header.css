@@ -354,7 +354,8 @@
 .site-header__search-suggestion-status:last-child {
   border-bottom: 0;
 }
-.site-header__search-suggestion:hover {
+.site-header__search-suggestion:hover,
+.site-header__search-suggestion--active {
   background: #f4f8fd;
 }
 .site-header__search-suggestion-mark {

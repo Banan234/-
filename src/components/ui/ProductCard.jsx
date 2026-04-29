@@ -10,6 +10,7 @@ import {
   ProductSummary,
   ProductTitle,
 } from './ProductCardParts';
+import '../../styles/sections/product-card.css';
 
 function formatStockLabel(product) {
   const stockValue = product.stock.toLocaleString('ru-RU');

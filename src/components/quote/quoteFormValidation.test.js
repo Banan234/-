@@ -3,7 +3,7 @@ import {
   MAX_QUOTE_CUSTOMER_COMMENT_LENGTH,
   MAX_QUOTE_ITEM_COMMENT_LENGTH,
   MAX_QUOTE_ITEMS,
-} from '../../../lib/quoteValidation.js';
+} from '../../../shared/quoteValidation.js';
 import { validateForm } from './quoteFormValidation.js';
 
 const okForm = {

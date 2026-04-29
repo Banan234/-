@@ -1,10 +1,11 @@
 import { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
+import { createRouteObjects } from './routes';
+import HomePage from '../pages/HomePage';
 
 // Все страницы — отдельные чанки. На первый paint грузится только тот,
-// который соответствует текущему маршруту.
-const HomePage = lazy(() => import('../pages/HomePage'));
+// который соответствует текущему маршруту. Главная загружается синхронно,
+// чтобы убрать route waterfall для первого визита на /.
 const CatalogPage = lazy(() => import('../pages/CatalogPage'));
 const ProductPage = lazy(() => import('../pages/ProductPage'));
 const CartPage = lazy(() => import('../pages/CartPage'));
@@ -13,21 +14,24 @@ const FavoritesPage = lazy(() => import('../pages/FavoritesPage'));
 const DeliveryPage = lazy(() => import('../pages/DeliveryPage'));
 const PaymentPage = lazy(() => import('../pages/PaymentPage'));
 const AboutPage = lazy(() => import('../pages/AboutPage'));
+const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
-export const router = createBrowserRouter([
+export const router = createBrowserRouter(
+  createRouteObjects({
+    HomePage,
+    CatalogPage,
+    ProductPage,
+    CartPage,
+    ContactsPage,
+    FavoritesPage,
+    DeliveryPage,
+    PaymentPage,
+    AboutPage,
+    NotFoundPage,
+  }),
   {
-    path: '/',
-    element: <MainLayout />,
-    children: [
-      { index: true, element: <HomePage /> },
-      { path: 'catalog/:slug?', element: <CatalogPage /> },
-      { path: 'product/:slug', element: <ProductPage /> },
-      { path: 'cart', element: <CartPage /> },
-      { path: 'favorites', element: <FavoritesPage /> },
-      { path: 'contacts', element: <ContactsPage /> },
-      { path: 'delivery', element: <DeliveryPage /> },
-      { path: 'payment', element: <PaymentPage /> },
-      { path: 'about', element: <AboutPage /> },
-    ],
-  },
-]);
+    future: {
+      v7_relativeSplatPath: true,
+    },
+  }
+);

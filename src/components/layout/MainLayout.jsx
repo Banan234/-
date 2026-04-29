@@ -3,61 +3,51 @@ import {
   NavLink,
   Outlet,
   useLocation,
-  useNavigate,
 } from 'react-router-dom';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import Container from '../ui/Container';
 import Modal from '../ui/Modal';
-import HeroLeadForm from '../home/HeroLeadForm';
-import QuoteForm from '../quote/QuoteForm';
 import SiteFooter from './SiteFooter';
-import MobileNav from './MobileNav';
-import { fetchProductSuggestions } from '../../lib/productsApi';
-import { captureException } from '../../lib/errorTracking';
 import { useCartStore } from '../../store/useCartStore';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { trackEvent } from '../../lib/analytics';
 import { usePageviewTracking } from '../../hooks/usePageviewTracking';
 import { STORAGE_WRITE_FAILED_EVENT } from '../../lib/browserStorage';
-import catalogCategoriesData from '../../../data/catalogCategories.json';
 
-const cableSection = catalogCategoriesData.sections.find(
-  (section) => section.slug === 'kabel-i-provod'
-);
+const MOBILE_NAV_ID = 'mobile-navigation';
 
-function buildSearchLink(term) {
-  return {
-    label: term,
-    to: `/catalog?search=${encodeURIComponent(term)}`,
-  };
+const LazyHeroLeadForm = lazy(() => import('../home/HeroLeadForm'));
+const LazyQuoteForm = lazy(() => import('../quote/QuoteForm'));
+const LazyHeaderCatalogMenu = lazy(() => import('./HeaderCatalogMenu'));
+const LazyHeaderSearch = lazy(() => import('./HeaderSearch'));
+const LazyMobileNav = lazy(() => import('./MobileNav'));
+
+function ModalFormFallback() {
+  return (
+    <div className="route-fallback" aria-busy="true" aria-live="polite">
+      <span className="route-fallback__spinner" aria-hidden="true" />
+      <span className="route-fallback__text">Загружаем форму...</span>
+    </div>
+  );
 }
 
-function buildCategoryMenuItem(category) {
-  const uniqueKeywords = Array.from(new Set(category.keywords || []))
-    .filter(Boolean)
-    .slice(0, 5);
-
-  return {
-    title: category.name,
-    slug: category.slug,
-    links: [
-      { label: category.name, to: `/catalog/${category.slug}` },
-      ...uniqueKeywords.map(buildSearchLink),
-    ],
-  };
+function CatalogButtonFallback() {
+  return (
+    <button
+      type="button"
+      className="catalog-button"
+      aria-controls="catalog-dropdown"
+      aria-expanded="false"
+    >
+      <span className="catalog-button__icon" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
+      <span>Каталог</span>
+    </button>
+  );
 }
-
-const catalogMenu = [
-  ...(cableSection?.categories || []).map(buildCategoryMenuItem),
-  {
-    title: 'Некабельная продукция',
-    slug: 'nekabelnaya-produkciya',
-    links: [
-      { label: 'Некабельная продукция', to: '/catalog/nekabelnaya-produkciya' },
-    ],
-  },
-];
-const SEARCH_SUGGESTIONS_LIMIT = 7;
 
 function buildStorageWarningMessage(key) {
   if (key === 'yuzhural-cart') {
@@ -75,31 +65,17 @@ function buildStorageWarningMessage(key) {
   return 'Браузер не дал сохранить изменения локально. Они видны сейчас, но могут пропасть после перезагрузки страницы.';
 }
 
-function normalizeSearchSuggestionKey(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/ё/g, 'е')
-    .replace(/[^0-9a-zа-я]+/g, '');
-}
-
-function formatPositionCount(count) {
-  const lastTwo = count % 100;
-  const last = count % 10;
-
-  if (lastTwo >= 11 && lastTwo <= 14) {
-    return `${count} позиций`;
-  }
-
-  if (last === 1) {
-    return `${count} позиция`;
-  }
-
-  if (last >= 2 && last <= 4) {
-    return `${count} позиции`;
-  }
-
-  return `${count} позиций`;
+function HeaderSearchFallback() {
+  return (
+    <form className="site-header__search-inline" aria-hidden="true">
+      <div className="site-header__search-field">
+        <div className="site-header__search-input" />
+      </div>
+      <button type="button" className="site-header__search-button" tabIndex={-1}>
+        Найти
+      </button>
+    </form>
+  );
 }
 
 export default function MainLayout() {
@@ -107,34 +83,16 @@ export default function MainLayout() {
   const totalCount = items.length;
   const favoritesCount = useFavoritesStore((state) => state.items.length);
 
-  const navigate = useNavigate();
   const location = useLocation();
   usePageviewTracking();
 
-  const [headerSearch, setHeaderSearch] = useState('');
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [leadModalOptions, setLeadModalOptions] = useState({});
   const [quoteModalOptions, setQuoteModalOptions] = useState({});
-  const [searchSuggestions, setSearchSuggestions] = useState([]);
-  const [isSearchCatalogLoading, setIsSearchCatalogLoading] = useState(false);
-  const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
-  const [isCatalogPinnedOpen, setIsCatalogPinnedOpen] = useState(false);
-  const [activeCatalogIndex, setActiveCatalogIndex] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const [storageWarning, setStorageWarning] = useState(null);
-  const isCatalogPage = location.pathname.startsWith('/catalog');
-  const catalogCloseTimeoutRef = useRef(null);
-  const catalogWrapperRef = useRef(null);
-  const searchLoadControllerRef = useRef(null);
-  const activeCatalogGroup = catalogMenu[activeCatalogIndex] || catalogMenu[0];
-  const normalizedHeaderSearch = normalizeSearchSuggestionKey(headerSearch);
-  const shouldShowSearchSuggestions =
-    isSearchSuggestionsOpen &&
-    normalizedHeaderSearch &&
-    (isSearchCatalogLoading || searchSuggestions.length > 0);
 
   useEffect(() => {
     function handleScroll() {
@@ -146,25 +104,6 @@ export default function MainLayout() {
   }, []);
 
   useEffect(() => {
-    return () => {
-      searchLoadControllerRef.current?.abort();
-    };
-  }, []);
-
-  useEffect(() => {
-    const currentSearch =
-      new URLSearchParams(location.search).get('search') || '';
-
-    if (location.pathname === '/catalog') {
-      setHeaderSearch(currentSearch);
-    } else {
-      setHeaderSearch('');
-    }
-  }, [location.pathname, location.search]);
-
-  useEffect(() => {
-    setIsCatalogOpen(false);
-    setIsCatalogPinnedOpen(false);
     setIsMobileNavOpen(false);
   }, [location.pathname, location.search]);
 
@@ -219,150 +158,6 @@ export default function MainLayout() {
       );
     };
   }, []);
-
-  function clearCatalogCloseTimeout() {
-    if (catalogCloseTimeoutRef.current) {
-      clearTimeout(catalogCloseTimeoutRef.current);
-      catalogCloseTimeoutRef.current = null;
-    }
-  }
-
-  function handleCatalogNavigate(to) {
-    clearCatalogCloseTimeout();
-    setIsCatalogOpen(false);
-    setIsCatalogPinnedOpen(false);
-    navigate(to);
-  }
-
-  function openCatalogMenu() {
-    clearCatalogCloseTimeout();
-    setIsCatalogOpen(true);
-  }
-
-  function closeCatalogMenu() {
-    if (isCatalogPinnedOpen) {
-      return;
-    }
-
-    clearCatalogCloseTimeout();
-
-    catalogCloseTimeoutRef.current = setTimeout(() => {
-      setIsCatalogOpen(false);
-      catalogCloseTimeoutRef.current = null;
-    }, 140);
-  }
-
-  function pinCatalogMenuOpen() {
-    clearCatalogCloseTimeout();
-    setIsCatalogPinnedOpen(true);
-    setIsCatalogOpen(true);
-  }
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        catalogWrapperRef.current &&
-        !catalogWrapperRef.current.contains(event.target)
-      ) {
-        clearCatalogCloseTimeout();
-        setIsCatalogOpen(false);
-        setIsCatalogPinnedOpen(false);
-      }
-    }
-
-    function handleEscape(event) {
-      if (event.key === 'Escape') {
-        clearCatalogCloseTimeout();
-        setIsCatalogOpen(false);
-        setIsCatalogPinnedOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-      clearCatalogCloseTimeout();
-    };
-  }, []);
-
-  function handleSearchSubmit(event) {
-    event.preventDefault();
-
-    const value = headerSearch.trim();
-    setIsSearchSuggestionsOpen(false);
-    const params = new URLSearchParams(location.search);
-
-    if (value) {
-      trackEvent('search-submit', { query: value, source: 'header' });
-    }
-
-    if (!value) {
-      params.delete('search');
-
-      const nextUrl = params.toString()
-        ? `/catalog?${params.toString()}`
-        : '/catalog';
-
-      navigate(nextUrl);
-      return;
-    }
-
-    params.set('search', value);
-
-    const nextUrl = `/catalog?${params.toString()}`;
-    navigate(nextUrl);
-  }
-
-  function loadSearchSuggestions(value) {
-    const search = value.trim();
-
-    if (!search) {
-      searchLoadControllerRef.current?.abort();
-      searchLoadControllerRef.current = null;
-      setSearchSuggestions([]);
-      setIsSearchCatalogLoading(false);
-      return;
-    }
-
-    searchLoadControllerRef.current?.abort();
-    const controller = new AbortController();
-    searchLoadControllerRef.current = controller;
-    setIsSearchCatalogLoading(true);
-
-    fetchProductSuggestions(search, SEARCH_SUGGESTIONS_LIMIT, controller.signal)
-      .then((items) => {
-        setSearchSuggestions(Array.isArray(items) ? items : []);
-      })
-      .catch((error) => {
-        if (error.name !== 'AbortError') {
-          captureException(error, { source: 'MainLayout.searchSuggestions' });
-          setSearchSuggestions([]);
-        }
-      })
-      .finally(() => {
-        if (searchLoadControllerRef.current === controller) {
-          searchLoadControllerRef.current = null;
-          setIsSearchCatalogLoading(false);
-        }
-      });
-  }
-
-  function handleSearchInputChange(event) {
-    const value = event.target.value;
-    setHeaderSearch(value);
-    setIsSearchSuggestionsOpen(true);
-    loadSearchSuggestions(value);
-  }
-
-  function handleSearchSuggestionClick(mark) {
-    setHeaderSearch(mark);
-    setIsSearchSuggestionsOpen(false);
-    trackEvent('search-submit', { query: mark, source: 'header-suggestion' });
-    navigate(`/catalog?search=${encodeURIComponent(mark)}`);
-  }
 
   function handleLogoClick(event) {
     if (location.pathname === '/' && !location.search && !location.hash) {
@@ -456,15 +251,18 @@ export default function MainLayout() {
                 className="site-header__logo"
                 onClick={handleLogoClick}
               >
-                <img
-                  src="/logo.png"
-                  alt="ЮжУралЭлектроКабель"
-                  className="site-header__logo-image"
-                  width="600"
-                  height="160"
-                  loading="eager"
-                  decoding="async"
-                />
+                <picture>
+                  <source srcSet="/logo.webp" type="image/webp" />
+                  <img
+                    src="/logo.png"
+                    alt="ЮжУралЭлектроКабель"
+                    className="site-header__logo-image"
+                    width="600"
+                    height="160"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </picture>
               </Link>
 
               <div className="site-header__main-right">
@@ -498,6 +296,7 @@ export default function MainLayout() {
                   className="mobile-menu-button"
                   onClick={() => setIsMobileNavOpen(true)}
                   aria-label="Открыть меню"
+                  aria-controls={MOBILE_NAV_ID}
                   aria-expanded={isMobileNavOpen}
                 >
                   <span />
@@ -513,96 +312,9 @@ export default function MainLayout() {
           <Container>
             <div className="site-header__nav-inner">
               <div className="site-header__menu">
-                <div
-                  ref={catalogWrapperRef}
-                  className="catalog-wrapper"
-                  onMouseLeave={closeCatalogMenu}
-                >
-                  <button
-                    type="button"
-                    className={`catalog-button ${
-                      isCatalogPage || isCatalogOpen
-                        ? 'catalog-button--active'
-                        : ''
-                    }`}
-                    onMouseEnter={openCatalogMenu}
-                    onClick={pinCatalogMenuOpen}
-                  >
-                    <span className="catalog-button__icon" aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                    <span>Каталог</span>
-                  </button>
-
-                  {isCatalogOpen && (
-                    <>
-                      <div
-                        className="catalog-hover-bridge"
-                        onMouseEnter={openCatalogMenu}
-                        onMouseLeave={closeCatalogMenu}
-                      />
-
-                      <div
-                        className="catalog-dropdown"
-                        onMouseEnter={openCatalogMenu}
-                        onMouseLeave={closeCatalogMenu}
-                      >
-                        <div className="catalog-dropdown__sidebar">
-                          <div className="catalog-dropdown__sidebar-title">
-                            {cableSection?.name || 'Кабель и провод'}
-                          </div>
-                          {catalogMenu.map((group, index) => (
-                            <button
-                              key={group.title}
-                              type="button"
-                              className={`catalog-dropdown__sidebar-item ${
-                                activeCatalogIndex === index
-                                  ? 'catalog-dropdown__sidebar-item--active'
-                                  : ''
-                              }`}
-                              onMouseEnter={() => setActiveCatalogIndex(index)}
-                              onClick={() =>
-                                handleCatalogNavigate(
-                                  group.links[0]?.to || '/catalog'
-                                )
-                              }
-                            >
-                              {group.title}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="catalog-dropdown__content">
-                          <div className="catalog-dropdown__group">
-                            <div className="catalog-dropdown__group-title">
-                              {activeCatalogGroup.title}
-                            </div>
-
-                            <div className="catalog-dropdown__group-subtitle">
-                              Выберите нужную подкатегорию и перейдите в
-                              каталог.
-                            </div>
-
-                            <div className="catalog-dropdown__links catalog-dropdown__links--wide">
-                              {activeCatalogGroup.links.map((link) => (
-                                <button
-                                  key={link.label}
-                                  type="button"
-                                  className="catalog-dropdown__link"
-                                  onClick={() => handleCatalogNavigate(link.to)}
-                                >
-                                  {link.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                <Suspense fallback={<CatalogButtonFallback />}>
+                  <LazyHeaderCatalogMenu />
+                </Suspense>
 
                 <NavLink
                   to="/delivery"
@@ -630,70 +342,9 @@ export default function MainLayout() {
                 </NavLink>
               </div>
 
-              <form
-                className="site-header__search-inline"
-                onSubmit={handleSearchSubmit}
-              >
-                <div className="site-header__search-field">
-                  <input
-                    className="site-header__search-input"
-                    placeholder="Поиск по каталогу..."
-                    value={headerSearch}
-                    onChange={handleSearchInputChange}
-                    onFocus={() => {
-                      setIsSearchSuggestionsOpen(true);
-                      if (headerSearch.trim()) {
-                        loadSearchSuggestions(headerSearch);
-                      }
-                    }}
-                    onBlur={() => {
-                      window.setTimeout(() => {
-                        setIsSearchSuggestionsOpen(false);
-                      }, 120);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape') {
-                        setIsSearchSuggestionsOpen(false);
-                      }
-                    }}
-                    aria-autocomplete="list"
-                    aria-expanded={Boolean(shouldShowSearchSuggestions)}
-                  />
-
-                  {shouldShowSearchSuggestions ? (
-                    <div className="site-header__search-suggestions">
-                      {isSearchCatalogLoading &&
-                      searchSuggestions.length === 0 ? (
-                        <div className="site-header__search-suggestion-status">
-                          Загружаем марки...
-                        </div>
-                      ) : (
-                        searchSuggestions.map((suggestion) => (
-                          <button
-                            key={suggestion.key}
-                            type="button"
-                            className="site-header__search-suggestion"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() =>
-                              handleSearchSuggestionClick(suggestion.mark)
-                            }
-                          >
-                            <span className="site-header__search-suggestion-mark">
-                              {suggestion.mark}
-                            </span>
-                            <span className="site-header__search-suggestion-count">
-                              {formatPositionCount(suggestion.count)}
-                            </span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-                <button type="submit" className="site-header__search-button">
-                  Найти
-                </button>
-              </form>
+              <Suspense fallback={<HeaderSearchFallback />}>
+                <LazyHeaderSearch />
+              </Suspense>
 
               <div className="site-header__actions">
                 <Link
@@ -766,35 +417,26 @@ export default function MainLayout() {
         </div>
       ) : null}
 
-      <MobileNav
-        isOpen={isMobileNavOpen}
-        catalogMenu={catalogMenu}
-        favoritesCount={favoritesCount}
-        totalCount={totalCount}
-        onClose={() => setIsMobileNavOpen(false)}
-        onOpenQuote={() =>
-          openLeadModal({
-            title: 'Получить КП',
-            subtitle:
-              'Оставьте телефон и список нужных позиций — подготовим коммерческое предложение.',
-            submitLabel: 'Получить КП',
-            source: 'Мобильное меню',
-          })
-        }
-      />
-
-      {isCatalogPinnedOpen && (
-        <button
-          type="button"
-          className="catalog-page-lock"
-          aria-label="Закрыть каталог"
-          onClick={() => {
-            clearCatalogCloseTimeout();
-            setIsCatalogOpen(false);
-            setIsCatalogPinnedOpen(false);
-          }}
-        />
-      )}
+      {isMobileNavOpen ? (
+        <Suspense fallback={null}>
+          <LazyMobileNav
+            id={MOBILE_NAV_ID}
+            isOpen={isMobileNavOpen}
+            favoritesCount={favoritesCount}
+            totalCount={totalCount}
+            onClose={() => setIsMobileNavOpen(false)}
+            onOpenQuote={() =>
+              openLeadModal({
+                title: 'Получить КП',
+                subtitle:
+                  'Оставьте телефон и список нужных позиций — подготовим коммерческое предложение.',
+                submitLabel: 'Получить КП',
+                source: 'Мобильное меню',
+              })
+            }
+          />
+        </Suspense>
+      ) : null}
 
       <main>
         <Suspense
@@ -828,16 +470,18 @@ export default function MainLayout() {
         onClose={() => setIsLeadModalOpen(false)}
         windowClassName="modal-window--lead"
       >
-        <HeroLeadForm
-          title={leadModalOptions.title || 'Получить КП или заказать звонок'}
-          subtitle={
-            leadModalOptions.subtitle ||
-            'Оставьте телефон и комментарий — менеджер свяжется с вами.'
-          }
-          submitLabel={leadModalOptions.submitLabel || 'Отправить заявку'}
-          defaultComment={leadModalOptions.comment || ''}
-          source={leadModalOptions.source || 'Короткая форма'}
-        />
+        <Suspense fallback={<ModalFormFallback />}>
+          <LazyHeroLeadForm
+            title={leadModalOptions.title || 'Получить КП или заказать звонок'}
+            subtitle={
+              leadModalOptions.subtitle ||
+              'Оставьте телефон и комментарий — менеджер свяжется с вами.'
+            }
+            submitLabel={leadModalOptions.submitLabel || 'Отправить заявку'}
+            defaultComment={leadModalOptions.comment || ''}
+            source={leadModalOptions.source || 'Короткая форма'}
+          />
+        </Suspense>
       </Modal>
 
       <Modal
@@ -847,11 +491,15 @@ export default function MainLayout() {
           setQuoteModalOptions({});
         }}
       >
-        <QuoteForm
-          title={quoteModalOptions.title || 'Запрос коммерческого предложения'}
-          description={quoteModalOptions.description}
-          itemsOverride={quoteModalOptions.items || null}
-        />
+        <Suspense fallback={<ModalFormFallback />}>
+          <LazyQuoteForm
+            title={
+              quoteModalOptions.title || 'Запрос коммерческого предложения'
+            }
+            description={quoteModalOptions.description}
+            itemsOverride={quoteModalOptions.items || null}
+          />
+        </Suspense>
       </Modal>
     </div>
   );

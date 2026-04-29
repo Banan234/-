@@ -18,6 +18,10 @@ services:
       # Прокси-цепочка nginx → app: один прыжок, доверяем X-Forwarded-* от Nginx.
       NODE_ENV: production
       PORT: 3001
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-uniquelocal}
+      # importPrice пишет runtime-public артефакты сюда, а web отдаёт их
+      # поверх файлов, запечённых в образ при build.
+      PUBLIC_ARTIFACTS_DIR: /app/data/public
     expose:
       - '3001'
     volumes:
@@ -57,6 +61,9 @@ services:
     depends_on:
       app:
         condition: service_healthy
+    volumes:
+      # Актуальные sitemap/robots/redirects/price.xls после runtime-импорта.
+      - ./data:/usr/share/nginx/runtime-data:ro
     healthcheck:
       test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1/healthz']
       interval: 30s

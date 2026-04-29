@@ -62,7 +62,9 @@ RUN apt-get update \
 COPY package.json package-lock.json ./
 COPY --from=prod-deps /home/node/app/node_modules ./node_modules
 COPY server.js ./
+COPY --from=build /home/node/app/dist/index.html ./dist/index.html
 COPY lib ./lib
+COPY shared ./shared
 COPY data ./data
 COPY scripts ./scripts
 
@@ -111,6 +113,8 @@ RUN { \
     && mv /tmp/nginx.conf /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /home/node/app/dist /usr/share/nginx/html
+RUN mkdir -p /usr/share/nginx/runtime-data/public \
+    && cp -f /usr/share/nginx/html/redirects.nginx.conf /usr/share/nginx/runtime-data/public/redirects.nginx.conf 2>/dev/null || true
 
 EXPOSE 80
 

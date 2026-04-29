@@ -11,5 +11,6 @@ data/productRegistry.json
 data/import-history.json
 data/import-report.json
 data/import-report.html
+data/public/
 public/redirects.json
 public/redirects.nginx.conf

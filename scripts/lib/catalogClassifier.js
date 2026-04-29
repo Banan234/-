@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 // Загрузка данных при старте
 // ---------------------------------------------------------------------------
 
-const catalogCategoriesRaw = readJson('../../data/catalogCategories.json');
+const catalogCategoriesRaw = readJson('../../shared/catalogCategories.json');
 const catalogRulesRaw = readJson('../../data/catalogRules.json');
 const sourceCategoryMapRaw = readJson('../../data/catalogSourceMap.json');
 const brandMapRaw = readJson('../../data/catalogBrandMap.json');

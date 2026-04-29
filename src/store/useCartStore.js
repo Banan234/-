@@ -1,5 +1,5 @@
 import { createItemsStore } from './createItemsStore.js';
-import { MAX_QUOTE_ITEMS } from '../../lib/quoteValidation.js';
+import { MAX_QUOTE_ITEMS } from '../../shared/quoteValidation.js';
 
 export const MAX_CART_ITEMS = MAX_QUOTE_ITEMS;
 

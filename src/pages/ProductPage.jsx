@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Container from '../components/ui/Container';
 import ProductCard from '../components/ui/ProductCard';
@@ -9,33 +9,49 @@ import { useSEO } from '../hooks/useSEO';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { trackEvent } from '../lib/analytics';
 import { captureException } from '../lib/errorTracking';
+import { usePrerenderData } from '../lib/prerenderData';
 import {
   buildProductBreadcrumbJsonLd,
   buildProductJsonLd,
+  buildProductMetaDescription,
   getProductBreadcrumbs,
 } from '../lib/productSeo';
-import { messages } from '../../lib/messages.js';
-import '../styles/sections/commerce.css';
+import { messages } from '../../shared/messages.js';
+import '../styles/sections/product-detail.css';
 
 const BREADCRUMB_JSON_LD_ID = 'product-breadcrumb-json-ld';
 const PRODUCT_JSON_LD_ID = 'product-product-json-ld';
 
+function getProductDisplayTitle(product) {
+  return (
+    product?.title || product?.fullName || product?.name || product?.mark || ''
+  );
+}
+
 export default function ProductPage() {
   const { slug } = useParams();
+  const prerenderData = usePrerenderData();
+  const initialProduct =
+    prerenderData.product && prerenderData.product.slug === slug
+      ? prerenderData.product
+      : null;
   const addItem = useCartStore((state) => state.addItem);
   const toggleFavorite = useFavoritesStore((state) => state.toggleItem);
   const [quantity, setQuantity] = useState(1);
-  const [product, setProduct] = useState(null);
+  const [product, setProduct] = useState(() => initialProduct);
   const [relatedProducts, setRelatedProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !initialProduct);
   const [error, setError] = useState('');
+  const quantityInputId = useId();
   const isFavorite = useFavoritesStore((state) =>
     state.isFavorite(product?.id)
   );
 
   useSEO({
-    title: product ? product.title : undefined,
-    description: product ? product.description : '',
+    title: product ? getProductDisplayTitle(product) : undefined,
+    description: product
+      ? product.description || buildProductMetaDescription(product)
+      : '',
     ogType: 'product',
     image: product?.image,
     canonical: product ? `/product/${product.slug}` : undefined,
@@ -44,19 +60,37 @@ export default function ProductPage() {
   useEffect(() => {
     const controller = new AbortController();
     setQuantity(1);
+    setRelatedProducts([]);
+
+    if (initialProduct) {
+      setProduct(initialProduct);
+      setIsLoading(false);
+      setError('');
+
+      fetchRelatedProducts(slug, 6, controller.signal)
+        .then(setRelatedProducts)
+        .catch((requestError) => {
+          if (requestError.name === 'AbortError') return;
+          captureException(requestError, {
+            source: 'ProductPage.loadRelatedProducts',
+            slug: typeof slug === 'string' ? slug : undefined,
+          });
+          setRelatedProducts([]);
+        });
+
+      return () => controller.abort();
+    }
+
+    setProduct(null);
 
     async function load() {
       try {
         setIsLoading(true);
         setError('');
 
-        const [item, related] = await Promise.all([
-          fetchProductBySlug(slug, controller.signal),
-          fetchRelatedProducts(slug, 6, controller.signal),
-        ]);
+        const item = await fetchProductBySlug(slug, controller.signal);
 
         setProduct(item);
-        setRelatedProducts(related);
         if (item) {
           trackEvent('product-view', {
             sku: item.sku || item.id,
@@ -77,15 +111,32 @@ export default function ProductPage() {
         setError(
           requestError.message || messages.errors.productApi.productLoadFailed
         );
-      } finally {
         setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(false);
+
+      try {
+        const related = await fetchRelatedProducts(slug, 6, controller.signal);
+        setRelatedProducts(related);
+      } catch (requestError) {
+        if (requestError.name === 'AbortError') {
+          return;
+        }
+
+        captureException(requestError, {
+          source: 'ProductPage.loadRelatedProducts',
+          slug: typeof slug === 'string' ? slug : undefined,
+        });
+        setRelatedProducts([]);
       }
     }
 
     load();
 
     return () => controller.abort();
-  }, [slug]);
+  }, [initialProduct, slug]);
 
   const breadcrumbJsonLd = buildProductBreadcrumbJsonLd(product);
   const productJsonLd = buildProductJsonLd(product);
@@ -137,6 +188,17 @@ export default function ProductPage() {
     );
   }
 
+  const manufacturerName = String(product.manufacturer || '').trim();
+  const productTitle = getProductDisplayTitle(product);
+  const productDescription =
+    product.description || buildProductMetaDescription(product);
+  const productImage = product.image || '/product-placeholder.svg';
+  const isProductInStock =
+    typeof product.inStock === 'boolean'
+      ? product.inStock
+      : Number(product.stock) > 0;
+  const leadTime = product.leadTime || 'уточняем';
+
   return (
     <section className="section">
       <Container>
@@ -185,8 +247,8 @@ export default function ProductPage() {
         <div className="product-page">
           <div className="product-page__media">
             <img
-              src={product.image}
-              alt={product.title}
+              src={productImage}
+              alt={productTitle}
               className="product-page__image"
               width="560"
               height="320"
@@ -197,28 +259,30 @@ export default function ProductPage() {
 
           <div className="product-page__content">
             <div className="product-page__category">{product.category}</div>
-            <h1 className="page-title">{product.title}</h1>
+            <h1 className="page-title">{productTitle}</h1>
 
             <div className="product-page__meta">
               <div>SKU: {product.sku}</div>
-              <div>Производитель: {product.manufacturer}</div>
+              {manufacturerName ? (
+                <div>Производитель: {manufacturerName}</div>
+              ) : null}
             </div>
 
-            <p className="page-subtitle">{product.description}</p>
+            <p className="page-subtitle">{productDescription}</p>
 
             <div className="product-page__status-row">
               <span
                 className={
-                  product.inStock
+                  isProductInStock
                     ? 'product-page__status product-page__status--in-stock'
                     : 'product-page__status product-page__status--out'
                 }
               >
-                {product.inStock ? 'В наличии' : 'Под заказ'}
+                {isProductInStock ? 'В наличии' : 'Под заказ'}
               </span>
 
               <span className="product-page__lead-time">
-                Срок поставки: {product.leadTime}
+                Срок поставки: {leadTime}
               </span>
             </div>
 
@@ -239,7 +303,11 @@ export default function ProductPage() {
                   −
                 </button>
 
+                <label className="visually-hidden" htmlFor={quantityInputId}>
+                  Количество товара
+                </label>
                 <input
+                  id={quantityInputId}
                   type="number"
                   value={quantity}
                   min="1"

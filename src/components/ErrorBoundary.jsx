@@ -1,6 +1,6 @@
 import { Component } from 'react';
 import { captureException } from '../lib/errorTracking';
-import { messages } from '../../lib/messages.js';
+import { messages } from '../../shared/messages.js';
 
 // React ErrorBoundary, который ловит throw на этапе render/lifecycle
 // и сообщает в Sentry/GlitchTip через captureException. Без VITE_SENTRY_DSN

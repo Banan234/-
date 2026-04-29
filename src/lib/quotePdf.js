@@ -11,7 +11,7 @@ import {
   SITE_PHONE_DISPLAY,
   SITE_URL,
 } from './siteConfig.js';
-import { formatMessage, messages } from '../../lib/messages.js';
+import { formatMessage, messages } from '../../shared/messages.js';
 
 const COMPANY = {
   name: SITE_NAME,

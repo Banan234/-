@@ -13,14 +13,19 @@
     "format:check": "prettier --check .",
     "build": "vite build",
     "prerender": "node scripts/prerender.js",
-    "build:prod": "vite build && node scripts/prerender.js",
+    "build:ssr": "vite build --ssr src/entry-server.jsx --outDir dist/server",
+    "precompress": "node scripts/precompress.js",
+    "build:prod": "vite build && npm run build:ssr && node scripts/prerender.js && npm run precompress",
     "preview": "vite preview",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
+    "load:test": "node scripts/loadTest.js",
+    "load:soak": "LOAD_DURATION_SEC=1800 LOAD_CONCURRENCY=50,100,200 node scripts/loadTest.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@e965/xlsx": "^0.20.3",
     "@sentry/react": "^10.50.0",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
@@ -35,7 +40,6 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.1",
-    "xlsx": "^0.18.5",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

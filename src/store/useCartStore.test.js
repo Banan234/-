@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAX_QUOTE_ITEMS } from '../../lib/quoteValidation.js';
+import { MAX_QUOTE_ITEMS } from '../../shared/quoteValidation.js';
 
 // Минимальный shim localStorage для zustand persist в node-окружении.
 beforeEach(() => {

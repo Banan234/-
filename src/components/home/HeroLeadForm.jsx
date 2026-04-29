@@ -1,8 +1,9 @@
 import { useId, useRef, useState } from 'react';
 import HoneypotField from '../forms/HoneypotField';
+import { expectOkApiJson } from '../../lib/apiResponse';
 import { captureException } from '../../lib/errorTracking';
-import { isValidRussianPhone } from '../../../lib/quoteValidation.js';
-import { formatMessage, messages } from '../../../lib/messages.js';
+import { isValidRussianPhone } from '../../../shared/quoteValidation.js';
+import { formatMessage, messages } from '../../../shared/messages.js';
 
 const quickCommentOptions = [
   { label: 'ВВГ', value: 'ВВГ' },
@@ -152,13 +153,10 @@ export default function HeroLeadForm({
         }),
       });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.ok) {
-        throw new Error(
-          result.message || messages.errors.leadForm.submitFailed
-        );
-      }
+      const result = await expectOkApiJson(
+        response,
+        messages.errors.leadForm.submitFailed
+      );
 
       setIsSubmitted(true);
       setServerMessage(result.message || messages.success.leadSent);

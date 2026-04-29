@@ -1,6 +1,19 @@
+import { Suspense, lazy } from 'react';
 import Container from '../components/ui/Container';
-import HeroLeadForm from '../components/home/HeroLeadForm';
 import { useSEO } from '../hooks/useSEO';
+
+const LazyHeroLeadForm = lazy(() => import('../components/home/HeroLeadForm'));
+
+function ContactFormFallback() {
+  return (
+    <div className="hero-lead-card hero-lead-card--loading" aria-busy="true">
+      <div className="hero-lead-card__head">
+        <h2 className="hero-lead-card__title">Напишите нам</h2>
+        <p className="hero-lead-card__subtitle">Загружаем форму...</p>
+      </div>
+    </div>
+  );
+}
 
 export default function ContactsPage() {
   useSEO({
@@ -168,12 +181,14 @@ export default function ContactsPage() {
             </div>
 
             <div className="contacts-layout__side">
-              <HeroLeadForm
-                title="Напишите нам"
-                subtitle="Оставьте телефон и вопрос — ответим в рабочее время."
-                submitLabel="Отправить"
-                source="Страница контактов"
-              />
+              <Suspense fallback={<ContactFormFallback />}>
+                <LazyHeroLeadForm
+                  title="Напишите нам"
+                  subtitle="Оставьте телефон и вопрос — ответим в рабочее время."
+                  submitLabel="Отправить"
+                  source="Страница контактов"
+                />
+              </Suspense>
             </div>
           </div>
         </Container>

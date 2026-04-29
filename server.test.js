@@ -27,6 +27,7 @@ const {
   createApp,
   createTransporter,
   getMailSendOptions,
+  getRuntimeHealthSnapshot,
   getSmtpTransportOptions,
   isRetryableMailError,
   sendMailWithRetry,
@@ -36,7 +37,7 @@ const {
 } = await import('./server.js');
 const { createCatalogQueryStore } = await import('./lib/catalogQuery.js');
 const { MAX_QUOTE_ITEM_COMMENT_LENGTH, MAX_QUOTE_PAYLOAD_BYTES } =
-  await import('./lib/quoteValidation.js');
+  await import('./shared/quoteValidation.js');
 
 let server;
 let baseUrl;
@@ -275,8 +276,99 @@ describe('GET /api/health', () => {
     expect(data.ok).toBe(true);
     expect(typeof data.uptime).toBe('number');
     expect(typeof data.ts).toBe('number');
+    expect(data.runtime).toBeUndefined();
+  });
+});
+
+describe('GET /api/runtime', () => {
+  it('скрывает runtime-метрики без внутреннего токена', async () => {
+    const app = createApp({ rateLimitOptions: { limit: 1000 } });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await fetch(`${localBaseUrl}/api/runtime`);
+      const data = await res.json();
+
+      expect(res.status).toBe(404);
+      expect(data.ok).toBe(false);
+      expect(data.runtime).toBeUndefined();
+    });
   });
 
+  it('возвращает runtime-метрики только с валидным токеном', async () => {
+    const originalToken = process.env.INTERNAL_METRICS_TOKEN;
+    process.env.INTERNAL_METRICS_TOKEN = 'test-runtime-token';
+    const app = createApp({ rateLimitOptions: { limit: 1000 } });
+
+    try {
+      await withTestServer(app, async (localBaseUrl) => {
+        const denied = await fetch(`${localBaseUrl}/api/runtime`, {
+          headers: { authorization: 'Bearer wrong-token' },
+        });
+        expect(denied.status).toBe(404);
+
+        const res = await fetch(`${localBaseUrl}/api/runtime`, {
+          headers: { authorization: 'Bearer test-runtime-token' },
+        });
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data.ok).toBe(true);
+        expect(typeof data.uptime).toBe('number');
+        expect(typeof data.ts).toBe('number');
+        expect(data.runtime).toMatchObject({
+          pid: expect.any(Number),
+          node: expect.any(String),
+          activeRequests: expect.any(Number),
+          memoryMb: {
+            rss: expect.any(Number),
+            heapTotal: expect.any(Number),
+            heapUsed: expect.any(Number),
+            external: expect.any(Number),
+            arrayBuffers: expect.any(Number),
+          },
+          eventLoopDelayMs: {
+            mean: expect.any(Number),
+            p95: expect.any(Number),
+            max: expect.any(Number),
+          },
+          cpuUsageMs: {
+            user: expect.any(Number),
+            system: expect.any(Number),
+          },
+        });
+      });
+    } finally {
+      if (originalToken === undefined) {
+        delete process.env.INTERNAL_METRICS_TOKEN;
+      } else {
+        process.env.INTERNAL_METRICS_TOKEN = originalToken;
+      }
+    }
+  });
+});
+
+describe('runtime health snapshot', () => {
+  it('rounds memory and event loop metrics to compact numeric values', () => {
+    const snapshot = getRuntimeHealthSnapshot({
+      activeRequests: 7,
+      eventLoopDelay: {
+        mean: 1_250_000,
+        max: 9_900_000,
+        percentile: () => 2_500_000,
+      },
+    });
+
+    expect(snapshot.activeRequests).toBe(7);
+    expect(snapshot.memoryMb.rss).toEqual(expect.any(Number));
+    expect(snapshot.eventLoopDelayMs).toEqual({
+      mean: 1.3,
+      p95: 2.5,
+      max: 9.9,
+    });
+  });
+});
+
+describe('security headers', () => {
   it('выставляет security headers', async () => {
     const res = await fetch(`${baseUrl}/api/health`);
     const csp = res.headers.get('content-security-policy');
@@ -430,7 +522,6 @@ describe('SMTP delivery', () => {
 
   it('uses safe defaults for SMTP send retry settings', () => {
     expect(getMailSendOptions({})).toEqual({
-      timeoutMs: 25_000,
       maxRetries: 1,
       retryDelayMs: 750,
     });
@@ -484,7 +575,7 @@ describe('SMTP delivery', () => {
       sendMailWithRetry(
         transporter,
         { subject: 'test' },
-        { timeoutMs: 100, maxRetries: 1, retryDelayMs: 0 }
+        { maxRetries: 1, retryDelayMs: 0 }
       )
     ).resolves.toEqual({ messageId: 'ok' });
     expect(transporter.sendMail).toHaveBeenCalledTimes(2);
@@ -500,24 +591,9 @@ describe('SMTP delivery', () => {
       sendMailWithRetry(
         transporter,
         { subject: 'test' },
-        { timeoutMs: 100, maxRetries: 2, retryDelayMs: 0 }
+        { maxRetries: 2, retryDelayMs: 0 }
       )
     ).rejects.toBe(authError);
-    expect(transporter.sendMail).toHaveBeenCalledTimes(1);
-  });
-
-  it('times out slow SMTP send attempts without retrying unknown delivery state', async () => {
-    const transporter = {
-      sendMail: vi.fn(() => new Promise(() => {})),
-    };
-
-    await expect(
-      sendMailWithRetry(
-        transporter,
-        { subject: 'test' },
-        { timeoutMs: 5, maxRetries: 1, retryDelayMs: 0 }
-      )
-    ).rejects.toMatchObject({ code: 'SMTP_SEND_TIMEOUT' });
     expect(transporter.sendMail).toHaveBeenCalledTimes(1);
   });
 
@@ -525,12 +601,47 @@ describe('SMTP delivery', () => {
     expect(isRetryableMailError({ responseCode: 421 })).toBe(true);
     expect(isRetryableMailError({ responseCode: 550 })).toBe(false);
     expect(isRetryableMailError({ code: 'ETIMEDOUT' })).toBe(true);
-    expect(isRetryableMailError({ code: 'SMTP_SEND_TIMEOUT' })).toBe(false);
     expect(isRetryableMailError({ code: 'EAUTH' })).toBe(false);
   });
 });
 
 describe('GET /api/products', () => {
+  it('warms catalog caches on startup when enabled', async () => {
+    const items = productFixtures;
+    const catalogStore = {
+      loadCatalogProducts: vi.fn(async () => items),
+      getCatalogProductListItems: vi.fn((value) => value),
+      getCatalogProductListItemsByCategory: vi.fn((categorySlug, value) =>
+        value.filter((item) => item.catalogCategorySlug === categorySlug)
+      ),
+      getCatalogProductsByCategory: vi.fn((categorySlug, value) =>
+        value.filter((item) => item.catalogCategorySlug === categorySlug)
+      ),
+      findProductBySlug: vi.fn(async (slug) =>
+        items.find((item) => item.slug === slug)
+      ),
+    };
+    const catalogQueryStore = {
+      getCatalogQueryItems: vi.fn((value) => value),
+      getSearchFilteredProducts: vi.fn((value) => value),
+      getCatalogFacets: vi.fn(() => ({})),
+      getCatalogSections: vi.fn(() => []),
+    };
+
+    const app = createApp({
+      rateLimitOptions: { limit: 1000 },
+      catalogStore,
+      catalogQueryStore,
+      warmCatalogOnStart: true,
+    });
+
+    await app.locals.catalogWarmupPromise;
+
+    expect(catalogStore.loadCatalogProducts).toHaveBeenCalledTimes(1);
+    expect(catalogStore.getCatalogProductListItems).toHaveBeenCalledWith(items);
+    expect(catalogQueryStore.getCatalogSections).toHaveBeenCalledWith(items);
+  });
+
   it('uses injected catalog stores and cached facets provider', async () => {
     const items = [
       {
@@ -710,6 +821,29 @@ describe('GET /api/products', () => {
   });
 });
 
+describe('GET /api/products/featured', () => {
+  it('caches featured list items by catalog identity and limit', async () => {
+    const { app, catalogStore } = createProductCatalogApp();
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const first = await fetch(
+        `${localBaseUrl}/api/products/featured?limit=2`
+      );
+      const second = await fetch(
+        `${localBaseUrl}/api/products/featured?limit=2`
+      );
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      await first.json();
+      await second.json();
+    });
+
+    expect(catalogStore.loadCatalogProducts).toHaveBeenCalledTimes(2);
+    expect(catalogStore.getCatalogProductListItems).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('POST /api/products/lookup', () => {
   async function postLookup(localBaseUrl, body, headers = {}) {
     return fetch(`${localBaseUrl}/api/products/lookup`, {
@@ -805,7 +939,7 @@ describe('POST /api/quote', () => {
     const app = createApp({
       rateLimitOptions: { limit: 1000 },
       mailTransporter,
-      mailSendOptions: { timeoutMs: 100, maxRetries: 1, retryDelayMs: 0 },
+      mailSendOptions: { maxRetries: 1, retryDelayMs: 0 },
     });
 
     await withTestServer(app, async (localBaseUrl) => {
@@ -819,14 +953,17 @@ describe('POST /api/quote', () => {
     expect(mailTransporter.sendMail).toHaveBeenCalledTimes(2);
   });
 
-  it('500 при зависшем SMTP после send timeout', async () => {
+  it('500 при финальной SMTP-ошибке после transport timeout', async () => {
+    const timeoutError = Object.assign(new Error('socket timeout'), {
+      code: 'ETIMEDOUT',
+    });
     const mailTransporter = {
-      sendMail: vi.fn(() => new Promise(() => {})),
+      sendMail: vi.fn().mockRejectedValue(timeoutError),
     };
     const app = createApp({
       rateLimitOptions: { limit: 1000 },
       mailTransporter,
-      mailSendOptions: { timeoutMs: 5, maxRetries: 0, retryDelayMs: 0 },
+      mailSendOptions: { maxRetries: 0, retryDelayMs: 0 },
     });
 
     await withTestServer(app, async (localBaseUrl) => {

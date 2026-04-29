@@ -4,13 +4,14 @@ import Container from '../components/ui/Container';
 import { useCartStore } from '../store/useCartStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useSEO } from '../hooks/useSEO';
-import '../styles/sections/commerce.css';
+import '../styles/sections/cart-favorites.css';
 
 export default function FavoritesPage() {
   useSEO({
     title: 'Избранное',
     description:
       'Сохранённые товары из каталога кабельно-проводниковой продукции ЮжУралЭлектроКабель.',
+    noindex: true,
   });
   const addItem = useCartStore((state) => state.addItem);
   const { items, removeItem, clearFavorites } = useFavoritesStore();

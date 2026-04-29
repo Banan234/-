@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { CATALOG_MENU } from './catalogMenuData';
 
 export default function MobileNav({
+  id,
   isOpen,
-  catalogMenu,
   favoritesCount,
   totalCount,
   onClose,
@@ -38,6 +39,7 @@ export default function MobileNav({
 
   return (
     <div
+      id={id}
       className="mobile-nav"
       role="dialog"
       aria-modal="true"
@@ -53,14 +55,17 @@ export default function MobileNav({
       <div className="mobile-nav__panel">
         <div className="mobile-nav__top">
           <Link to="/" className="mobile-nav__logo" onClick={onClose}>
-            <img
-              src="/logo.png"
-              alt="ЮжУралЭлектроКабель"
-              width="600"
-              height="160"
-              loading="lazy"
-              decoding="async"
-            />
+            <picture>
+              <source srcSet="/logo.webp" type="image/webp" />
+              <img
+                src="/logo.png"
+                alt="ЮжУралЭлектроКабель"
+                width="600"
+                height="160"
+                loading="lazy"
+                decoding="async"
+              />
+            </picture>
           </Link>
 
           <button
@@ -77,7 +82,7 @@ export default function MobileNav({
           <div className="mobile-nav__section">
             <div className="mobile-nav__section-title">Каталог</div>
             <div className="mobile-nav__catalog">
-              {catalogMenu.map((group) => (
+              {CATALOG_MENU.map((group) => (
                 <details
                   key={group.slug || group.title}
                   className="mobile-nav__catalog-group"

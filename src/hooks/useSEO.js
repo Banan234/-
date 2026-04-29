@@ -49,6 +49,7 @@ export function useSEO({
   ogType = 'website',
   image = DEFAULT_OG_IMAGE,
   canonical,
+  noindex = false,
 } = {}) {
   // useLocation подписан на роутер, чтобы canonical обновлялся при SPA-переходе
   // даже если сама страница не передала canonical явно.
@@ -78,7 +79,8 @@ export function useSEO({
     upsertMeta('name', 'twitter:title', fullTitle);
     upsertMeta('name', 'twitter:description', metaDescription);
     upsertMeta('name', 'twitter:image', ogImage);
+    upsertMeta('name', 'robots', noindex ? 'noindex,follow' : '');
 
     upsertLink('canonical', canonicalUrl);
-  }, [fullTitle, metaDescription, ogType, ogImage, canonicalUrl]);
+  }, [fullTitle, metaDescription, ogType, ogImage, canonicalUrl, noindex]);
 }

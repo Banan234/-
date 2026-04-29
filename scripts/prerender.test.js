@@ -6,11 +6,13 @@ import {
   buildJsonLdScripts,
   buildMetaTags,
   buildCompactProductBodyShell,
+  buildPrerenderDataScript,
   buildProductBodyShell,
   extractProductsPayload,
   injectIntoTemplate,
   injectIntoThinTemplate,
   loadProducts,
+  loadServerRenderer,
   loadTemplate,
   minifyPrerenderHtml,
   prerender,
@@ -58,6 +60,18 @@ const product = {
 
 const tempDirs = [];
 
+function createRenderAppMock() {
+  return vi.fn((url, { prerenderData = {} } = {}) =>
+    [
+      '<main data-ssr="true" data-url="',
+      url,
+      '">',
+      prerenderData.product?.title || 'SSR shell',
+      '</main>',
+    ].join('')
+  );
+}
+
 async function makeTempDir() {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'yuzhural-prerender-'));
   tempDirs.push(dir);
@@ -97,6 +111,20 @@ describe('prerender HTML helpers', () => {
     expect(html).not.toContain('https://old.example/');
     expect(html.match(/name="description"/g)).toHaveLength(1);
     expect(html.match(/application\/ld\+json/g)).toHaveLength(1);
+  });
+
+  it('добавляет данные prerender до клиентской гидратации', () => {
+    const html = injectIntoTemplate(template, {
+      headExtras: '<title>New title</title>',
+      bodyShell: '<main data-ssr="true">SSR shell</main>',
+      bodyEndExtras: buildPrerenderDataScript({
+        product: { slug: 'bad-script', title: '</script><script>alert(1)' },
+      }),
+    });
+
+    expect(html).toContain('window.__YUZHURAL_PRERENDER_DATA__=');
+    expect(html).toContain('\\u003c/script>');
+    expect(html).not.toContain('</script><script>alert(1)');
   });
 
   it('строит компактный product HTML без fallback-комментариев и старых SEO-тегов', () => {
@@ -183,7 +211,7 @@ describe('prerender HTML helpers', () => {
     expect(html).not.toContain('</script><script>');
   });
 
-  it('строит скрытый product-shell с хлебными крошками и характеристиками', () => {
+  it('строит видимый product-shell с хлебными крошками и характеристиками', () => {
     const html = buildProductBodyShell({
       ...product,
       title: 'ВВГ <опасный тег>',
@@ -195,6 +223,7 @@ describe('prerender HTML helpers', () => {
     expect(html).toContain('Кабель &amp; провод');
     expect(html).toContain('<dt>Жилы</dt><dd>3+1</dd>');
     expect(html).toContain('<dt>Производитель</dt><dd>Завод &amp; Ко</dd>');
+    expect(html).not.toContain('display:none');
     expect(html).not.toContain('<опасный тег>');
   });
 
@@ -203,6 +232,7 @@ describe('prerender HTML helpers', () => {
 
     expect(html).toContain('<h1>ВВГнг(A)-LS 3х2,5</h1>');
     expect(html).toContain('<p>');
+    expect(html).not.toContain('display:none');
     expect(html).not.toContain('<nav');
     expect(html).not.toContain('<dl');
   });
@@ -213,6 +243,7 @@ describe('prerender IO flow', () => {
     const distDir = await makeTempDir();
     const productsFile = path.join(distDir, 'products.json');
     const log = vi.fn();
+    const renderApp = createRenderAppMock();
 
     await writeFile(path.join(distDir, 'index.html'), template, 'utf8');
     await writeFile(productsFile, JSON.stringify({ items: [product] }), 'utf8');
@@ -222,6 +253,7 @@ describe('prerender IO flow', () => {
       productsPath: productsFile,
       log,
       warn: vi.fn(),
+      renderApp,
     });
 
     const homeHtml = await readFile(path.join(distDir, 'index.html'), 'utf8');
@@ -234,8 +266,9 @@ describe('prerender IO flow', () => {
       'utf8'
     );
 
-    expect(homeHtml).toContain('оптовая поставка кабельной продукции');
-    expect(catalogHtml).toContain('<h1>Каталог кабельной продукции</h1>');
+    expect(homeHtml).toContain('<main data-ssr="true" data-url="/">');
+    expect(homeHtml).not.toContain('display:none');
+    expect(catalogHtml).toContain('<main data-ssr="true" data-url="/catalog">');
     expect(productHtml).toContain(
       `<link rel="canonical" href="${SITE_URL}/product/${product.slug}">`
     );
@@ -244,7 +277,12 @@ describe('prerender IO flow', () => {
     );
     expect(productHtml).toContain('"@type":"Product"');
     expect(productHtml).toContain('"price":"125.50"');
-    expect(productHtml).toContain('<h1>ВВГнг(A)-LS 3х2,5</h1>');
+    expect(productHtml).toContain('ВВГнг(A)-LS 3х2,5');
+    expect(productHtml).toContain('window.__YUZHURAL_PRERENDER_DATA__=');
+    expect(renderApp).toHaveBeenCalledWith('/product/vvgng-ls-3h2-5', {
+      prerenderData: { product },
+    });
+    expect(productHtml).not.toContain('display:none');
     expect(productHtml).not.toContain('<nav');
     expect(productHtml).not.toContain('<dl');
     expect(log).toHaveBeenCalledWith(
@@ -308,6 +346,14 @@ describe('prerender IO flow', () => {
 
     await expect(loadTemplate({ outputDir: distDir })).rejects.toThrow(
       'dist/index.html не содержит <div id="root">'
+    );
+  });
+
+  it('падает понятной ошибкой, если SSR bundle не собран', async () => {
+    const distDir = await makeTempDir();
+
+    await expect(loadServerRenderer({ outputDir: distDir })).rejects.toThrow(
+      'SSR bundle не найден'
     );
   });
 

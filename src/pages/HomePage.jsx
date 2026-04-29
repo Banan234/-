@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import Container from '../components/ui/Container';
-import HeroLeadForm from '../components/home/HeroLeadForm';
 import CategoryShowcase from '../components/home/CategoryShowcase';
 import StockProductsGrid from '../components/home/StockProductsGrid';
 import { fetchFeaturedProducts } from '../lib/productsApi';
 import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useJsonLd } from '../hooks/useJsonLd';
-import { messages } from '../../lib/messages.js';
+import { messages } from '../../shared/messages.js';
 import {
   SITE_ADDRESS,
   SITE_DESCRIPTION,
@@ -22,7 +21,6 @@ import {
   absoluteUrl,
 } from '../lib/siteConfig';
 import '../styles/sections/home.css';
-import '../styles/sections/commerce.css';
 
 const heroBenefits = [
   'Более 5 000 позиций в наличии',
@@ -30,6 +28,21 @@ const heroBenefits = [
   '16 лет на рынке',
   'Работаем с НДС и по договору',
 ];
+
+const LazyHeroLeadForm = lazy(() => import('../components/home/HeroLeadForm'));
+
+function HeroLeadFormFallback() {
+  return (
+    <div className="hero-lead-card hero-lead-card--loading" aria-busy="true">
+      <div className="hero-lead-card__head">
+        <h2 className="hero-lead-card__title">
+          Не тратьте время на поиск кабеля
+        </h2>
+        <p className="hero-lead-card__subtitle">Загружаем форму...</p>
+      </div>
+    </div>
+  );
+}
 
 const audienceSegments = [
   {
@@ -254,7 +267,27 @@ export default function HomePage() {
     <>
       <div className="home-hero-zone">
         <section className="home-hero">
-          <div className="home-hero__bg" aria-hidden="true" />
+          <picture className="home-hero__bg" aria-hidden="true">
+            <source
+              srcSet="/hero-bg-768.avif 768w, /hero-bg-1536.avif 1536w"
+              sizes="100vw"
+              type="image/avif"
+            />
+            <source
+              srcSet="/hero-bg-768.webp 768w, /hero-bg-1536.webp 1536w"
+              sizes="100vw"
+              type="image/webp"
+            />
+            <img
+              src="/hero-bg-1536.webp"
+              alt=""
+              width="1536"
+              height="1024"
+              fetchPriority="high"
+              loading="eager"
+              decoding="async"
+            />
+          </picture>
           <Container>
             <div className="home-hero__content">
               <h1 className="home-hero__title">
@@ -305,7 +338,9 @@ export default function HomePage() {
         </section>
 
         <div className="home-hero-zone__form">
-          <HeroLeadForm source="Форма в герое главной" />
+          <Suspense fallback={<HeroLeadFormFallback />}>
+            <LazyHeroLeadForm source="Форма в герое главной" />
+          </Suspense>
         </div>
       </div>
 

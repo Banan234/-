@@ -185,6 +185,14 @@
   color: var(--primary-dark);
   text-decoration: none;
 }
+
+.content-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
 @media (max-width: 640px) {
   .products-grid--stock-showcase {
     grid-template-columns: 1fr;

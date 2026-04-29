@@ -6,9 +6,9 @@ import { fetchProducts } from '../lib/productsApi';
 import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useCatalogFilters } from '../hooks/useCatalogFilters';
-import { messages } from '../../lib/messages.js';
-import catalogCategoriesData from '../../data/catalogCategories.json';
-import '../styles/sections/commerce.css';
+import { messages } from '../../shared/messages.js';
+import catalogCategoriesData from '../../shared/catalogCategories.json';
+import '../styles/sections/catalog.css';
 
 const CATALOG_PAGE_SIZE = 24;
 const CATEGORY_ROUTE_FILTERS = { showAppType: true, showSPE: true };
@@ -116,22 +116,7 @@ export default function CatalogPage() {
     return null;
   }, [activeCategoryParam, catalogSections, routeCategory]);
 
-  const currentSectionName = useMemo(() => {
-    if (activeCategory) {
-      const matchedSection = catalogSections.find((section) =>
-        section.categories.some((cat) => cat.slug === activeCategory.slug)
-      );
-      return matchedSection?.name || activeCategory.name;
-    }
-
-    if (catalogSections.length === 1) {
-      return catalogSections[0].name;
-    }
-
-    return catalogSections[0]?.name || 'Каталог продукции';
-  }, [catalogSections, activeCategory]);
-
-  const pageTitle = activeCategory ? activeCategory.name : currentSectionName;
+  const pageTitle = activeCategory ? activeCategory.name : 'Каталог продукции';
   const visibleCount =
     productsMeta.pagination?.total ?? productsMeta.total ?? products.length;
   const catalogCount = productsMeta.catalogCount ?? products.length;

@@ -8,6 +8,11 @@ import {
   parseCombinedCell,
   resolveCategory,
 } from './lib/priceParser.js';
+import {
+  loadTemplate as loadPrerenderTemplate,
+  prerenderProducts,
+  validatePrerenderProducts,
+} from './prerender.js';
 import { classifyProduct, decodeCable } from './lib/catalogClassifier.js';
 import {
   assignStableIdentity,
@@ -44,16 +49,20 @@ const reportHtmlFile = path.join(projectRoot, 'data', 'import-report.html');
 const overridesFile = path.join(projectRoot, 'data', 'priceOverrides.json');
 const importConfigFile = path.join(projectRoot, 'data', 'importConfig.json');
 const registryFile = path.join(projectRoot, 'data', 'productRegistry.json');
-const redirectsFile = path.join(projectRoot, 'public', 'redirects.json');
-const redirectsNginxFile = path.join(
+const publicDir = path.resolve(
   projectRoot,
-  'public',
-  'redirects.nginx.conf'
+  process.env.PUBLIC_ARTIFACTS_DIR || 'public'
 );
-const publicDir = path.join(projectRoot, 'public');
+const redirectsFile = path.join(publicDir, 'redirects.json');
+const redirectsNginxFile = path.join(publicDir, 'redirects.nginx.conf');
+const publicPriceFile = path.join(publicDir, 'price.xls');
+const runtimePrerenderTemplateDir = path.resolve(
+  projectRoot,
+  process.env.PRERENDER_TEMPLATE_DIR || 'dist'
+);
 const catalogCategoriesFile = path.join(
   projectRoot,
-  'data',
+  'shared',
   'catalogCategories.json'
 );
 
@@ -202,7 +211,7 @@ const PAGE_COLUMNS = {
 async function loadWorkbookRows() {
   try {
     const workbookBuffer = await fs.readFile(inputFile);
-    const xlsx = await import('xlsx');
+    const xlsx = await import('@e965/xlsx');
     const workbook = xlsx.read(workbookBuffer, {
       type: 'buffer',
       cellDates: false,
@@ -223,7 +232,9 @@ async function loadWorkbookRows() {
     });
   } catch (error) {
     if (error.code === 'ERR_MODULE_NOT_FOUND') {
-      throw new Error('Пакет "xlsx" не установлен. Выполни: npm install xlsx');
+      throw new Error(
+        'Пакет "@e965/xlsx" не установлен. Выполни: npm install @e965/xlsx'
+      );
     }
 
     throw error;
@@ -577,6 +588,86 @@ async function writeFileAtomic(filePath, data) {
 
 async function saveProducts(products) {
   await writeFileAtomic(outputFile, JSON.stringify(products, null, 2));
+}
+
+async function ensurePublicArtifactsDir() {
+  await fs.mkdir(publicDir, { recursive: true });
+}
+
+async function savePublicPriceFile() {
+  const priceBuffer = await fs.readFile(inputFile);
+  await writeFileAtomic(publicPriceFile, priceBuffer);
+}
+
+async function replaceDirectory(sourceDir, targetDir) {
+  const backupDir = `${targetDir}.${process.pid}.${Date.now()}.old`;
+  let hasBackup = false;
+
+  try {
+    await fs.rename(targetDir, backupDir);
+    hasBackup = true;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+
+  try {
+    await fs.rename(sourceDir, targetDir);
+    if (hasBackup) {
+      await fs.rm(backupDir, { recursive: true, force: true });
+    }
+  } catch (error) {
+    if (hasBackup) {
+      await fs.rename(backupDir, targetDir).catch(() => {});
+    }
+    throw error;
+  }
+}
+
+async function countHtmlFiles(dir) {
+  try {
+    const entries = await fs.readdir(dir);
+    return entries.filter((entry) => entry.endsWith('.html')).length;
+  } catch (error) {
+    if (error.code === 'ENOENT') return 0;
+    throw error;
+  }
+}
+
+async function writeRuntimeProductPrerender(products) {
+  if (!process.env.PUBLIC_ARTIFACTS_DIR) return null;
+
+  let template;
+  try {
+    template = await loadPrerenderTemplate({
+      outputDir: runtimePrerenderTemplateDir,
+    });
+  } catch (error) {
+    console.warn(
+      'Не удалось прочитать шаблон runtime-prerender карточек товара:',
+      error.message
+    );
+    return null;
+  }
+
+  const tmpDir = path.join(
+    path.dirname(publicDir),
+    `${path.basename(publicDir)}.product-prerender-${process.pid}-${Date.now()}`
+  );
+
+  try {
+    validatePrerenderProducts(products, { source: outputFile });
+    await prerenderProducts(template, products, {
+      outputDir: tmpDir,
+      log: null,
+      validate: false,
+    });
+    const productDir = path.join(tmpDir, 'product');
+    const writtenCount = await countHtmlFiles(productDir);
+    await replaceDirectory(productDir, path.join(publicDir, 'product'));
+    return writtenCount;
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 // Slug может попасть в URL только через [a-z0-9-], всё остальное транслит/чистка
@@ -1804,10 +1895,13 @@ async function main() {
   const products = productsWithIdentity.map(stripClassificationDiagnostics);
 
   let seoSummary = null;
+  let runtimeProductPrerenderCount = null;
 
   if (!isDryRun) {
+    await ensurePublicArtifactsDir();
     await saveProducts(products);
     await saveProductRegistry(registryFile, registry);
+    await savePublicPriceFile();
     await writeFileAtomic(
       redirectsFile,
       JSON.stringify(slugRedirects, null, 2)
@@ -1833,6 +1927,8 @@ async function main() {
         error.message
       );
     }
+
+    runtimeProductPrerenderCount = await writeRuntimeProductPrerender(products);
   }
 
   const diff = buildDiff(previousProducts, products);
@@ -1982,6 +2078,11 @@ async function main() {
       productSitemaps > 1 ? `, productSitemaps:${productSitemaps}` : '';
     console.log(
       `SEO: ${indexRel} (index → pages:${pages}, categories:${categories}, products:${prodCount}${productSitemapInfo}, total:${total} URL) · ${robotsRel}`
+    );
+  }
+  if (runtimeProductPrerenderCount != null) {
+    console.log(
+      `Runtime prerender: product HTML=${runtimeProductPrerenderCount}`
     );
   }
   console.log(
