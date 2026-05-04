@@ -1,8 +1,6 @@
 @import './core/base.css';
 @import './layout/header.css';
 @import './layout/overlays.css';
-@import './layout/footer.css';
-@import './pages/content.css';
 @import './responsive.css';
 
 /*

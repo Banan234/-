@@ -1,6 +1,8 @@
 import { Suspense, lazy } from 'react';
 import Container from '../components/ui/Container';
 import { useSEO } from '../hooks/useSEO';
+import { SITE_PHONE_DISPLAY } from '../lib/siteConfig';
+import '../styles/pages/content.css';
 
 const LazyHeroLeadForm = lazy(() => import('../components/home/HeroLeadForm'));
 
@@ -38,7 +40,7 @@ export default function ContactsPage() {
             <div className="contacts-page__hero-card">
               <div className="contacts-page__hero-label">Основной телефон</div>
               <a href="tel:+78005553552" className="contacts-page__hero-phone">
-                8 800 555 35 52
+                {SITE_PHONE_DISPLAY}
               </a>
 
               <div className="contacts-page__hero-meta">
@@ -71,7 +73,7 @@ export default function ContactsPage() {
                 Подбор продукции, наличие, цены, коммерческие предложения.
               </div>
               <a href="tel:+78005553552" className="contact-card__link">
-                8 800 555 35 52
+                {SITE_PHONE_DISPLAY}
               </a>
               <a href="mailto:sale@site.ru" className="contact-card__link">
                 sale@site.ru
@@ -156,23 +158,16 @@ export default function ContactsPage() {
                       strokeWidth="1.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      style={{ marginBottom: '12px', color: '#2f8fe8' }}
+                      className="contacts-map-placeholder__icon"
                       aria-hidden="true"
                     >
                       <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
                       <circle cx="12" cy="10" r="3" />
                     </svg>
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: '16px',
-                        color: '#0a1628',
-                        marginBottom: '6px',
-                      }}
-                    >
+                    <div className="contacts-map-placeholder__address">
                       г. Челябинск, ул. Южная, 9А
                     </div>
-                    <div style={{ fontSize: '14px', color: '#5a6f87' }}>
+                    <div className="contacts-map-placeholder__hours">
                       Режим работы: Пн–Пт 09:00–18:00
                     </div>
                   </div>

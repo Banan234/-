@@ -2,14 +2,15 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   SITE_DESCRIPTION,
-  SITE_LOGO_PATH,
   SITE_NAME,
+  SITE_OG_IMAGE_PATH,
   SITE_URL,
   absoluteUrl,
+  resolveSocialImageUrl,
 } from '../lib/siteConfig';
 import { normalizeMetaDescription } from '../lib/metaDescription';
 
-const DEFAULT_OG_IMAGE = absoluteUrl(SITE_LOGO_PATH);
+const DEFAULT_OG_IMAGE = resolveSocialImageUrl(SITE_OG_IMAGE_PATH);
 
 function upsertMeta(attr, key, value) {
   let el = document.querySelector(`meta[${attr}="${key}"]`);
@@ -56,7 +57,7 @@ export function useSEO({
   const location = useLocation();
   const fullTitle = title ? `${title} — ${SITE_NAME}` : SITE_NAME;
   const metaDescription = normalizeMetaDescription(description);
-  const ogImage = image ? absoluteUrl(image) : DEFAULT_OG_IMAGE;
+  const ogImage = image ? resolveSocialImageUrl(image) : DEFAULT_OG_IMAGE;
   const canonicalUrl = canonical
     ? absoluteUrl(canonical)
     : `${SITE_URL}${location.pathname}`;

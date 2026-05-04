@@ -41,6 +41,9 @@ function productRedirects() {
 
 export default defineConfig({
   plugins: [react(), productRedirects()],
+  build: {
+    manifest: true,
+  },
   server: {
     proxy: {
       '/api': {

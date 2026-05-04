@@ -7,28 +7,24 @@ const categoryCards = [
     to: '/catalog/silovoy-kabel',
     examples: 'ВВГ · АВВГ · ВБбШв',
     image: '/category-placeholders/power-cable.svg',
-    imageAlt: 'Силовой кабель',
   },
   {
     title: 'Контрольный кабель',
     to: '/catalog/kontrolnyy-kabel',
     examples: 'КВВГ · АКВВГ · КВБбШв',
     image: '/category-placeholders/control-cable.svg',
-    imageAlt: 'Контрольный кабель',
   },
   {
     title: 'Гибкий кабель',
     to: '/catalog/gibkiy-kabel',
     examples: 'КГ · КГН · РПШ',
     image: '/category-placeholders/flexible-cable.svg',
-    imageAlt: 'Гибкий кабель',
   },
   {
     title: 'Кабели связи',
     to: '/catalog/kabeli-svyazi',
     examples: 'UTP · FTP · КВК',
     image: '/category-placeholders/communication-cable.svg',
-    imageAlt: 'Кабели связи',
   },
 ];
 
@@ -47,48 +43,45 @@ export default function CategoryShowcase() {
       <Container>
         <div className="home-category-showcase__head">
           <h2 className="section-title section-title--left">
-            Популярные категории
+            <span id="popular-categories-title">Популярные категории</span>
           </h2>
           <p className="home-category-showcase__sub">
             Выберите нужный тип кабеля под вашу задачу
           </p>
         </div>
 
-        <div
-          className="home-category-showcase__grid"
-          aria-label="Популярные категории каталога"
-        >
+        <ul className="home-category-showcase__grid">
           {categoryCards.map((item) => (
-            <Link
-              key={item.title}
-              to={item.to}
-              className="home-category-showcase__card"
-            >
-              <div className="home-category-showcase__media">
-                <img
-                  src={item.image}
-                  alt={item.imageAlt}
-                  className="home-category-showcase__image"
-                  width="560"
-                  height="320"
-                  loading="lazy"
-                  decoding="async"
-                />
-              </div>
+            <li key={item.title} className="home-category-showcase__item">
+              <Link to={item.to} className="home-category-showcase__card">
+                <div className="home-category-showcase__media">
+                  <img
+                    src={item.image}
+                    alt=""
+                    className="home-category-showcase__image"
+                    width="560"
+                    height="320"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
 
-              <div className="home-category-showcase__body">
-                <h3 className="home-category-showcase__title">{item.title}</h3>
-                <p className="home-category-showcase__examples">
-                  {item.examples}
-                </p>
-                <span className="home-category-showcase__cta">
-                  Перейти
-                  <span aria-hidden="true">→</span>
-                </span>
-              </div>
-            </Link>
+                <div className="home-category-showcase__body">
+                  <h3 className="home-category-showcase__title">
+                    {item.title}
+                  </h3>
+                  <p className="home-category-showcase__examples">
+                    {item.examples}
+                  </p>
+                  <span className="home-category-showcase__cta">
+                    Перейти
+                    <span aria-hidden="true">→</span>
+                  </span>
+                </div>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
 
         <a
           href="#stock-now"

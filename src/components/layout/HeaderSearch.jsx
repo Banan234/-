@@ -53,8 +53,8 @@ export default function HeaderSearch() {
   const normalizedHeaderSearch = normalizeSearchSuggestionKey(headerSearch);
   const shouldShowSearchSuggestions = Boolean(
     isSearchSuggestionsOpen &&
-      normalizedHeaderSearch &&
-      (isSearchCatalogLoading || searchSuggestions.length > 0)
+    normalizedHeaderSearch &&
+    (isSearchCatalogLoading || searchSuggestions.length > 0)
   );
   const shouldShowSearchLoadingStatus =
     shouldShowSearchSuggestions &&
@@ -273,9 +273,7 @@ export default function HeaderSearch() {
                   }`}
                   onMouseDown={(event) => event.preventDefault()}
                   onMouseEnter={() => setActiveSearchSuggestionIndex(index)}
-                  onClick={() =>
-                    handleSearchSuggestionSelect(suggestion.mark)
-                  }
+                  onClick={() => handleSearchSuggestionSelect(suggestion.mark)}
                 >
                   <span className="site-header__search-suggestion-mark">
                     {suggestion.mark}

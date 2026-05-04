@@ -22,12 +22,16 @@ import {
 } from '../src/lib/productSeo.js';
 import {
   SITE_DESCRIPTION,
-  SITE_LOGO_PATH,
   SITE_NAME,
   SITE_URL,
   absoluteUrl,
+  resolveSocialImageUrl,
 } from '../src/lib/siteConfig.js';
 import { normalizeMetaDescription } from '../src/lib/metaDescription.js';
+import {
+  buildStaticPageJsonLd,
+  getStaticPageJsonLdId,
+} from '../src/lib/staticPageJsonLd.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,13 +39,16 @@ const repoRoot = path.resolve(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
 const productsFile = path.join(repoRoot, 'data', 'products.json');
 const serverEntryFile = 'entry-server.js';
+const CATALOG_PRERENDER_PAGE_SIZE = 24;
+const buildManifestFile = path.join(distDir, '.vite', 'manifest.json');
 
 export const STATIC_ROUTES = [
   {
     path: '/',
-    title: SITE_NAME,
-    description: SITE_DESCRIPTION,
-    h1: `${SITE_NAME} — оптовая поставка кабельной продукции`,
+    title: `Кабель оптом в Челябинске — ${SITE_NAME}`,
+    description:
+      'Работаем с юрлицами. Подберём кабель под ваш объект и подготовим коммерческое предложение в течение 30 минут.',
+    h1: 'Кабель оптом со склада в Челябинске',
     intro:
       'Оптовая поставка кабеля и провода в Челябинске и по России. Склад, отгрузка от 1 дня, работа с юрлицами по НДС.',
   },
@@ -123,6 +130,42 @@ const OPTIONAL_POSITIVE_NUMBER_FIELDS = [
   'voltage',
 ];
 const MAX_VALIDATION_ISSUES_IN_MESSAGE = 20;
+const CATEGORY_IMAGE_FALLBACKS = {
+  'Силовой кабель': '/category-placeholders/power-cable.svg',
+  'Контрольный кабель': '/category-placeholders/control-cable.svg',
+  'Гибкий кабель': '/category-placeholders/flexible-cable.svg',
+  'Кабели связи': '/category-placeholders/communication-cable.svg',
+};
+const ROUTE_MODULES = [
+  {
+    test: (routePath) => routePath === '/catalog',
+    module: 'src/pages/CatalogPage.jsx',
+  },
+  {
+    test: (routePath) => routePath.startsWith('/catalog/'),
+    module: 'src/pages/CatalogPage.jsx',
+  },
+  {
+    test: (routePath) => routePath.startsWith('/product/'),
+    module: 'src/pages/ProductPage.jsx',
+  },
+  {
+    test: (routePath) => routePath === '/about',
+    module: 'src/pages/AboutPage.jsx',
+  },
+  {
+    test: (routePath) => routePath === '/contacts',
+    module: 'src/pages/ContactsPage.jsx',
+  },
+  {
+    test: (routePath) => routePath === '/delivery',
+    module: 'src/pages/DeliveryPage.jsx',
+  },
+  {
+    test: (routePath) => routePath === '/payment',
+    module: 'src/pages/PaymentPage.jsx',
+  },
+];
 
 export class PrerenderProductValidationError extends Error {
   constructor(issues, { source = 'products.json' } = {}) {
@@ -328,7 +371,7 @@ export function buildMetaTags({
 }) {
   const fullTitle = title;
   const metaDescription = normalizeMetaDescription(description);
-  const image = ogImage || absoluteUrl(SITE_LOGO_PATH);
+  const image = resolveSocialImageUrl(ogImage);
   return [
     `<title>${escapeHtml(fullTitle)}</title>`,
     `<meta name="description" content="${escapeHtml(metaDescription)}">`,
@@ -348,16 +391,101 @@ export function buildMetaTags({
   ].join('\n    ');
 }
 
+function buildHomeHeroPreloadLink() {
+  return [
+    '<link rel="preload" as="image" href="/hero-bg-1280.avif" data-prerender="home-hero"',
+    'type="image/avif"',
+    'imagesrcset="/hero-bg-768.avif 768w, /hero-bg-1024.avif 1024w, /hero-bg-1280.avif 1280w, /hero-bg-1536.avif 1536w"',
+    'imagesizes="100vw"',
+    'fetchpriority="high">',
+  ].join(' ');
+}
+
+export async function loadBuildManifest({
+  manifestPath = buildManifestFile,
+  warn = console.warn,
+} = {}) {
+  try {
+    const raw = await fs.readFile(manifestPath, 'utf8');
+    return JSON.parse(raw);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      warn?.(
+        `[prerender] Vite manifest не найден: ${manifestPath}. Route CSS preload будет пропущен.`
+      );
+      return null;
+    }
+    if (error instanceof SyntaxError) {
+      throw new Error(
+        `[prerender] ${manifestPath} содержит некорректный JSON: ${error.message}`
+      );
+    }
+    throw error;
+  }
+}
+
+function getRouteModule(routePath) {
+  return ROUTE_MODULES.find((route) => route.test(routePath))?.module || null;
+}
+
+function getManifestEntry(manifest, modulePath) {
+  if (!manifest || !modulePath) return null;
+  if (manifest[modulePath]) return manifest[modulePath];
+
+  return (
+    Object.values(manifest).find((entry) => entry?.src === modulePath) || null
+  );
+}
+
+function collectManifestCss(manifest, modulePath, seen = new Set()) {
+  if (!manifest || !modulePath || seen.has(modulePath)) return [];
+  seen.add(modulePath);
+
+  const entry = getManifestEntry(manifest, modulePath);
+  if (!entry) return [];
+
+  const css = [...(entry.css || [])];
+  for (const importKey of entry.imports || []) {
+    const importEntry = getManifestEntry(manifest, importKey);
+    if (importEntry?.isEntry) continue;
+    css.push(...collectManifestCss(manifest, importKey, seen));
+  }
+
+  return [...new Set(css)];
+}
+
+function toPublicAssetPath(file) {
+  if (!file) return '';
+  return file.startsWith('/') ? file : `/${file}`;
+}
+
+export function buildRouteCssLinks(routePath, manifest) {
+  const modulePath = getRouteModule(routePath);
+  const cssFiles = collectManifestCss(manifest, modulePath);
+
+  return cssFiles
+    .map(
+      (file) =>
+        `<link rel="stylesheet" href="${escapeHtml(
+          toPublicAssetPath(file)
+        )}" data-prerender="route-css">`
+    )
+    .join('\n    ');
+}
+
 export function buildJsonLdScripts(payloads, idPrefix = 'prerender') {
   return payloads
     .filter(Boolean)
-    .map(
-      (payload, index) =>
-        `<script type="application/ld+json" id="${idPrefix}-${index}">${JSON.stringify(
-          payload
-        ).replace(/</g, '\\u003c')}</script>`
-    )
+    .map((payload, index) => buildJsonLdScript(payload, `${idPrefix}-${index}`))
     .join('\n    ');
+}
+
+export function buildJsonLdScript(payload, id) {
+  if (!payload || !id) return '';
+
+  return `<script type="application/ld+json" id="${escapeHtml(id)}">${JSON.stringify(
+    payload
+  ).replace(/</g, '\\u003c')}</script>`;
 }
 
 export function buildPrerenderDataScript(data) {
@@ -366,6 +494,116 @@ export function buildPrerenderDataScript(data) {
   return `<script>window.__YUZHURAL_PRERENDER_DATA__=${JSON.stringify(
     data
   ).replace(/</g, '\\u003c')};</script>`;
+}
+
+function getProductDisplayName(product) {
+  return (
+    product.title || product.fullName || product.name || product.mark || ''
+  );
+}
+
+function getCatalogProductImage(product) {
+  return (
+    product.image ||
+    CATEGORY_IMAGE_FALLBACKS[product.catalogCategory] ||
+    '/product-placeholder.svg'
+  );
+}
+
+function buildCatalogSections(products) {
+  const sections = new Map();
+
+  for (const product of products) {
+    const sectionName = product.catalogSection || 'Каталог';
+    const sectionSlug = product.catalogSectionSlug || sectionName;
+    const categoryName = product.catalogCategory || product.category;
+    const categorySlug = product.catalogCategorySlug || categoryName;
+    if (!categoryName || !categorySlug) continue;
+
+    if (!sections.has(sectionSlug)) {
+      sections.set(sectionSlug, {
+        name: sectionName,
+        slug: sectionSlug,
+        categories: new Map(),
+      });
+    }
+
+    const section = sections.get(sectionSlug);
+    const current = section.categories.get(categorySlug) || {
+      name: categoryName,
+      slug: categorySlug,
+      count: 0,
+    };
+    current.count += 1;
+    section.categories.set(categorySlug, current);
+  }
+
+  return [...sections.values()].map((section) => ({
+    name: section.name,
+    slug: section.slug,
+    categories: [...section.categories.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, 'ru')
+    ),
+  }));
+}
+
+function buildCatalogListItem(product) {
+  const title = getProductDisplayName(product);
+
+  return {
+    id: product.id,
+    slug: product.slug,
+    sku: product.sku || '',
+    title,
+    mark: product.mark || title,
+    category: product.category || product.catalogCategory || '',
+    catalogCategory: product.catalogCategory || '',
+    price: Number(product.price) || 0,
+    unit: product.unit || 'м',
+    stock: Number(product.stock) || 0,
+    shortDescription:
+      product.shortDescription ||
+      [
+        product.mark,
+        product.cores ? `${product.cores} жил` : '',
+        product.crossSection ? `${product.crossSection} мм2` : '',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    image: getCatalogProductImage(product),
+    cores: product.cores ?? null,
+    crossSection: product.crossSection ?? null,
+    voltage: product.voltage ?? null,
+    catalogType: product.catalogType || null,
+    catalogApplicationType: product.catalogApplicationType || null,
+    manufacturer: product.manufacturer || null,
+    catalogBrand: product.catalogBrand || null,
+  };
+}
+
+export function buildCatalogPrerenderData(products) {
+  const items = products
+    .slice(0, CATALOG_PRERENDER_PAGE_SIZE)
+    .map(buildCatalogListItem);
+  const total = products.length;
+
+  return {
+    path: '/catalog',
+    items,
+    catalogSections: buildCatalogSections(products),
+    meta: {
+      count: items.length,
+      total,
+      catalogCount: total,
+      pagination: {
+        page: 1,
+        limit: CATALOG_PRERENDER_PAGE_SIZE,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / CATALOG_PRERENDER_PAGE_SIZE)),
+      },
+      filter: null,
+    },
+  };
 }
 
 export function buildBreadcrumbsHtml(crumbs) {
@@ -466,7 +704,7 @@ export function injectIntoTemplate(
   // обработанном dist).
   let html = stripPrerenderManagedHead(template);
 
-  html = html.replace('</head>', `    ${headExtras}\n  </head>`);
+  html = injectManagedHeadExtras(html, headExtras);
   html = html.replace(
     /<div id="root">[\s\S]*?<\/div>/,
     `<div id="root">${bodyShell}</div>`
@@ -475,7 +713,65 @@ export function injectIntoTemplate(
     html = html.replace('</body>', `    ${bodyEndExtras}\n  </body>`);
   }
 
-  return html;
+  return normalizePrerenderHtml(html);
+}
+
+function normalizeHeadLines(value) {
+  const source = String(value || '');
+  const tags = source.match(
+    /<title\b[\s\S]*?<\/title>|<script\b[\s\S]*?<\/script>|<style\b[\s\S]*?<\/style>|<[^>]+>/gi
+  );
+
+  if (tags) return tags.map((tag) => tag.trim()).filter(Boolean);
+
+  return source
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function findFirstRuntimeAssetIndex(lines) {
+  return lines.findIndex((line) => /^<(?:link|script|style)\b/i.test(line));
+}
+
+function buildHead(openHead, lines, closeHead) {
+  return [openHead, ...lines.map((line) => `    ${line}`), `  ${closeHead}`]
+    .filter(Boolean)
+    .join('\n');
+}
+
+export function injectManagedHeadExtras(html, headExtras) {
+  const normalizedInnerExtras = normalizeHeadLines(headExtras);
+
+  return html.replace(
+    /(<head[^>]*>)([\s\S]*?)(<\/head>)/i,
+    (_match, openHead, headInner, closeHead) => {
+      const headLines = normalizeHeadLines(headInner);
+      const assetIndex = findFirstRuntimeAssetIndex(headLines);
+
+      if (normalizedInnerExtras.length === 0) {
+        return buildHead(openHead, headLines, closeHead);
+      }
+
+      if (assetIndex === -1) {
+        return buildHead(
+          openHead,
+          [...headLines, ...normalizedInnerExtras],
+          closeHead
+        );
+      }
+
+      return buildHead(
+        openHead,
+        [
+          ...headLines.slice(0, assetIndex),
+          ...normalizedInnerExtras,
+          ...headLines.slice(assetIndex),
+        ],
+        closeHead
+      );
+    }
+  );
 }
 
 export function stripPrerenderManagedHead(html) {
@@ -485,6 +781,11 @@ export function stripPrerenderManagedHead(html) {
     .replace(/<meta\s+property="og:[^"]*"[^>]*>/gi, '')
     .replace(/<meta\s+name="twitter:[^"]*"[^>]*>/gi, '')
     .replace(/<link\s+rel="canonical"[^>]*>/gi, '')
+    .replace(/<link\b[^>]*\sdata-prerender="[^"]*"[^>]*>/gi, '')
+    .replace(
+      /<link\b[^>]*\srel="preload"[^>]*\shref="\/hero-bg-1536\.avif"[^>]*>/gi,
+      ''
+    )
     .replace(
       /<script[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/gi,
       ''
@@ -498,8 +799,26 @@ export function minifyPrerenderHtml(html) {
     .trim();
 }
 
-function getRuntimeHeadShell(template) {
-  const strippedTemplate = stripPrerenderManagedHead(template);
+export function normalizePrerenderHtml(html) {
+  return String(html)
+    .replace(/^<!doctype html>/i, '<!DOCTYPE html>')
+    .replace(/\s(srcSet|fetchPriority|inputMode)=/g, (_match, attr) => {
+      const normalized = {
+        srcSet: 'srcset',
+        fetchPriority: 'fetchpriority',
+        inputMode: 'inputmode',
+      }[attr];
+      return ` ${normalized}=`;
+    })
+    .replace(/\s(download|hidden|selected|disabled)=""(?=[\s>])/g, ' $1')
+    .replace(/<(meta|link|img|source|input|br)([^>]*)\/>/gi, '<$1$2>');
+}
+
+function getRuntimeHeadShell(template, headExtras = '') {
+  const strippedTemplate = injectManagedHeadExtras(
+    stripPrerenderManagedHead(template),
+    headExtras
+  );
   const match = strippedTemplate.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
   return minifyPrerenderHtml(match?.[1] || '');
 }
@@ -508,22 +827,23 @@ export function injectIntoThinTemplate(
   template,
   { headExtras, bodyShell, bodyEndExtras = '' }
 ) {
-  const runtimeHeadShell = getRuntimeHeadShell(template);
+  const runtimeHeadShell = getRuntimeHeadShell(template, headExtras);
 
-  return minifyPrerenderHtml(
-    [
-      '<!doctype html>',
-      '<html lang="ru">',
-      '<head>',
-      runtimeHeadShell,
-      headExtras,
-      '</head>',
-      '<body>',
-      `<div id="root">${bodyShell}</div>`,
-      bodyEndExtras,
-      '</body>',
-      '</html>',
-    ].join('')
+  return normalizePrerenderHtml(
+    minifyPrerenderHtml(
+      [
+        '<!doctype html>',
+        '<html lang="ru">',
+        '<head>',
+        runtimeHeadShell,
+        '</head>',
+        '<body>',
+        `<div id="root">${bodyShell}</div>`,
+        bodyEndExtras,
+        '</body>',
+        '</html>',
+      ].join('')
+    )
   );
 }
 
@@ -622,10 +942,22 @@ export async function loadProducts({
 
 export async function prerenderStatic(
   template,
-  { outputDir = distDir, log = console.log, renderApp } = {}
+  {
+    outputDir = distDir,
+    log = console.log,
+    renderApp,
+    products = [],
+    manifest = null,
+  } = {}
 ) {
   for (const route of STATIC_ROUTES) {
     const canonical = absoluteUrl(route.path);
+    const staticJsonLd = buildStaticPageJsonLd(route.path);
+    const staticJsonLdId = getStaticPageJsonLdId(route.path);
+    const prerenderData =
+      route.path === '/catalog'
+        ? { catalog: buildCatalogPrerenderData(products) }
+        : {};
     const headExtras = [
       buildMetaTags({
         title: route.title,
@@ -633,12 +965,16 @@ export async function prerenderStatic(
         canonical,
         ogType: route.path === '/' ? 'website' : 'article',
       }),
+      buildRouteCssLinks(route.path, manifest),
+      route.path === '/' ? buildHomeHeroPreloadLink() : '',
+      buildJsonLdScript(staticJsonLd, staticJsonLdId),
     ].join('\n    ');
     const html = injectIntoTemplate(template, {
       headExtras,
       bodyShell: renderApp
-        ? await renderApp(route.path, { prerenderData: {} })
+        ? await renderApp(route.path, { prerenderData })
         : buildStaticBodyShell(route),
+      bodyEndExtras: buildPrerenderDataScript(prerenderData),
     });
     await writeRoute(route.path, html, { outputDir });
   }
@@ -652,7 +988,13 @@ export async function prerenderStatic(
 export async function prerenderProducts(
   template,
   products,
-  { outputDir = distDir, log = console.log, validate = true, renderApp } = {}
+  {
+    outputDir = distDir,
+    log = console.log,
+    validate = true,
+    renderApp,
+    manifest = null,
+  } = {}
 ) {
   if (validate) {
     validatePrerenderProducts(products);
@@ -675,7 +1017,9 @@ export async function prerenderProducts(
       ? `${productLabel} — ${SITE_NAME}`
       : SITE_NAME;
     const description = buildProductMetaDescription(product);
-    const ogImage = product.image ? absoluteUrl(product.image) : undefined;
+    const ogImage = product.image
+      ? resolveSocialImageUrl(product.image)
+      : undefined;
     const productLd = buildProductJsonLd(product);
     const breadcrumbLd = buildProductBreadcrumbJsonLd(product);
     const prerenderData = { product };
@@ -688,6 +1032,7 @@ export async function prerenderProducts(
         ogType: 'product',
         ogImage,
       }),
+      buildRouteCssLinks(`/product/${product.slug}`, manifest),
       buildJsonLdScripts([breadcrumbLd, productLd], 'product-ld'),
     ].join('\n    ');
 
@@ -714,15 +1059,26 @@ export async function prerender({
   renderApp,
 } = {}) {
   const template = await loadTemplate({ outputDir });
+  const manifest = await loadBuildManifest({
+    manifestPath: path.join(outputDir, '.vite', 'manifest.json'),
+    warn,
+  });
   const products = await loadProducts({ filePath: productsPath, warn });
   validatePrerenderProducts(products, { source: productsPath });
   const routeRenderer = renderApp || (await loadServerRenderer({ outputDir }));
-  await prerenderStatic(template, { outputDir, log, renderApp: routeRenderer });
+  await prerenderStatic(template, {
+    outputDir,
+    log,
+    renderApp: routeRenderer,
+    products,
+    manifest,
+  });
   await prerenderProducts(template, products, {
     outputDir,
     log,
     validate: false,
     renderApp: routeRenderer,
+    manifest,
   });
   log?.('[prerender] done.');
 }

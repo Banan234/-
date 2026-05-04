@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CATALOG_MENU } from './catalogMenuData';
+import { SITE_PHONE_DISPLAY } from '../../lib/siteConfig';
 
 export default function MobileNav({
   id,
@@ -159,7 +160,7 @@ export default function MobileNav({
             Получить КП
           </button>
           <a href="tel:+78005553552" className="mobile-nav__phone">
-            8 800 555 35 52
+            {SITE_PHONE_DISPLAY}
           </a>
         </div>
       </div>

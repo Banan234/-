@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -7,6 +7,7 @@ import {
   buildMetaTags,
   buildCompactProductBodyShell,
   buildPrerenderDataScript,
+  buildRouteCssLinks,
   buildProductBodyShell,
   extractProductsPayload,
   injectIntoTemplate,
@@ -58,6 +59,36 @@ const product = {
   image: '/images/vvg.png',
 };
 
+const manifest = {
+  'index.html': {
+    file: 'assets/index.js',
+    src: 'index.html',
+    isEntry: true,
+    css: ['assets/index.css'],
+  },
+  'src/pages/CatalogPage.jsx': {
+    file: 'assets/CatalogPage.js',
+    src: 'src/pages/CatalogPage.jsx',
+    css: ['assets/catalog.css'],
+    imports: ['index.html', '_ProductCard.js'],
+  },
+  'src/pages/ProductPage.jsx': {
+    file: 'assets/ProductPage.js',
+    src: 'src/pages/ProductPage.jsx',
+    css: ['assets/product-detail.css'],
+    imports: ['_ProductCard.js'],
+  },
+  'src/pages/AboutPage.jsx': {
+    file: 'assets/AboutPage.js',
+    src: 'src/pages/AboutPage.jsx',
+    css: ['assets/static-page.css'],
+  },
+  '_ProductCard.js': {
+    file: 'assets/ProductCard.js',
+    css: ['assets/product-card.css'],
+  },
+};
+
 const tempDirs = [];
 
 function createRenderAppMock() {
@@ -104,6 +135,10 @@ describe('prerender HTML helpers', () => {
     expect(html).toContain(
       '<script type="module" src="/assets/index.js"></script>'
     );
+    expect(html.indexOf('<title>New title</title>')).toBeLessThan(
+      html.indexOf('<script type="module" src="/assets/index.js"></script>')
+    );
+    expect(html.match(/<head>[\s\S]*?<\/head>/)[0]).not.toMatch(/\n\s*\n/);
     expect(html).not.toContain('Old title');
     expect(html).not.toContain('old description');
     expect(html).not.toContain('old og');
@@ -136,13 +171,16 @@ describe('prerender HTML helpers', () => {
       bodyShell: '<section><h1>SEO shell</h1></section>',
     });
 
-    expect(html).toContain('<!doctype html><html lang="ru"><head>');
+    expect(html).toContain('<!DOCTYPE html><html lang="ru"><head>');
     expect(html).toContain('<title>Product title</title>');
     expect(html).toContain(
       '<meta name="description" content="product description">'
     );
     expect(html).toContain(
       '<script type="module" src="/assets/index.js"></script>'
+    );
+    expect(html.indexOf('<title>Product title</title>')).toBeLessThan(
+      html.indexOf('<script type="module" src="/assets/index.js"></script>')
     );
     expect(html).toContain(
       '<div id="root"><section><h1>SEO shell</h1></section></div>'
@@ -193,6 +231,40 @@ describe('prerender HTML helpers', () => {
       true
     );
     expect(new Set(descriptions).size).toBe(1);
+  });
+
+  it('заменяет SVG social image на общий PNG-фолбэк', () => {
+    const html = buildMetaTags({
+      title: 'Товар с плейсхолдером',
+      description: 'Описание товара',
+      canonical: 'https://example.test/product/placeholder',
+      ogType: 'product',
+      ogImage: '/product-placeholder.svg',
+    });
+
+    expect(html).toContain(
+      `<meta property="og:image" content="${SITE_URL}/og-product.png">`
+    );
+    expect(html).toContain(
+      `<meta name="twitter:image" content="${SITE_URL}/og-product.png">`
+    );
+    expect(html).not.toContain('product-placeholder.svg');
+  });
+
+  it('строит stylesheet links для CSS чанков текущего route', () => {
+    const catalogLinks = buildRouteCssLinks('/catalog', manifest);
+    const productLinks = buildRouteCssLinks(
+      '/product/vvgng-ls-3h2-5',
+      manifest
+    );
+    const homeLinks = buildRouteCssLinks('/', manifest);
+
+    expect(catalogLinks).toContain('href="/assets/catalog.css"');
+    expect(catalogLinks).toContain('href="/assets/product-card.css"');
+    expect(catalogLinks).not.toContain('href="/assets/index.css"');
+    expect(productLinks).toContain('href="/assets/product-detail.css"');
+    expect(productLinks).toContain('data-prerender="route-css"');
+    expect(homeLinks).toBe('');
   });
 
   it('экранирует закрывающие теги внутри JSON-LD', () => {
@@ -246,6 +318,12 @@ describe('prerender IO flow', () => {
     const renderApp = createRenderAppMock();
 
     await writeFile(path.join(distDir, 'index.html'), template, 'utf8');
+    await mkdir(path.join(distDir, '.vite'), { recursive: true });
+    await writeFile(
+      path.join(distDir, '.vite', 'manifest.json'),
+      JSON.stringify(manifest),
+      'utf8'
+    );
     await writeFile(productsFile, JSON.stringify({ items: [product] }), 'utf8');
 
     await prerender({
@@ -261,17 +339,40 @@ describe('prerender IO flow', () => {
       path.join(distDir, 'catalog', 'index.html'),
       'utf8'
     );
+    const aboutHtml = await readFile(
+      path.join(distDir, 'about', 'index.html'),
+      'utf8'
+    );
+    const paymentHtml = await readFile(
+      path.join(distDir, 'payment', 'index.html'),
+      'utf8'
+    );
+    const deliveryHtml = await readFile(
+      path.join(distDir, 'delivery', 'index.html'),
+      'utf8'
+    );
     const productHtml = await readFile(
       path.join(distDir, 'product', `${product.slug}.html`),
       'utf8'
     );
 
     expect(homeHtml).toContain('<main data-ssr="true" data-url="/">');
+    expect(homeHtml).toContain('data-prerender="home-hero"');
     expect(homeHtml).not.toContain('display:none');
     expect(catalogHtml).toContain('<main data-ssr="true" data-url="/catalog">');
+    expect(catalogHtml).toContain('href="/assets/catalog.css"');
+    expect(catalogHtml).toContain('href="/assets/product-card.css"');
+    expect(catalogHtml).not.toContain('/hero-bg-1536.avif');
+    expect(aboutHtml).toContain('id="about-page-json-ld"');
+    expect(aboutHtml).toContain('href="/assets/static-page.css"');
+    expect(paymentHtml).toContain('"@type":"FAQPage"');
+    expect(deliveryHtml).toContain('id="delivery-page-json-ld"');
     expect(productHtml).toContain(
       `<link rel="canonical" href="${SITE_URL}/product/${product.slug}">`
     );
+    expect(productHtml).toContain('href="/assets/product-detail.css"');
+    expect(productHtml).toContain('href="/assets/product-card.css"');
+    expect(productHtml).not.toContain('/hero-bg-1536.avif');
     expect(productHtml).toContain(
       '<meta property="og:type" content="product">'
     );

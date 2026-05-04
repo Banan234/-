@@ -6,12 +6,23 @@ import { fetchProducts } from '../lib/productsApi';
 import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useCatalogFilters } from '../hooks/useCatalogFilters';
+import { usePrerenderData } from '../lib/prerenderData';
 import { messages } from '../../shared/messages.js';
 import catalogCategoriesData from '../../shared/catalogCategories.json';
 import '../styles/sections/catalog.css';
 
 const CATALOG_PAGE_SIZE = 24;
 const CATEGORY_ROUTE_FILTERS = { showAppType: true, showSPE: true };
+const CATALOG_PRERENDER_FILTER_KEYS = [
+  'search',
+  'priceMin',
+  'priceMax',
+  'material',
+  'construction',
+  'cores',
+  'section',
+  'voltage',
+];
 
 const categoryBySlug = {};
 const parentByChildSlug = {};
@@ -25,10 +36,65 @@ for (const section of catalogCategoriesData.sections) {
   }
 }
 
+function getPositiveQueryNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+function scheduleCatalogRevalidate(callback) {
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.requestIdleCallback === 'function'
+  ) {
+    const idleId = window.requestIdleCallback(callback, { timeout: 3000 });
+    return () => window.cancelIdleCallback?.(idleId);
+  }
+
+  const timeoutId = setTimeout(callback, 1200);
+  return () => clearTimeout(timeoutId);
+}
+
+export function doesCatalogPrerenderDataMatchQuery({
+  activeCategoryParam,
+  prerenderData,
+  productQueryOptions = {},
+}) {
+  if (!prerenderData || prerenderData.path !== '/catalog') return false;
+  if (activeCategoryParam) return false;
+
+  const prerenderPagination = prerenderData.meta?.pagination || {};
+  const currentPage = getPositiveQueryNumber(productQueryOptions.page, 1);
+  const prerenderPage = getPositiveQueryNumber(prerenderPagination.page, 1);
+  if (currentPage !== prerenderPage) return false;
+
+  const currentLimit = getPositiveQueryNumber(
+    productQueryOptions.limit,
+    CATALOG_PAGE_SIZE
+  );
+  const prerenderLimit = getPositiveQueryNumber(
+    prerenderPagination.limit,
+    CATALOG_PAGE_SIZE
+  );
+  if (currentLimit !== prerenderLimit) return false;
+
+  if (productQueryOptions.sort && productQueryOptions.sort !== 'default') {
+    return false;
+  }
+
+  return CATALOG_PRERENDER_FILTER_KEYS.every(
+    (key) => !productQueryOptions[key]
+  );
+}
+
 export default function CatalogPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const isCategoryRoute = Boolean(slug);
+  const prerenderData = usePrerenderData();
+  const catalogPrerenderData =
+    !isCategoryRoute && prerenderData.catalog?.path === '/catalog'
+      ? prerenderData.catalog
+      : null;
   const { filters, productQueryOptions, searchQuery, updateParam } =
     useCatalogFilters({
       limit: CATALOG_PAGE_SIZE,
@@ -43,11 +109,22 @@ export default function CatalogPage() {
     Array.isArray(routeCategory.subcategories) &&
     routeCategory.subcategories.length > 0;
   const activeCategoryParam = isCategoryRoute ? slug : filters.category;
+  const hasMatchingPrerenderData = doesCatalogPrerenderDataMatchQuery({
+    activeCategoryParam,
+    prerenderData: catalogPrerenderData,
+    productQueryOptions,
+  });
 
-  const [products, setProducts] = useState([]);
-  const [catalogSections, setCatalogSections] = useState([]);
-  const [productsMeta, setProductsMeta] = useState({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [products, setProducts] = useState(
+    () => catalogPrerenderData?.items || []
+  );
+  const [catalogSections, setCatalogSections] = useState(
+    () => catalogPrerenderData?.catalogSections || []
+  );
+  const [productsMeta, setProductsMeta] = useState(
+    () => catalogPrerenderData?.meta || {}
+  );
+  const [isLoading, setIsLoading] = useState(() => !catalogPrerenderData);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -62,9 +139,11 @@ export default function CatalogPage() {
     }
 
     const controller = new AbortController();
-    async function loadProducts() {
+    async function loadProducts({ showLoading = true, showError = true } = {}) {
       try {
-        setIsLoading(true);
+        if (showLoading) {
+          setIsLoading(true);
+        }
         setError('');
 
         const result = await fetchProducts(controller.signal, {
@@ -80,12 +159,32 @@ export default function CatalogPage() {
         }
 
         captureException(requestError, { source: 'CatalogPage.loadProducts' });
-        setError(
-          requestError.message || messages.errors.productApi.catalogLoadFailed
-        );
+        if (showError) {
+          setError(
+            requestError.message || messages.errors.productApi.catalogLoadFailed
+          );
+        }
       } finally {
-        setIsLoading(false);
+        if (showLoading) {
+          setIsLoading(false);
+        }
       }
+    }
+
+    if (hasMatchingPrerenderData) {
+      setProducts(catalogPrerenderData.items || []);
+      setCatalogSections(catalogPrerenderData.catalogSections || []);
+      setProductsMeta(catalogPrerenderData.meta || {});
+      setIsLoading(false);
+      setError('');
+
+      const cancelRevalidate = scheduleCatalogRevalidate(() =>
+        loadProducts({ showLoading: false, showError: false })
+      );
+      return () => {
+        cancelRevalidate();
+        controller.abort();
+      };
     }
 
     loadProducts();
@@ -93,6 +192,8 @@ export default function CatalogPage() {
     return () => controller.abort();
   }, [
     activeCategoryParam,
+    catalogPrerenderData,
+    hasMatchingPrerenderData,
     isCategoryRoute,
     productQueryOptions,
     routeCategory,

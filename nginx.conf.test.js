@@ -66,6 +66,17 @@ describe('nginx compression', () => {
   });
 });
 
+describe('nginx static cache rules', () => {
+  it('caches stable public assets outside vite /assets', () => {
+    expect(config).toContain(
+      'location ~ ^/(hero-bg[^/]*\\.(?:avif|webp)|logo\\.webp|product-placeholder\\.svg|category-placeholders/[A-Za-z0-9-]+\\.svg|fonts/[A-Za-z0-9._-]+)$'
+    );
+    expect(config).toContain(
+      'add_header Cache-Control "public, max-age=31536000, immutable";'
+    );
+  });
+});
+
 describe('nginx product prerender routing', () => {
   it('serves flat product prerender files for pretty product URLs', () => {
     expect(config).toContain('location ~ ^/product/([A-Za-z0-9-]+)/?$');

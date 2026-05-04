@@ -1,7 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import Container from '../components/ui/Container';
 import CategoryShowcase from '../components/home/CategoryShowcase';
-import StockProductsGrid from '../components/home/StockProductsGrid';
 import { fetchFeaturedProducts } from '../lib/productsApi';
 import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
@@ -30,6 +29,9 @@ const heroBenefits = [
 ];
 
 const LazyHeroLeadForm = lazy(() => import('../components/home/HeroLeadForm'));
+const LazyStockProductsGrid = lazy(
+  () => import('../components/home/StockProductsGrid')
+);
 
 function HeroLeadFormFallback() {
   return (
@@ -84,7 +86,7 @@ const workflowSteps = [
 const procurementDocuments = [
   {
     title: 'Скачать прайс-лист',
-    meta: 'Excel, обновлён сегодня',
+    meta: 'Excel',
     href: '/price.xls',
     type: 'XLS',
   },
@@ -214,7 +216,7 @@ const WEBSITE_JSON_LD = {
 
 export default function HomePage() {
   useSEO({
-    title: 'Надёжные поставки кабеля оптом для строительства и промышленности',
+    title: 'Кабель оптом в Челябинске',
     description:
       'Работаем с юрлицами. Подберём кабель под ваш объект и подготовим коммерческое предложение в течение 30 минут.',
   });
@@ -269,20 +271,20 @@ export default function HomePage() {
         <section className="home-hero">
           <picture className="home-hero__bg" aria-hidden="true">
             <source
-              srcSet="/hero-bg-768.avif 768w, /hero-bg-1536.avif 1536w"
+              srcSet="/hero-bg-768.avif 768w, /hero-bg-1024.avif 1024w, /hero-bg-1280.avif 1280w, /hero-bg-1536.avif 1536w"
               sizes="100vw"
               type="image/avif"
             />
             <source
-              srcSet="/hero-bg-768.webp 768w, /hero-bg-1536.webp 1536w"
+              srcSet="/hero-bg-768.webp 768w, /hero-bg-1024.webp 1024w, /hero-bg-1280.webp 1280w, /hero-bg-1536.webp 1536w"
               sizes="100vw"
               type="image/webp"
             />
             <img
-              src="/hero-bg-1536.webp"
+              src="/hero-bg-1280.webp"
               alt=""
-              width="1536"
-              height="1024"
+              width="1280"
+              height="853"
               fetchPriority="high"
               loading="eager"
               decoding="async"
@@ -346,11 +348,13 @@ export default function HomePage() {
 
       <CategoryShowcase />
 
-      <StockProductsGrid
-        products={products}
-        isLoading={isLoading}
-        loadError={loadError}
-      />
+      <Suspense fallback={null}>
+        <LazyStockProductsGrid
+          products={products}
+          isLoading={isLoading}
+          loadError={loadError}
+        />
+      </Suspense>
 
       <section className="section home-documents">
         <Container>
@@ -360,42 +364,44 @@ export default function HomePage() {
                 Документы для закупки
               </div>
               <h2 className="section-title section-title--left">
-                Скачать прайс и типовой договор
+                <span id="procurement-documents-title">
+                  Скачать прайс и типовой договор
+                </span>
               </h2>
               <p className="home-documents__lead">
-                Скачать прайс-лист (Excel, обновлён сегодня) · Типовой договор
-                поставки (PDF) · Реквизиты (PDF)
+                Скачать прайс-лист (Excel) · Типовой договор поставки (PDF) ·
+                Реквизиты (PDF)
               </p>
             </div>
 
-            <div
-              className="home-documents__links"
-              aria-label="Документы для скачивания"
-            >
+            <ul className="home-documents__links">
               {procurementDocuments.map((doc) => (
-                <a
-                  key={doc.href}
-                  href={doc.href}
-                  download
-                  className="home-documents__link"
-                >
-                  <span className="home-documents__filetype" aria-hidden="true">
-                    {doc.type}
-                  </span>
-                  <span className="home-documents__link-copy">
-                    <span className="home-documents__link-title">
-                      {doc.title}
+                <li key={doc.href}>
+                  <a href={doc.href} download className="home-documents__link">
+                    <span
+                      className="home-documents__filetype"
+                      aria-hidden="true"
+                    >
+                      {doc.type}
                     </span>
-                    <span className="home-documents__link-meta">
-                      {doc.meta}
+                    <span className="home-documents__link-copy">
+                      <span className="home-documents__link-title">
+                        {doc.title}
+                      </span>
+                      <span className="home-documents__link-meta">
+                        {doc.meta}
+                      </span>
                     </span>
-                  </span>
-                  <span className="home-documents__download" aria-hidden="true">
-                    ↓
-                  </span>
-                </a>
+                    <span
+                      className="home-documents__download"
+                      aria-hidden="true"
+                    >
+                      ↓
+                    </span>
+                  </a>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </Container>
       </section>
@@ -408,7 +414,9 @@ export default function HomePage() {
                 Гарантии качества
               </div>
               <h2 className="section-title section-title--left">
-                Каждая отгрузка — с пакетом документов
+                <span id="quality-documents-title">
+                  Каждая отгрузка — с пакетом документов
+                </span>
               </h2>
             </div>
             <p className="home-quality-docs__lead">
@@ -417,12 +425,9 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div
-            className="home-quality-docs__grid"
-            aria-label="Документы качества"
-          >
+          <ul className="home-quality-docs__grid">
             {qualityDocuments.map((doc) => (
-              <article key={doc.title} className="home-quality-docs__item">
+              <li key={doc.title} className="home-quality-docs__item">
                 <span className="home-quality-docs__icon" aria-hidden="true">
                   {doc.icon}
                 </span>
@@ -430,9 +435,9 @@ export default function HomePage() {
                   <h3 className="home-quality-docs__title">{doc.title}</h3>
                   <p className="home-quality-docs__text">{doc.text}</p>
                 </div>
-              </article>
+              </li>
             ))}
-          </div>
+          </ul>
         </Container>
       </section>
 
@@ -488,7 +493,10 @@ export default function HomePage() {
           <div className="home-audience__head">
             <div className="home-audience__eyebrow">С кем мы работаем?</div>
             <h2 className="section-title section-title--left">
-              Работаем с теми, кому нужен быстрый и понятный закупочный процесс
+              <span id="audience-segments-title">
+                Работаем с теми, кому нужен быстрый и понятный закупочный
+                процесс
+              </span>
             </h2>
             <p className="home-audience__sub">
               Если у вас горят сроки, нужна ясность по наличию и требуется КП
@@ -496,17 +504,14 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div
-            className="home-audience__grid"
-            aria-label="Кому подходит работа с нами"
-          >
+          <ul className="home-audience__grid">
             {audienceSegments.map((item) => (
-              <article key={item.title} className="home-audience__card">
+              <li key={item.title} className="home-audience__card">
                 <h3 className="home-audience__title">{item.title}</h3>
                 <p className="home-audience__text">{item.text}</p>
-              </article>
+              </li>
             ))}
-          </div>
+          </ul>
         </Container>
       </section>
 

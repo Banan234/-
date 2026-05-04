@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import Container from '../ui/Container';
+import { SITE_PHONE_DISPLAY } from '../../lib/siteConfig';
+import '../../styles/layout/footer.css';
 
 export default function SiteFooter({ onOpenQuote }) {
   return (
@@ -28,6 +30,7 @@ export default function SiteFooter({ onOpenQuote }) {
 
             <div
               className="site-footer__quick-actions"
+              role="group"
               aria-label="Быстрые контакты"
             >
               <div className="site-footer__quick-actions-label">
@@ -35,7 +38,7 @@ export default function SiteFooter({ onOpenQuote }) {
               </div>
               <div className="site-footer__quick-links">
                 <a href="tel:+78005553552" className="site-footer__quick-link">
-                  8 800 555 35 52
+                  {SITE_PHONE_DISPLAY}
                 </a>
                 <span className="site-footer__quick-divider" aria-hidden="true">
                   ·
@@ -109,7 +112,7 @@ export default function SiteFooter({ onOpenQuote }) {
           <div className="site-footer__contacts">
             <h3 className="site-footer__title">Контакты</h3>
             <a href="tel:+78005553552" className="site-footer__phone">
-              8 800 555 35 52
+              {SITE_PHONE_DISPLAY}
             </a>
             <a href="mailto:sale@site.ru" className="site-footer__mail">
               sale@site.ru

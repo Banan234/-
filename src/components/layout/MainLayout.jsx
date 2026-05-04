@@ -1,25 +1,21 @@
-import {
-  Link,
-  NavLink,
-  Outlet,
-  useLocation,
-} from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import Container from '../ui/Container';
 import Modal from '../ui/Modal';
+import HeaderCatalogMenu from './HeaderCatalogMenu';
+import HeaderSearch from './HeaderSearch';
 import SiteFooter from './SiteFooter';
 import { useCartStore } from '../../store/useCartStore';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { trackEvent } from '../../lib/analytics';
 import { usePageviewTracking } from '../../hooks/usePageviewTracking';
 import { STORAGE_WRITE_FAILED_EVENT } from '../../lib/browserStorage';
+import { SITE_PHONE_DISPLAY } from '../../lib/siteConfig';
 
 const MOBILE_NAV_ID = 'mobile-navigation';
 
 const LazyHeroLeadForm = lazy(() => import('../home/HeroLeadForm'));
 const LazyQuoteForm = lazy(() => import('../quote/QuoteForm'));
-const LazyHeaderCatalogMenu = lazy(() => import('./HeaderCatalogMenu'));
-const LazyHeaderSearch = lazy(() => import('./HeaderSearch'));
 const LazyMobileNav = lazy(() => import('./MobileNav'));
 
 function ModalFormFallback() {
@@ -28,24 +24,6 @@ function ModalFormFallback() {
       <span className="route-fallback__spinner" aria-hidden="true" />
       <span className="route-fallback__text">Загружаем форму...</span>
     </div>
-  );
-}
-
-function CatalogButtonFallback() {
-  return (
-    <button
-      type="button"
-      className="catalog-button"
-      aria-controls="catalog-dropdown"
-      aria-expanded="false"
-    >
-      <span className="catalog-button__icon" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </span>
-      <span>Каталог</span>
-    </button>
   );
 }
 
@@ -63,19 +41,6 @@ function buildStorageWarningMessage(key) {
   }
 
   return 'Браузер не дал сохранить изменения локально. Они видны сейчас, но могут пропасть после перезагрузки страницы.';
-}
-
-function HeaderSearchFallback() {
-  return (
-    <form className="site-header__search-inline" aria-hidden="true">
-      <div className="site-header__search-field">
-        <div className="site-header__search-input" />
-      </div>
-      <button type="button" className="site-header__search-button" tabIndex={-1}>
-        Найти
-      </button>
-    </form>
-  );
 }
 
 export default function MainLayout() {
@@ -268,7 +233,7 @@ export default function MainLayout() {
               <div className="site-header__main-right">
                 <div className="header-phone-block">
                   <a href="tel:+78005553552" className="header-phone">
-                    8 800 555 35 52
+                    {SITE_PHONE_DISPLAY}
                   </a>
                   <a href="mailto:sale@site.ru" className="header-phone-sub">
                     sale@site.ru
@@ -311,10 +276,11 @@ export default function MainLayout() {
         <div className="site-header__nav">
           <Container>
             <div className="site-header__nav-inner">
-              <div className="site-header__menu">
-                <Suspense fallback={<CatalogButtonFallback />}>
-                  <LazyHeaderCatalogMenu />
-                </Suspense>
+              <nav
+                className="site-header__menu"
+                aria-label="Основная навигация"
+              >
+                <HeaderCatalogMenu />
 
                 <NavLink
                   to="/delivery"
@@ -340,11 +306,9 @@ export default function MainLayout() {
                 >
                   Контакты
                 </NavLink>
-              </div>
+              </nav>
 
-              <Suspense fallback={<HeaderSearchFallback />}>
-                <LazyHeaderSearch />
-              </Suspense>
+              <HeaderSearch />
 
               <div className="site-header__actions">
                 <Link
@@ -441,7 +405,11 @@ export default function MainLayout() {
       <main>
         <Suspense
           fallback={
-            <div className="route-fallback" aria-busy="true" aria-live="polite">
+            <div
+              className="route-fallback route-fallback--page"
+              aria-busy="true"
+              aria-live="polite"
+            >
               <span className="route-fallback__spinner" aria-hidden="true" />
               <span className="route-fallback__text">
                 Загружаем страницу...

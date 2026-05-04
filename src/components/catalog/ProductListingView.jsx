@@ -371,6 +371,9 @@ export default function ProductListingView({
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
+          <button type="submit" className="visually-hidden">
+            Искать
+          </button>
           {search && (
             <button
               type="button"

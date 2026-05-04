@@ -199,6 +199,9 @@ main > .section:first-child {
   font-size: 14px;
   font-weight: 600;
 }
+.route-fallback--page {
+  min-height: 100svh;
+}
 .route-fallback__spinner {
   width: 36px;
   height: 36px;

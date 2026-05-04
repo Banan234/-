@@ -211,7 +211,7 @@ async function warmCatalogCaches({
   catalogStore.getCatalogProductListItems(items);
   catalogQueryStore.getCatalogSections(items);
   if (warmFeatured) {
-    await warmFeatured(items, featuredLimit);
+    await warmFeatured(featuredLimit, items);
   }
   return items.length;
 }

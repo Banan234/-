@@ -19,21 +19,30 @@ const COMPRESSIBLE_EXTENSIONS = new Set([
 ]);
 const MIN_SIZE_BYTES = 1024;
 const GZIP_LEVEL = 6;
-const BROTLI_QUALITY = 5;
+export const BROTLI_QUALITY = 11;
 
-async function collectFiles(dir) {
+function isBuildTimeProductPage(filePath, outputDir) {
+  const relativePath = path.relative(outputDir, filePath);
+  const parts = relativePath.split(path.sep);
+  return (
+    parts.length === 2 && parts[0] === 'product' && parts[1].endsWith('.html')
+  );
+}
+
+async function collectFiles(dir, { outputDir }) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const files = [];
 
   for (const entry of entries) {
     const filePath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...(await collectFiles(filePath)));
+      files.push(...(await collectFiles(filePath, { outputDir })));
       continue;
     }
     if (!entry.isFile()) continue;
     if (filePath.endsWith('.br') || filePath.endsWith('.gz')) continue;
     if (!COMPRESSIBLE_EXTENSIONS.has(path.extname(entry.name))) continue;
+    if (isBuildTimeProductPage(filePath, outputDir)) continue;
     files.push(filePath);
   }
 
@@ -65,7 +74,7 @@ export async function precompress({
   outputDir = distDir,
   log = console.log,
 } = {}) {
-  const files = await collectFiles(outputDir);
+  const files = await collectFiles(outputDir, { outputDir });
   let written = 0;
 
   for (const filePath of files) {

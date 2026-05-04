@@ -147,6 +147,114 @@
   padding: 24px;
 }
 
+.contacts-map-placeholder__icon {
+  margin-bottom: 12px;
+  color: #2f8fe8;
+}
+
+.contacts-map-placeholder__address {
+  margin-bottom: 6px;
+  color: #0a1628;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.contacts-map-placeholder__hours {
+  color: #5a6f87;
+  font-size: 14px;
+}
+
+.about-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-top: 40px;
+}
+
+.about-facts__item {
+  padding: 28px 24px;
+  border-radius: 16px;
+  background: var(--bg-soft);
+  text-align: center;
+}
+
+.about-facts__num {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.about-facts__label {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.content-lead {
+  max-width: 900px;
+  margin: 18px 0 0;
+  color: #475569;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.content-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+.content-columns--spaced {
+  margin-top: 44px;
+}
+
+.info-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+  list-style: none;
+}
+
+.info-list li {
+  position: relative;
+  padding-left: 28px;
+  color: #334155;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.info-list li::before {
+  position: absolute;
+  top: 0.58em;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  content: '';
+}
+
+.info-list--ordered {
+  counter-reset: info-list;
+}
+
+.info-list--ordered li {
+  counter-increment: info-list;
+}
+
+.info-list--ordered li::before {
+  top: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  content: counter(info-list);
+}
+
 /* INFO PAGES (Delivery, Payment) */
 .info-cards {
   display: grid;
@@ -197,14 +305,20 @@
   .products-grid--stock-showcase {
     grid-template-columns: 1fr;
   }
-  .site-footer__hero-cta,
-  .site-footer__cta {
-    border-radius: 18px;
-  }
-  .site-footer__cta-phone {
-    font-size: 16px;
-  }
   .info-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .content-columns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .contacts-page__hero,
+  .contacts-grid,
+  .contacts-layout {
     grid-template-columns: 1fr;
   }
 }
