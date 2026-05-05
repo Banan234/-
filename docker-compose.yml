@@ -50,6 +50,8 @@ services:
         VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}
         VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-${DEPLOY_TAG:-latest}}
         VITE_SENTRY_TRACES_SAMPLE_RATE: ${VITE_SENTRY_TRACES_SAMPLE_RATE:-0}
+        PRODUCT_PRERENDER_LIMIT: ${PRODUCT_PRERENDER_LIMIT:-720}
+        PRODUCT_PRERENDER_INCLUDE: ${PRODUCT_PRERENDER_INCLUDE:-}
     image: ${WEB_IMAGE:-yuzhural-site-web}:${DEPLOY_TAG:-latest}
     container_name: yuzhural-web
     restart: unless-stopped

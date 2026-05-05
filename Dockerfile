@@ -12,9 +12,10 @@ COPY --chown=node:node package.json package-lock.json ./
 RUN npm ci
 
 # ---------- 2. Сборка фронта (vite → dist/) + prerender SEO ----------
-# build:prod = vite build && scripts/prerender.js. Prerender пишет
-# dist/product/<slug>.html для каждой карточки + статика главной/
-# каталога/контактов. Требует data/products.json в build-контексте.
+# build:prod = vite build && scripts/prerender.js. Prerender пишет статику
+# главной/каталога/контактов и ограниченный набор product HTML для важных SKU.
+# Полный sitemap остаётся в public; длинный хвост product URL обслуживается
+# runtime-prerender из volume или nginx fallback на index.html.
 FROM node:20-slim AS build
 USER node
 WORKDIR /home/node
@@ -27,13 +28,17 @@ ARG VITE_SENTRY_DSN=
 ARG VITE_SENTRY_ENVIRONMENT=production
 ARG VITE_SENTRY_RELEASE=
 ARG VITE_SENTRY_TRACES_SAMPLE_RATE=0
+ARG PRODUCT_PRERENDER_LIMIT=720
+ARG PRODUCT_PRERENDER_INCLUDE=
 ENV SITE_URL=$SITE_URL \
     VITE_SITE_URL=$VITE_SITE_URL \
     VITE_YANDEX_METRIKA_ID=$VITE_YANDEX_METRIKA_ID \
     VITE_SENTRY_DSN=$VITE_SENTRY_DSN \
     VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT \
     VITE_SENTRY_RELEASE=$VITE_SENTRY_RELEASE \
-    VITE_SENTRY_TRACES_SAMPLE_RATE=$VITE_SENTRY_TRACES_SAMPLE_RATE
+    VITE_SENTRY_TRACES_SAMPLE_RATE=$VITE_SENTRY_TRACES_SAMPLE_RATE \
+    PRODUCT_PRERENDER_LIMIT=$PRODUCT_PRERENDER_LIMIT \
+    PRODUCT_PRERENDER_INCLUDE=$PRODUCT_PRERENDER_INCLUDE
 COPY --chown=node:node --from=deps /home/node/app/node_modules ./node_modules
 COPY --chown=node:node . .
 RUN npm run build:prod

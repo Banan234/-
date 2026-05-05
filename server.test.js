@@ -268,15 +268,12 @@ function parseCspHeader(value) {
 }
 
 describe('GET /api/health', () => {
-  it('возвращает 200 с uptime и timestamp', async () => {
+  it('возвращает минимальную публичную liveness-пробу', async () => {
     const res = await fetch(`${baseUrl}/api/health`);
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data.ok).toBe(true);
-    expect(typeof data.uptime).toBe('number');
-    expect(typeof data.ts).toBe('number');
-    expect(data.runtime).toBeUndefined();
+    expect(data).toEqual({ ok: true });
   });
 });
 
@@ -380,6 +377,9 @@ describe('security headers', () => {
     expect(res.headers.get('referrer-policy')).toBe(
       'strict-origin-when-cross-origin'
     );
+    expect(res.headers.get('permissions-policy')).toContain('geolocation=()');
+    expect(res.headers.get('permissions-policy')).toContain('microphone=()');
+    expect(res.headers.get('cross-origin-opener-policy')).toBe('same-origin');
     expect(hsts).toContain('max-age=31536000');
     expect(hsts).toContain('includeSubDomains');
     expect(cspDirectives).toMatchObject({
@@ -1164,6 +1164,24 @@ describe('POST /api/lead-request', () => {
       const res = await postJson('/api/lead-request', {
         ...validLeadPayload,
         phone,
+      });
+
+      expect(res.status).toBe(400);
+      expect(sendMailMock).not.toHaveBeenCalled();
+    }
+  });
+
+  it('400 при слишком длинных полях короткой заявки', async () => {
+    for (const payloadPatch of [
+      { name: 'И'.repeat(121) },
+      { comment: 'К'.repeat(1001) },
+      { source: 'S'.repeat(161) },
+    ]) {
+      sendMailMock.mockClear();
+
+      const res = await postJson('/api/lead-request', {
+        ...validLeadPayload,
+        ...payloadPatch,
       });
 
       expect(res.status).toBe(400);

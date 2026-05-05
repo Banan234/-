@@ -51,6 +51,9 @@ const DEFAULT_SMTP_GREETING_TIMEOUT_MS = 10_000;
 const DEFAULT_SMTP_SOCKET_TIMEOUT_MS = 20_000;
 const DEFAULT_SMTP_SEND_RETRIES = 1;
 const DEFAULT_SMTP_RETRY_DELAY_MS = 750;
+const MAX_LEAD_NAME_LENGTH = 120;
+const MAX_LEAD_COMMENT_LENGTH = 1000;
+const MAX_LEAD_SOURCE_LENGTH = 160;
 const RUNTIME_EVENT_LOOP_DELAY = monitorEventLoopDelay({ resolution: 20 });
 const RETRYABLE_MAIL_ERROR_CODES = new Set([
   'ECONNABORTED',
@@ -82,6 +85,8 @@ const API_CSP_DIRECTIVES = Object.freeze({
   styleSrc: ["'none'"],
   workerSrc: ["'none'"],
 });
+const API_PERMISSIONS_POLICY =
+  'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()';
 
 // Honeypot: скрытое поле, которое реальный пользователь не видит и не заполняет.
 // Боты обычно заполняют все input'ы подряд — отдаём им фейковый success.
@@ -182,6 +187,10 @@ function normalizePhoneInput(value) {
   const raw = String(value ?? '').trim();
   const digits = raw.replace(/\D/g, '');
   return raw.startsWith('+') ? `+${digits}` : digits;
+}
+
+function isTrimmedStringWithinLength(value, maxLength) {
+  return String(value ?? '').trim().length <= maxLength;
 }
 
 function applyCatalogCache(res) {
@@ -674,6 +683,10 @@ export function createApp({
       xFrameOptions: { action: 'deny' },
     })
   );
+  app.use((req, res, next) => {
+    res.setHeader('Permissions-Policy', API_PERMISSIONS_POLICY);
+    next();
+  });
   app.use('/api/products', compression());
   app.use(express.json({ limit: MAX_QUOTE_PAYLOAD_BYTES }));
   app.use((err, req, res, next) => {
@@ -690,8 +703,6 @@ export function createApp({
   app.get('/api/health', (req, res) => {
     res.json({
       ok: true,
-      uptime: process.uptime(),
-      ts: Date.now(),
     });
   });
 
@@ -1078,6 +1089,8 @@ export function createApp({
         const { name, phone, comment, source, createdAt } = req.body;
         const contactName = String(name || '').trim();
         const normalizedPhone = normalizePhoneInput(phone);
+        const leadComment = String(comment || '').trim();
+        const leadSource = String(source || '').trim();
 
         if (!isValidRussianPhone(normalizedPhone)) {
           return sendFormErrorResponse(
@@ -1089,13 +1102,27 @@ export function createApp({
           );
         }
 
+        if (
+          !isTrimmedStringWithinLength(contactName, MAX_LEAD_NAME_LENGTH) ||
+          !isTrimmedStringWithinLength(leadComment, MAX_LEAD_COMMENT_LENGTH) ||
+          !isTrimmedStringWithinLength(leadSource, MAX_LEAD_SOURCE_LENGTH)
+        ) {
+          return sendFormErrorResponse(
+            res,
+            formResponseStartedAt,
+            formResponseDelayMs,
+            messages.errors.api.invalidQuoteRequest,
+            400
+          );
+        }
+
         const html = `
         <h2>Новая короткая заявка</h2>
         <p><strong>Дата:</strong> ${escapeHtml(createdAt) || '—'}</p>
-        <p><strong>Источник:</strong> ${escapeHtml(source) || '—'}</p>
+        <p><strong>Источник:</strong> ${escapeHtml(leadSource) || '—'}</p>
         <p><strong>Контактное лицо:</strong> ${escapeHtml(contactName) || 'Не указано'}</p>
         <p><strong>Телефон:</strong> ${escapeHtml(normalizedPhone)}</p>
-        <p><strong>Комментарий:</strong> ${escapeHtml(comment) || '—'}</p>
+        <p><strong>Комментарий:</strong> ${escapeHtml(leadComment) || '—'}</p>
       `;
 
         await sendMailWithRetry(

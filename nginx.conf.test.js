@@ -23,11 +23,14 @@ describe('nginx security headers', () => {
     expect(config).toContain("default-src 'self'");
     expect(config).toContain("object-src 'none'");
     expect(config).toContain("frame-ancestors 'none'");
-    expect(config).toContain(
-      "script-src 'self' 'unsafe-inline' https://mc.yandex.ru"
-    );
+    expect(config).toContain("script-src 'self' https://mc.yandex.ru");
+    expect(config).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(config).toContain(
       "connect-src 'self' https://mc.yandex.ru https://*.mc.yandex.ru https://*.ingest.sentry.io https://*.sentry.io"
+    );
+    expect(config).toContain('add_header Permissions-Policy "');
+    expect(config).toContain(
+      'add_header Cross-Origin-Opener-Policy same-origin always;'
     );
   });
 
@@ -46,6 +49,10 @@ describe('nginx security headers', () => {
     expect(assetsBlock).toContain('add_header X-Frame-Options DENY always;');
     expect(assetsBlock).toContain(
       'add_header Referrer-Policy strict-origin-when-cross-origin always;'
+    );
+    expect(assetsBlock).toContain('add_header Permissions-Policy "');
+    expect(assetsBlock).toContain(
+      'add_header Cross-Origin-Opener-Policy same-origin always;'
     );
   });
 });
@@ -69,7 +76,7 @@ describe('nginx compression', () => {
 describe('nginx static cache rules', () => {
   it('caches stable public assets outside vite /assets', () => {
     expect(config).toContain(
-      'location ~ ^/(hero-bg[^/]*\\.(?:avif|webp)|logo\\.webp|product-placeholder\\.svg|category-placeholders/[A-Za-z0-9-]+\\.svg|fonts/[A-Za-z0-9._-]+)$'
+      'location ~ ^/(hero-bg[^/]*\\.(?:avif|webp)|logo\\.(?:webp|png)|favicon-32\\.png|favicon\\.ico|product-placeholder\\.svg|category-placeholders/[A-Za-z0-9-]+\\.svg|fonts/[A-Za-z0-9._-]+)$'
     );
     expect(config).toContain(
       'add_header Cache-Control "public, max-age=31536000, immutable";'
