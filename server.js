@@ -246,6 +246,42 @@ function readNonEmptyEnv(value) {
   return normalized || null;
 }
 
+const SMTP_REQUIRED_ENV_KEYS = Object.freeze([
+  'SMTP_HOST',
+  'SMTP_USER',
+  'SMTP_PASS',
+  'SMTP_FROM',
+  'QUOTE_TO_EMAIL',
+]);
+
+export function getFormsDiagnostic(env = process.env) {
+  const missing = SMTP_REQUIRED_ENV_KEYS.filter(
+    (key) => !String(env[key] || '').trim()
+  );
+  const formsEnabled = parseBooleanEnv(env.FORMS_ENABLED, true);
+  const isTestEnv = env.NODE_ENV === 'test' || env.VITEST === 'true';
+
+  return {
+    formsEnabled,
+    smtpConfigured: isTestEnv || missing.length === 0,
+    missing: isTestEnv ? [] : missing,
+  };
+}
+
+export function validateFormsEnv(env = process.env) {
+  const diagnostic = getFormsDiagnostic(env);
+  if (!diagnostic.formsEnabled) return diagnostic;
+  if (
+    env.NODE_ENV === 'production' &&
+    diagnostic.missing.length > 0
+  ) {
+    throw new Error(
+      `SMTP не настроен: задайте ${diagnostic.missing.join(', ')} или FORMS_ENABLED=false`
+    );
+  }
+  return diagnostic;
+}
+
 function getBearerToken(req) {
   const authorization = String(req.get('authorization') || '').trim();
   const match = /^Bearer\s+(.+)$/i.exec(authorization);
@@ -724,6 +760,18 @@ export function createApp({
     });
   });
 
+  app.get('/api/forms/health', (req, res) => {
+    const diagnostic = getFormsDiagnostic();
+    const ok = diagnostic.formsEnabled && diagnostic.smtpConfigured;
+
+    return res.status(ok ? 200 : 503).json({
+      ok,
+      formsEnabled: diagnostic.formsEnabled,
+      smtpConfigured: diagnostic.smtpConfigured,
+      missingConfig: diagnostic.missing,
+    });
+  });
+
   app.get('/api/products', async (req, res) => {
     try {
       applyCatalogCache(res);
@@ -969,6 +1017,17 @@ export function createApp({
       );
 
       try {
+        const formsDiagnostic = getFormsDiagnostic();
+        if (!formsDiagnostic.formsEnabled || !formsDiagnostic.smtpConfigured) {
+          return sendFormErrorResponse(
+            res,
+            formResponseStartedAt,
+            formResponseDelayMs,
+            messages.errors.api.quoteSendFailed,
+            503
+          );
+        }
+
         if (getBotSubmissionSignal(req)) {
           return sendFormJson(res, formResponseStartedAt, formResponseDelayMs, {
             ok: true,
@@ -1079,6 +1138,17 @@ export function createApp({
       );
 
       try {
+        const formsDiagnostic = getFormsDiagnostic();
+        if (!formsDiagnostic.formsEnabled || !formsDiagnostic.smtpConfigured) {
+          return sendFormErrorResponse(
+            res,
+            formResponseStartedAt,
+            formResponseDelayMs,
+            messages.errors.api.quoteSendFailed,
+            503
+          );
+        }
+
         if (getBotSubmissionSignal(req)) {
           return sendFormJson(res, formResponseStartedAt, formResponseDelayMs, {
             ok: true,
@@ -1160,24 +1230,17 @@ export function createApp({
 const isMain =
   process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
-// Проверка обязательных env-переменных на старте. Не валим процесс —
-// каталог должен работать без SMTP, — но громко предупреждаем, чтобы
-// «тихая» поломка форм не дотянула до прода. В тестах не вызывается.
+// Проверка обязательных env-переменных на старте.
 function warnIfSmtpMisconfigured() {
-  const required = [
-    'SMTP_HOST',
-    'SMTP_USER',
-    'SMTP_PASS',
-    'SMTP_FROM',
-    'QUOTE_TO_EMAIL',
-  ];
-  const missing = required.filter(
-    (key) => !String(process.env[key] || '').trim()
-  );
-  if (missing.length > 0) {
+  const diagnostic = validateFormsEnv();
+  if (diagnostic.formsEnabled && diagnostic.missing.length > 0) {
     logger.warn('startup.smtp_misconfigured', {
-      missing,
-      hint: 'заявки /api/quote и /api/lead-request не будут отправляться',
+      missing: diagnostic.missing,
+      hint: 'в production процесс завершится; локально формы вернут 503',
+    });
+  } else if (!diagnostic.formsEnabled) {
+    logger.warn('startup.forms_disabled', {
+      hint: 'FORMS_ENABLED=false: заявки /api/quote и /api/lead-request отключены',
     });
   }
 }
