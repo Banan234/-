@@ -10,10 +10,18 @@ const DSN = import.meta.env.VITE_SENTRY_DSN;
 const ENVIRONMENT =
   import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
 const RELEASE = import.meta.env.VITE_SENTRY_RELEASE || undefined;
-const SAMPLE_RATE = Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE) || 0;
+const TRACES_SAMPLE_RATE =
+  Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE) || 0;
+const REPLAY_SAMPLE_RATE = 0;
 const REDACTED = '[redacted]';
 const MAX_SANITIZE_DEPTH = 8;
 const MAX_SANITIZE_ARRAY_ITEMS = 100;
+const DISABLED_DEFAULT_INTEGRATIONS = [
+  'browserprofiling',
+  'browsertracing',
+  'profiling',
+  'replay',
+];
 const EMAIL_RE =
   /\b[A-Z0-9._%+-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)*\.[A-Z]{2,24}\b/gi;
 const PHONE_RE =
@@ -44,6 +52,7 @@ const SENSITIVE_KEYS = new Set([
 
 let sentryModule = null;
 let initPromise = null;
+let scheduledInitPromise = null;
 
 function isClient() {
   return typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -145,6 +154,31 @@ function buildCaptureOptions(context) {
   return context ? { extra: sanitizeSentryValue(context) } : undefined;
 }
 
+function lightweightIntegrations(defaultIntegrations = []) {
+  return defaultIntegrations.filter(
+    (integration) =>
+      !DISABLED_DEFAULT_INTEGRATIONS.some((name) =>
+        String(integration?.name || '')
+          .toLowerCase()
+          .includes(name)
+      )
+  );
+}
+
+function deferAfterBootstrap(callback) {
+  const scheduleIdle =
+    window.requestIdleCallback ||
+    ((idleCallback) => window.setTimeout(idleCallback, 1200));
+  const schedule = () => scheduleIdle(callback, { timeout: 3000 });
+
+  if (document.readyState === 'complete') {
+    window.setTimeout(schedule, 0);
+    return;
+  }
+
+  window.addEventListener('load', schedule, { once: true });
+}
+
 // Инициализация. Идемпотентна: повторный вызов отдаёт тот же promise,
 // чтобы initErrorTracking() было безопасно дёргать из main.jsx и из тестов.
 export function initErrorTracking() {
@@ -160,7 +194,11 @@ export function initErrorTracking() {
         // Performance/replay по умолчанию выключены — это B2B-сайт,
         // объёмы трафика низкие, лимиты бесплатного GlitchTip ограничены.
         // Нужны трейсы — поднимите VITE_SENTRY_TRACES_SAMPLE_RATE.
-        tracesSampleRate: SAMPLE_RATE,
+        tracesSampleRate: TRACES_SAMPLE_RATE,
+        profilesSampleRate: 0,
+        replaysSessionSampleRate: REPLAY_SAMPLE_RATE,
+        replaysOnErrorSampleRate: REPLAY_SAMPLE_RATE,
+        integrations: lightweightIntegrations,
         // Не шлём PII — клиенты заполняют форму с реальным телефоном/email.
         sendDefaultPii: false,
         ignoreErrors: [
@@ -184,6 +222,20 @@ export function initErrorTracking() {
   return initPromise;
 }
 
+export function scheduleErrorTrackingInit() {
+  if (!isClient() || !DSN) return Promise.resolve(null);
+  if (initPromise) return initPromise;
+  if (scheduledInitPromise) return scheduledInitPromise;
+
+  scheduledInitPromise = new Promise((resolve) => {
+    deferAfterBootstrap(() => {
+      initErrorTracking().then(resolve);
+    });
+  });
+
+  return scheduledInitPromise;
+}
+
 // Захват ошибки. Если Sentry ещё не загрузился — буферизуем до готовности,
 // иначе ошибки на этапе bootstrap теряются. Если DSN не задан — console.error,
 // сохраняя dev-удобство.
@@ -205,9 +257,9 @@ export function captureException(error, context) {
     return;
   }
 
-  if (DSN && initPromise) {
+  if (DSN) {
     pendingCaptures.push({ error, context });
-    initPromise.then(flushPending);
+    initErrorTracking().then(flushPending);
     return;
   }
 

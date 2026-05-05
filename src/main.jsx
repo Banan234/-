@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './app/router';
 import { initAnalytics } from './lib/analytics';
-import { initErrorTracking } from './lib/errorTracking';
+import { scheduleErrorTrackingInit } from './lib/errorTracking';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import {
   getBrowserPrerenderData,
@@ -11,10 +11,10 @@ import {
 } from './lib/prerenderData';
 import './styles/global.css';
 
-// Сначала Sentry/GlitchTip — чтобы ошибки на этапе bootstrap тоже попадали
-// в трекер. initErrorTracking возвращает promise, но не ждём: capture-вызовы
-// до готовности SDK буферизуются внутри.
-initErrorTracking();
+// Third-party SDK грузим после load/idle: bootstrap и гидрация остаются
+// без сетевого/CPU хвоста от аналитики. Ранние capture-вызовы Sentry
+// буферизуются и форсят загрузку SDK только при реальной ошибке.
+scheduleErrorTrackingInit();
 initAnalytics();
 
 const root = document.getElementById('root');
