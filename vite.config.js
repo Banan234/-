@@ -39,8 +39,50 @@ function productRedirects() {
   };
 }
 
+export function moveStylesheetsBeforeModuleScripts(html) {
+  return html.replace(/<head\b[^>]*>([\s\S]*?)<\/head>/i, (headMatch) => {
+    const stylesheetTags = [];
+    const headWithoutStylesheets = headMatch.replace(
+      /^[ \t]*<link\b(?=[^>]*\brel=["']stylesheet["'])(?=[^>]*\bhref=["'][^"']+["'])[^>]*>[ \t]*(?:\r?\n)?/gim,
+      (tag) => {
+        stylesheetTags.push(tag.trimEnd());
+        return '';
+      }
+    );
+
+    if (stylesheetTags.length === 0) return headMatch;
+
+    const moduleScriptPattern =
+      /^[ \t]*<script\b(?=[^>]*\btype=["']module["'])[^>]*><\/script>[ \t]*$/im;
+    if (!moduleScriptPattern.test(headWithoutStylesheets)) return headMatch;
+
+    return headWithoutStylesheets
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(moduleScriptPattern, (scriptTag) => {
+        const indent = scriptTag.match(/^[ \t]*/)?.[0] || '';
+        const styles = stylesheetTags
+          .map((tag) => `${indent}${tag.trim()}`)
+          .join('\n');
+        return `${styles}\n${scriptTag}`;
+      });
+  });
+}
+
+function prioritizeStylesheets() {
+  return {
+    name: 'prioritize-stylesheets',
+    enforce: 'post',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        return moveStylesheetsBeforeModuleScripts(html);
+      },
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), productRedirects()],
+  plugins: [react(), productRedirects(), prioritizeStylesheets()],
   build: {
     manifest: true,
   },

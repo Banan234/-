@@ -16,5 +16,16 @@ export function usePrerenderData() {
 
 export function getBrowserPrerenderData() {
   if (typeof window === 'undefined') return {};
-  return window.__YUZHURAL_PRERENDER_DATA__ || {};
+  if (typeof document === 'undefined') {
+    return window.__YUZHURAL_PRERENDER_DATA__ || {};
+  }
+  const element = document.getElementById('yuzhural-prerender-data');
+  if (!element?.textContent) return window.__YUZHURAL_PRERENDER_DATA__ || {};
+
+  try {
+    return JSON.parse(element.textContent) || {};
+  } catch (error) {
+    console.warn('prerenderData: parse failed', error);
+    return {};
+  }
 }

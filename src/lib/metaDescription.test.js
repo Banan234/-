@@ -46,4 +46,21 @@ describe('buildProductMetaDescription', () => {
     expect(description.length).toBeLessThanOrEqual(META_DESCRIPTION_MAX_LENGTH);
     expect(description).not.toContain('  ');
   });
+
+  it('усиливает короткое описание товара характеристиками и коммерческим контекстом', () => {
+    const description = buildProductMetaDescription({
+      fullName: 'АВБбШв 4х50',
+      catalogCategory: 'Силовой кабель',
+      cores: 4,
+      crossSection: 50,
+      price: 258.9,
+      unit: 'м',
+    });
+
+    expect(description.length).toBeGreaterThanOrEqual(80);
+    expect(description.length).toBeLessThanOrEqual(META_DESCRIPTION_MAX_LENGTH);
+    expect(description).toContain('Силовой кабель');
+    expect(description).toContain('сечение 50 мм²');
+    expect(description).toContain('Цена от 258,9 ₽/м');
+  });
 });

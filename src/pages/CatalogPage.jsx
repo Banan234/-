@@ -114,17 +114,22 @@ export default function CatalogPage() {
     prerenderData: catalogPrerenderData,
     productQueryOptions,
   });
+  const initialCatalogPrerenderData = hasMatchingPrerenderData
+    ? catalogPrerenderData
+    : null;
 
   const [products, setProducts] = useState(
-    () => catalogPrerenderData?.items || []
+    () => initialCatalogPrerenderData?.items || []
   );
   const [catalogSections, setCatalogSections] = useState(
-    () => catalogPrerenderData?.catalogSections || []
+    () => initialCatalogPrerenderData?.catalogSections || []
   );
   const [productsMeta, setProductsMeta] = useState(
-    () => catalogPrerenderData?.meta || {}
+    () => initialCatalogPrerenderData?.meta || {}
   );
-  const [isLoading, setIsLoading] = useState(() => !catalogPrerenderData);
+  const [isLoading, setIsLoading] = useState(
+    () => !initialCatalogPrerenderData
+  );
   const [error, setError] = useState('');
 
   useEffect(() => {

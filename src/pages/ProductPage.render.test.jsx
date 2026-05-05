@@ -69,6 +69,12 @@ describe('ProductPage', () => {
       'type',
       'number'
     );
+    expect(
+      screen.getByRole('button', { name: 'Уменьшить количество товара' })
+    ).toHaveAttribute('aria-controls', 'product-quantity-input');
+    expect(
+      screen.getByRole('button', { name: 'Увеличить количество товара' })
+    ).toHaveAttribute('aria-controls', 'product-quantity-input');
     expect(screen.queryByText(/^Производитель:/)).not.toBeInTheDocument();
   });
 });

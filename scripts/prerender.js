@@ -4,8 +4,10 @@
 // (title, meta, OG, Twitter, JSON-LD) и настоящей React-разметкой в #root.
 // Клиентский entry затем делает hydrateRoot(...), поэтому стартовая геометрия
 // страницы не меняется из-за замены SEO-shell на приложение.
-// Карточки товара пишутся плоско в dist/product/<slug>.html, чтобы не плодить
-// тысячи директорий и не раздувать Docker layer/block-size overhead.
+// Build-time карточки товара пишутся плоско в dist/product/<slug>.html и
+// ограничиваются важным набором SKU, чтобы не раздувать web-образ тысячами
+// HTML-файлов. Длинный хвост остаётся в sitemap и обслуживается runtime
+// product-prerender из volume или SPA/static fallback.
 //
 // Запуск: node scripts/prerender.js
 // Зависит от: dist/index.html (из vite build), data/products.json (из импортёра).
@@ -18,6 +20,7 @@ import {
   buildProductBreadcrumbJsonLd,
   buildProductJsonLd,
   buildProductMetaDescription,
+  buildProductMetaTitle,
   getProductBreadcrumbs,
 } from '../src/lib/productSeo.js';
 import {
@@ -41,6 +44,9 @@ const productsFile = path.join(repoRoot, 'data', 'products.json');
 const serverEntryFile = 'entry-server.js';
 const CATALOG_PRERENDER_PAGE_SIZE = 24;
 const buildManifestFile = path.join(distDir, '.vite', 'manifest.json');
+const DEFAULT_PRODUCT_PRERENDER_LIMIT = 720;
+const PRODUCT_PRERENDER_LIMIT_ENV = 'PRODUCT_PRERENDER_LIMIT';
+const PRODUCT_PRERENDER_INCLUDE_ENV = 'PRODUCT_PRERENDER_INCLUDE';
 
 export const STATIC_ROUTES = [
   {
@@ -166,6 +172,116 @@ const ROUTE_MODULES = [
     module: 'src/pages/PaymentPage.jsx',
   },
 ];
+
+export function parseProductPrerenderLimit(
+  value,
+  fallback = DEFAULT_PRODUCT_PRERENDER_LIMIT
+) {
+  const raw = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if (!raw) return fallback;
+  if (['all', 'full', '*'].includes(raw)) return null;
+
+  const number = Number(raw);
+  if (!Number.isSafeInteger(number) || number < 0) {
+    throw new Error(
+      `[prerender] ${PRODUCT_PRERENDER_LIMIT_ENV} должен быть целым числом >= 0 или "all".`
+    );
+  }
+  return number;
+}
+
+function normalizeProductPrerenderKey(value) {
+  let raw = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if (!raw) return '';
+
+  try {
+    if (/^https?:\/\//i.test(raw)) {
+      raw = new URL(raw).pathname;
+    }
+  } catch {
+    // Если это невалидный URL, обработаем как обычный ключ ниже.
+  }
+
+  raw = raw.replace(/^\/+/, '').replace(/\/+$/, '');
+  if (raw.startsWith('product/')) {
+    raw = raw.slice('product/'.length);
+  }
+  return raw;
+}
+
+export function parseProductPrerenderInclude(value) {
+  return [
+    ...new Set(
+      String(value ?? '')
+        .split(/[\s,;]+/)
+        .map(normalizeProductPrerenderKey)
+        .filter(Boolean)
+    ),
+  ];
+}
+
+function getProductPrerenderKeys(product) {
+  return [product?.slug, product?.sku, product?.id]
+    .map(normalizeProductPrerenderKey)
+    .filter(Boolean);
+}
+
+export function selectBuildPrerenderProducts(
+  products,
+  { limit = DEFAULT_PRODUCT_PRERENDER_LIMIT, include = [] } = {}
+) {
+  if (!Array.isArray(products)) return { products: [], missing: [] };
+  if (limit === null) return { products, missing: [] };
+
+  const explicitKeys = Array.isArray(include)
+    ? include.map(normalizeProductPrerenderKey).filter(Boolean)
+    : parseProductPrerenderInclude(include);
+  const productByKey = new Map();
+  for (const product of products) {
+    for (const key of getProductPrerenderKeys(product)) {
+      if (!productByKey.has(key)) productByKey.set(key, product);
+    }
+  }
+
+  const selected = [];
+  const selectedSlugs = new Set();
+  const addProduct = (product) => {
+    const slug = normalizeProductPrerenderKey(product?.slug);
+    if (!product || selectedSlugs.has(slug)) return;
+    selected.push(product);
+    selectedSlugs.add(slug);
+  };
+
+  const missing = [];
+  for (const key of explicitKeys) {
+    const product = productByKey.get(key);
+    if (product) {
+      addProduct(product);
+    } else {
+      missing.push(key);
+    }
+  }
+
+  let autoSelected = 0;
+  for (const product of products) {
+    if (autoSelected >= limit) break;
+    const before = selected.length;
+    addProduct(product);
+    if (selected.length > before) {
+      autoSelected += 1;
+    }
+  }
+
+  return { products: selected, missing };
+}
+
+function formatProductPrerenderLimit(limit) {
+  return limit === null ? 'all' : String(limit);
+}
 
 export class PrerenderProductValidationError extends Error {
   constructor(issues, { source = 'products.json' } = {}) {
@@ -491,9 +607,9 @@ export function buildJsonLdScript(payload, id) {
 export function buildPrerenderDataScript(data) {
   if (!data || Object.keys(data).length === 0) return '';
 
-  return `<script>window.__YUZHURAL_PRERENDER_DATA__=${JSON.stringify(
+  return `<script type="application/json" id="yuzhural-prerender-data">${JSON.stringify(
     data
-  ).replace(/</g, '\\u003c')};</script>`;
+  ).replace(/</g, '\\u003c')}</script>`;
 }
 
 function getProductDisplayName(product) {
@@ -994,6 +1110,8 @@ export async function prerenderProducts(
     validate = true,
     renderApp,
     manifest = null,
+    titleProducts = products,
+    totalProducts = products.length,
   } = {}
 ) {
   if (validate) {
@@ -1005,14 +1123,20 @@ export async function prerenderProducts(
     force: true,
   });
 
+  const titleCounts = new Map();
+  for (const product of titleProducts) {
+    const title = buildProductMetaTitle(product);
+    if (title) {
+      titleCounts.set(title, (titleCounts.get(title) || 0) + 1);
+    }
+  }
+
   let written = 0;
   for (const product of products) {
     const canonical = absoluteUrl(`/product/${product.slug}`);
-    // На текущих данных поставщика часть позиций приходит без product.title,
-    // но всегда есть fullName или name. Fallback идентичен тому, что делает
-    // buildProductJsonLd → поле name.
-    const productLabel =
-      product.title || product.fullName || product.name || product.mark || '';
+    const productLabel = buildProductMetaTitle(product, {
+      disambiguate: titleCounts.get(buildProductMetaTitle(product)) > 1,
+    });
     const fullTitle = productLabel
       ? `${productLabel} — ${SITE_NAME}`
       : SITE_NAME;
@@ -1047,7 +1171,7 @@ export async function prerenderProducts(
     written += 1;
   }
   log?.(
-    `[prerender] products: ${written}/${products.length} pages → dist/product/<slug>.html`
+    `[prerender] products: ${written}/${totalProducts} pages → dist/product/<slug>.html`
   );
 }
 
@@ -1057,6 +1181,12 @@ export async function prerender({
   log = console.log,
   warn = console.warn,
   renderApp,
+  productPrerenderLimit = parseProductPrerenderLimit(
+    process.env[PRODUCT_PRERENDER_LIMIT_ENV]
+  ),
+  productPrerenderInclude = parseProductPrerenderInclude(
+    process.env[PRODUCT_PRERENDER_INCLUDE_ENV]
+  ),
 } = {}) {
   const template = await loadTemplate({ outputDir });
   const manifest = await loadBuildManifest({
@@ -1073,12 +1203,32 @@ export async function prerender({
     products,
     manifest,
   });
-  await prerenderProducts(template, products, {
+  const productSelection = selectBuildPrerenderProducts(products, {
+    limit: productPrerenderLimit,
+    include: productPrerenderInclude,
+  });
+  if (productSelection.missing.length > 0) {
+    warn?.(
+      `[prerender] ${PRODUCT_PRERENDER_INCLUDE_ENV}: не найдены SKU/slug: ${productSelection.missing.join(
+        ', '
+      )}`
+    );
+  }
+  if (productSelection.products.length < products.length) {
+    log?.(
+      `[prerender] build product cap: ${productSelection.products.length}/${products.length} pages (limit=${formatProductPrerenderLimit(
+        productPrerenderLimit
+      )}; long-tail → runtime/static fallback)`
+    );
+  }
+  await prerenderProducts(template, productSelection.products, {
     outputDir,
     log,
     validate: false,
     renderApp: routeRenderer,
     manifest,
+    titleProducts: products,
+    totalProducts: products.length,
   });
   log?.('[prerender] done.');
 }

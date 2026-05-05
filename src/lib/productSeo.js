@@ -10,6 +10,95 @@ import {
 } from './siteConfig.js';
 import { normalizeMetaDescription } from './metaDescription.js';
 
+const PRODUCT_META_DESCRIPTION_MIN_LENGTH = 80;
+
+function normalizeText(value) {
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getProductName(product) {
+  return (
+    normalizeText(product?.title) ||
+    normalizeText(product?.fullName) ||
+    normalizeText(product?.name) ||
+    normalizeText(product?.mark) ||
+    ''
+  );
+}
+
+function hasPhrase(value, phrase) {
+  return value
+    .toLocaleLowerCase('ru-RU')
+    .includes(phrase.toLocaleLowerCase('ru-RU'));
+}
+
+function pushUnique(parts, value) {
+  const normalized = normalizeText(value);
+  if (!normalized) return;
+
+  const next = normalized.replace(/[.;]+$/u, '');
+  if (!next) return;
+
+  if (parts.some((part) => hasPhrase(part, next) || hasPhrase(next, part))) {
+    return;
+  }
+
+  parts.push(next);
+}
+
+function formatNumber(value) {
+  if (value === null || value === undefined || value === '') return '';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '';
+  return number.toLocaleString('ru-RU', {
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatPrice(product) {
+  const price = Number(product?.price);
+  if (!Number.isFinite(price) || price <= 0) return '';
+
+  const unit = normalizeText(product.unit);
+  return `Цена от ${formatNumber(price)} ₽${unit ? `/${unit}` : ''}`;
+}
+
+function formatProductSpecs(product) {
+  const specs = [];
+  const cores = Number(product?.cores);
+  const groundCores = Number(product?.groundCores);
+  const crossSection = formatNumber(product?.crossSection);
+  const voltage = formatNumber(product?.voltage);
+
+  if (Number.isFinite(cores) && cores > 0) {
+    const coresLabel =
+      Number.isFinite(groundCores) && groundCores > 0
+        ? `${formatNumber(cores)}+${formatNumber(groundCores)} жилы`
+        : `${formatNumber(cores)} жилы`;
+    specs.push(coresLabel);
+  }
+
+  if (crossSection) {
+    specs.push(`сечение ${crossSection} мм²`);
+  }
+
+  if (voltage) {
+    specs.push(`${voltage} В`);
+  }
+
+  return specs.join(', ');
+}
+
+export function buildProductMetaTitle(product, { disambiguate = false } = {}) {
+  const title = getProductName(product);
+  if (!title) return '';
+
+  const sku = normalizeText(product?.sku || product?.id);
+  return disambiguate && sku ? `${title}, арт. ${sku}` : title;
+}
+
 export function buildProductJsonLd(product) {
   if (!product) return null;
 
@@ -27,15 +116,7 @@ export function buildProductJsonLd(product) {
     name: product.title || product.fullName || product.name,
     sku: product.sku || String(product.id),
     url,
-    description:
-      product.description ||
-      [
-        product.fullName || product.name,
-        product.catalogCategory,
-        product.catalogSection,
-      ]
-        .filter(Boolean)
-        .join(' · '),
+    description: buildProductMetaDescription(product),
     brand: {
       '@type': 'Brand',
       name: brandName,
@@ -132,14 +213,21 @@ export function buildProductBreadcrumbJsonLd(product) {
 
 export function buildProductMetaDescription(product) {
   if (!product) return '';
-  return normalizeMetaDescription(
-    product.description ||
-      [
-        product.fullName || product.title,
-        product.catalogCategory,
-        'купить оптом в Челябинске со склада',
-      ]
-        .filter(Boolean)
-        .join('. ')
+
+  const existingDescription = normalizeText(product.description);
+  if (existingDescription.length >= PRODUCT_META_DESCRIPTION_MIN_LENGTH) {
+    return normalizeMetaDescription(existingDescription);
+  }
+
+  const parts = [];
+  pushUnique(parts, existingDescription || getProductName(product));
+  pushUnique(parts, product.catalogCategory || product.catalogSection);
+  pushUnique(parts, formatProductSpecs(product));
+  pushUnique(parts, formatPrice(product));
+  pushUnique(
+    parts,
+    'Купить оптом в Челябинске со склада и под заказ, подготовим КП для юрлиц'
   );
+
+  return normalizeMetaDescription(parts.join('. '));
 }

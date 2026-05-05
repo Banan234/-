@@ -16,7 +16,11 @@ import {
   loadServerRenderer,
   loadTemplate,
   minifyPrerenderHtml,
+  parseProductPrerenderInclude,
+  parseProductPrerenderLimit,
   prerender,
+  prerenderProducts,
+  selectBuildPrerenderProducts,
   validatePrerenderProducts,
 } from './prerender.js';
 import { SITE_URL } from '../src/lib/siteConfig.js';
@@ -157,7 +161,9 @@ describe('prerender HTML helpers', () => {
       }),
     });
 
-    expect(html).toContain('window.__YUZHURAL_PRERENDER_DATA__=');
+    expect(html).toContain(
+      '<script type="application/json" id="yuzhural-prerender-data">'
+    );
     expect(html).toContain('\\u003c/script>');
     expect(html).not.toContain('</script><script>alert(1)');
   });
@@ -308,6 +314,31 @@ describe('prerender HTML helpers', () => {
     expect(html).not.toContain('<nav');
     expect(html).not.toContain('<dl');
   });
+
+  it('выбирает build-time product prerender по лимиту и явным SKU/slug', () => {
+    const products = [
+      { ...product, slug: 'first-product', sku: 'SKU-1' },
+      { ...product, slug: 'second-product', sku: 'SKU-2' },
+      { ...product, slug: 'third-product', sku: 'SKU-3' },
+    ];
+
+    expect(parseProductPrerenderLimit('all')).toBeNull();
+    expect(parseProductPrerenderLimit('0')).toBe(0);
+    expect(
+      parseProductPrerenderInclude(' SKU-3, /product/second-product ')
+    ).toEqual(['sku-3', 'second-product']);
+
+    const selection = selectBuildPrerenderProducts(products, {
+      limit: 1,
+      include: ['SKU-3', 'missing-sku'],
+    });
+
+    expect(selection.products.map((item) => item.slug)).toEqual([
+      'third-product',
+      'first-product',
+    ]);
+    expect(selection.missing).toEqual(['missing-sku']);
+  });
 });
 
 describe('prerender IO flow', () => {
@@ -379,7 +410,7 @@ describe('prerender IO flow', () => {
     expect(productHtml).toContain('"@type":"Product"');
     expect(productHtml).toContain('"price":"125.50"');
     expect(productHtml).toContain('ВВГнг(A)-LS 3х2,5');
-    expect(productHtml).toContain('window.__YUZHURAL_PRERENDER_DATA__=');
+    expect(productHtml).toContain('id="yuzhural-prerender-data"');
     expect(renderApp).toHaveBeenCalledWith('/product/vvgng-ls-3h2-5', {
       prerenderData: { product },
     });
@@ -391,6 +422,109 @@ describe('prerender IO flow', () => {
     );
     expect(productHtml).not.toContain('OpenGraph / Twitter');
     expect(log).toHaveBeenCalledWith('[prerender] done.');
+  });
+
+  it('добавляет артикул в product title только для дублей', async () => {
+    const distDir = await makeTempDir();
+    const duplicateA = {
+      ...product,
+      slug: 'duplicate-a',
+      sku: 'SKU-A',
+      title: 'АВВГ 3х6+1х4',
+    };
+    const duplicateB = {
+      ...product,
+      slug: 'duplicate-b',
+      sku: 'SKU-B',
+      title: 'АВВГ 3х6+1х4',
+    };
+    const unique = {
+      ...product,
+      slug: 'unique-product',
+      sku: 'SKU-C',
+      title: 'ВВГнг(A)-LS 3х2,5',
+    };
+
+    await prerenderProducts(template, [duplicateA, duplicateB, unique], {
+      outputDir: distDir,
+      log: vi.fn(),
+      validate: false,
+    });
+
+    const duplicateHtml = await readFile(
+      path.join(distDir, 'product', `${duplicateA.slug}.html`),
+      'utf8'
+    );
+    const uniqueHtml = await readFile(
+      path.join(distDir, 'product', `${unique.slug}.html`),
+      'utf8'
+    );
+
+    expect(duplicateHtml).toContain('<title>АВВГ 3х6+1х4, арт. SKU-A —');
+    expect(uniqueHtml).toContain('<title>ВВГнг(A)-LS 3х2,5 —');
+    expect(uniqueHtml).not.toContain('арт. SKU-C');
+  });
+
+  it('ограничивает build-time product prerender, но считает дубли по полному каталогу', async () => {
+    const distDir = await makeTempDir();
+    const productsFile = path.join(distDir, 'products.json');
+    const duplicateA = {
+      ...product,
+      slug: 'duplicate-a',
+      sku: 'SKU-A',
+      title: 'АВВГ 3х6+1х4',
+    };
+    const duplicateB = {
+      ...product,
+      slug: 'duplicate-b',
+      sku: 'SKU-B',
+      title: 'АВВГ 3х6+1х4',
+    };
+    const third = {
+      ...product,
+      slug: 'third-product',
+      sku: 'SKU-C',
+      title: 'ВВГнг(A)-LS 3х2,5',
+    };
+    const log = vi.fn();
+
+    await writeFile(path.join(distDir, 'index.html'), template, 'utf8');
+    await writeFile(
+      productsFile,
+      JSON.stringify({ items: [duplicateA, duplicateB, third] }),
+      'utf8'
+    );
+
+    await prerender({
+      outputDir: distDir,
+      productsPath: productsFile,
+      log,
+      warn: vi.fn(),
+      renderApp: createRenderAppMock(),
+      productPrerenderLimit: 1,
+      productPrerenderInclude: ['SKU-C'],
+    });
+
+    const explicitHtml = await readFile(
+      path.join(distDir, 'product', `${third.slug}.html`),
+      'utf8'
+    );
+    const limitedHtml = await readFile(
+      path.join(distDir, 'product', `${duplicateA.slug}.html`),
+      'utf8'
+    );
+
+    expect(explicitHtml).toContain('<title>ВВГнг(A)-LS 3х2,5 —');
+    expect(limitedHtml).toContain('<title>АВВГ 3х6+1х4, арт. SKU-A —');
+    await expect(
+      readFile(path.join(distDir, 'product', `${duplicateB.slug}.html`), 'utf8')
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('[prerender] build product cap: 2/3 pages')
+    );
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('[prerender] products: 2/3 pages')
+    );
   });
 
   it('валидирует товары до записи статических и товарных страниц', async () => {

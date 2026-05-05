@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Container from '../components/ui/Container';
 import ProductCard from '../components/ui/ProductCard';
@@ -14,6 +14,7 @@ import {
   buildProductBreadcrumbJsonLd,
   buildProductJsonLd,
   buildProductMetaDescription,
+  buildProductMetaTitle,
   getProductBreadcrumbs,
 } from '../lib/productSeo';
 import { messages } from '../../shared/messages.js';
@@ -21,6 +22,7 @@ import '../styles/sections/product-detail.css';
 
 const BREADCRUMB_JSON_LD_ID = 'product-breadcrumb-json-ld';
 const PRODUCT_JSON_LD_ID = 'product-product-json-ld';
+const QUANTITY_INPUT_ID = 'product-quantity-input';
 
 function getProductDisplayTitle(product) {
   return (
@@ -42,16 +44,13 @@ export default function ProductPage() {
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(() => !initialProduct);
   const [error, setError] = useState('');
-  const quantityInputId = useId();
   const isFavorite = useFavoritesStore((state) =>
     state.isFavorite(product?.id)
   );
 
   useSEO({
-    title: product ? getProductDisplayTitle(product) : undefined,
-    description: product
-      ? product.description || buildProductMetaDescription(product)
-      : '',
+    title: product ? buildProductMetaTitle(product) : undefined,
+    description: product ? buildProductMetaDescription(product) : '',
     ogType: 'product',
     image: product?.image,
     canonical: product ? `/product/${product.slug}` : undefined,
@@ -202,26 +201,14 @@ export default function ProductPage() {
   return (
     <section className="section">
       <Container>
-        <nav
-          className="breadcrumbs"
-          role="navigation"
-          aria-label="Хлебные крошки"
-        >
-          <ol
-            className="breadcrumbs__list"
-            itemScope
-            itemType="https://schema.org/BreadcrumbList"
-          >
+        <nav className="breadcrumbs" aria-label="Хлебные крошки">
+          <ol className="breadcrumbs__list">
             {getProductBreadcrumbs(product).map((item, index, items) => {
               const isLast = index === items.length - 1;
-              const position = index + 1;
               return (
                 <li
                   key={`${item.label}-${index}`}
                   className="breadcrumbs__item"
-                  itemProp="itemListElement"
-                  itemScope
-                  itemType="https://schema.org/ListItem"
                 >
                   {index > 0 && (
                     <span className="breadcrumbs__sep" aria-hidden="true">
@@ -229,15 +216,10 @@ export default function ProductPage() {
                     </span>
                   )}
                   {isLast ? (
-                    <span aria-current="page" itemProp="name">
-                      {item.label}
-                    </span>
+                    <span aria-current="page">{item.label}</span>
                   ) : (
-                    <Link to={item.to} itemProp="item">
-                      <span itemProp="name">{item.label}</span>
-                    </Link>
+                    <Link to={item.to}>{item.label}</Link>
                   )}
-                  <meta itemProp="position" content={String(position)} />
                 </li>
               );
             })}
@@ -298,16 +280,18 @@ export default function ProductPage() {
               <div className="product-qty">
                 <button
                   type="button"
+                  aria-label="Уменьшить количество товара"
+                  aria-controls={QUANTITY_INPUT_ID}
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 >
                   −
                 </button>
 
-                <label className="visually-hidden" htmlFor={quantityInputId}>
+                <label className="visually-hidden" htmlFor={QUANTITY_INPUT_ID}>
                   Количество товара
                 </label>
                 <input
-                  id={quantityInputId}
+                  id={QUANTITY_INPUT_ID}
                   type="number"
                   value={quantity}
                   min="1"
@@ -316,7 +300,12 @@ export default function ProductPage() {
                   }
                 />
 
-                <button type="button" onClick={() => setQuantity((q) => q + 1)}>
+                <button
+                  type="button"
+                  aria-label="Увеличить количество товара"
+                  aria-controls={QUANTITY_INPUT_ID}
+                  onClick={() => setQuantity((q) => q + 1)}
+                >
                   +
                 </button>
               </div>
