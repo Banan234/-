@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import Container from '../ui/Container';
 import Modal from '../ui/Modal';
+import HeroLeadForm from '../home/HeroLeadForm';
 import HeaderCatalogMenu from './HeaderCatalogMenu';
 import HeaderSearch from './HeaderSearch';
 import SiteFooter from './SiteFooter';
@@ -14,7 +15,6 @@ import { SITE_PHONE_DISPLAY } from '../../lib/siteConfig';
 
 const MOBILE_NAV_ID = 'mobile-navigation';
 
-const LazyHeroLeadForm = lazy(() => import('../home/HeroLeadForm'));
 const LazyQuoteForm = lazy(() => import('../quote/QuoteForm'));
 const LazyMobileNav = lazy(() => import('./MobileNav'));
 
@@ -34,10 +34,6 @@ function buildStorageWarningMessage(key) {
 
   if (key === 'yuzhural-favorites') {
     return 'Избранное изменено только на этом экране: браузер не дал сохранить список. Освободите место в браузере, чтобы изменения не пропали после перезагрузки.';
-  }
-
-  if (key === 'yuzhural-quote-form') {
-    return 'Черновик формы не сохранился в браузере. Отправьте заявку сейчас или освободите место в браузере.';
   }
 
   return 'Браузер не дал сохранить изменения локально. Они видны сейчас, но могут пропасть после перезагрузки страницы.';
@@ -261,7 +257,7 @@ export default function MainLayout() {
                   className="mobile-menu-button"
                   onClick={() => setIsMobileNavOpen(true)}
                   aria-label="Открыть меню"
-                  aria-controls={MOBILE_NAV_ID}
+                  aria-controls={isMobileNavOpen ? MOBILE_NAV_ID : undefined}
                   aria-expanded={isMobileNavOpen}
                 >
                   <span />
@@ -438,18 +434,16 @@ export default function MainLayout() {
         onClose={() => setIsLeadModalOpen(false)}
         windowClassName="modal-window--lead"
       >
-        <Suspense fallback={<ModalFormFallback />}>
-          <LazyHeroLeadForm
-            title={leadModalOptions.title || 'Получить КП или заказать звонок'}
-            subtitle={
-              leadModalOptions.subtitle ||
-              'Оставьте телефон и комментарий — менеджер свяжется с вами.'
-            }
-            submitLabel={leadModalOptions.submitLabel || 'Отправить заявку'}
-            defaultComment={leadModalOptions.comment || ''}
-            source={leadModalOptions.source || 'Короткая форма'}
-          />
-        </Suspense>
+        <HeroLeadForm
+          title={leadModalOptions.title || 'Получить КП или заказать звонок'}
+          subtitle={
+            leadModalOptions.subtitle ||
+            'Оставьте телефон и комментарий — менеджер свяжется с вами.'
+          }
+          submitLabel={leadModalOptions.submitLabel || 'Отправить заявку'}
+          defaultComment={leadModalOptions.comment || ''}
+          source={leadModalOptions.source || 'Короткая форма'}
+        />
       </Modal>
 
       <Modal

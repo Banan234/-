@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import ProductCard from '../ui/ProductCard';
 import {
   getCoreVariantLabel,
@@ -84,6 +84,7 @@ export default function ProductListingView({
   const [localPage, setLocalPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const isServerPaged = Boolean(pagination);
+  const filterPanelBodyId = `${useId().replace(/:/g, '')}-catalog-filter-panel-body`;
 
   useEffect(() => {
     setSearchInput(search);
@@ -442,6 +443,8 @@ export default function ProductListingView({
             type="button"
             className="catalog-filter-panel__head"
             onClick={() => setIsFilterOpen((v) => !v)}
+            aria-controls={filterPanelBodyId}
+            aria-expanded={isFilterOpen}
           >
             <span className="catalog-filter-panel__title">
               Подбор по параметрам
@@ -450,196 +453,193 @@ export default function ProductListingView({
               className={`catalog-filter-panel__chevron${
                 isFilterOpen ? ' catalog-filter-panel__chevron--open' : ''
               }`}
+              aria-hidden="true"
             >
               &#8679;
             </span>
           </button>
 
-          {isFilterOpen && (
-            <div className="catalog-filter-panel__body">
-              {filterOptions.materials.length > 0 && (
-                <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">
-                    Материал жилы
-                  </span>
-                  <div className="catalog-filter-row__tags">
-                    {filterOptions.materials.map((mat) => (
-                      <button
-                        key={mat}
-                        type="button"
-                        aria-pressed={selectedMaterials.includes(mat)}
-                        className={`catalog-filter-tag${
-                          selectedMaterials.includes(mat)
-                            ? ' catalog-filter-tag--active'
-                            : ''
-                        }`}
-                        onClick={() => toggleCsvParam('material', mat)}
-                      >
-                        {mat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {filterOptions.constructions.length > 0 && (
-                <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">
-                    Исполнение жилы
-                  </span>
-                  <div className="catalog-filter-row__tags">
-                    {filterOptions.constructions.map((construction) => (
-                      <button
-                        key={construction}
-                        type="button"
-                        aria-pressed={selectedConstructions.includes(
-                          construction
-                        )}
-                        className={`catalog-filter-tag${
-                          selectedConstructions.includes(construction)
-                            ? ' catalog-filter-tag--active'
-                            : ''
-                        }`}
-                        onClick={() =>
-                          toggleCsvParam('construction', construction)
-                        }
-                      >
-                        {construction}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {filterOptions.cores.length > 0 && (
-                <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">Кол-во жил</span>
-                  <div className="catalog-filter-row__tags">
-                    {filterOptions.cores.map((core) => (
-                      <button
-                        key={core}
-                        type="button"
-                        aria-pressed={selectedCores.includes(core)}
-                        className={`catalog-filter-tag${
-                          selectedCores.includes(core)
-                            ? ' catalog-filter-tag--active'
-                            : ''
-                        }`}
-                        onClick={() => toggleCsvParam('cores', core)}
-                      >
-                        {core}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {filterOptions.sections.length > 0 && (
-                <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">
-                    Сечение, мм²
-                  </span>
-                  <div className="catalog-filter-row__tags">
-                    {filterOptions.sections.map((section) => (
-                      <button
-                        key={section}
-                        type="button"
-                        aria-pressed={selectedSections.includes(section)}
-                        className={`catalog-filter-tag${
-                          selectedSections.includes(section)
-                            ? ' catalog-filter-tag--active'
-                            : ''
-                        }`}
-                        onClick={() => toggleCsvParam('section', section)}
-                      >
-                        {section.toLocaleString('ru-RU')}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {filterOptions.voltages.length > 0 && (
-                <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">
-                    Напряжение, кВ
-                  </span>
-                  <div className="catalog-filter-row__tags">
-                    {filterOptions.voltages.map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        aria-pressed={selectedVoltages.includes(v)}
-                        className={`catalog-filter-tag${
-                          selectedVoltages.includes(v)
-                            ? ' catalog-filter-tag--active'
-                            : ''
-                        }`}
-                        onClick={() => toggleCsvParam('voltage', v)}
-                      >
-                        {formatVoltage(v)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {showAppType && filterOptions.appTypes.length > 0 && (
-                <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">Применение</span>
-                  <div className="catalog-filter-row__tags">
-                    {filterOptions.appTypes.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        aria-pressed={selectedAppTypes.includes(t)}
-                        className={`catalog-filter-tag${
-                          selectedAppTypes.includes(t)
-                            ? ' catalog-filter-tag--active'
-                            : ''
-                        }`}
-                        onClick={() => toggleCsvParam('appType', t)}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {showSPE && filterOptions.hasSPE && (
-                <div className="catalog-filter-row">
-                  <span className="catalog-filter-row__label">
-                    Тип изоляции
-                  </span>
-                  <div className="catalog-filter-row__tags">
+          <div
+            id={filterPanelBodyId}
+            className="catalog-filter-panel__body"
+            hidden={!isFilterOpen}
+          >
+            {filterOptions.materials.length > 0 && (
+              <div className="catalog-filter-row">
+                <span className="catalog-filter-row__label">Материал жилы</span>
+                <div className="catalog-filter-row__tags">
+                  {filterOptions.materials.map((mat) => (
                     <button
+                      key={mat}
                       type="button"
-                      aria-pressed={onlySPE}
+                      aria-pressed={selectedMaterials.includes(mat)}
                       className={`catalog-filter-tag${
-                        onlySPE ? ' catalog-filter-tag--active' : ''
+                        selectedMaterials.includes(mat)
+                          ? ' catalog-filter-tag--active'
+                          : ''
                       }`}
-                      onClick={() => updateParam('spe', onlySPE ? '' : '1')}
+                      onClick={() => toggleCsvParam('material', mat)}
                     >
-                      Только СПЭ
+                      {mat}
                     </button>
-                  </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              <div className="catalog-filter-panel__footer">
-                {hasActiveFilters && (
+            {filterOptions.constructions.length > 0 && (
+              <div className="catalog-filter-row">
+                <span className="catalog-filter-row__label">
+                  Исполнение жилы
+                </span>
+                <div className="catalog-filter-row__tags">
+                  {filterOptions.constructions.map((construction) => (
+                    <button
+                      key={construction}
+                      type="button"
+                      aria-pressed={selectedConstructions.includes(
+                        construction
+                      )}
+                      className={`catalog-filter-tag${
+                        selectedConstructions.includes(construction)
+                          ? ' catalog-filter-tag--active'
+                          : ''
+                      }`}
+                      onClick={() =>
+                        toggleCsvParam('construction', construction)
+                      }
+                    >
+                      {construction}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {filterOptions.cores.length > 0 && (
+              <div className="catalog-filter-row">
+                <span className="catalog-filter-row__label">Кол-во жил</span>
+                <div className="catalog-filter-row__tags">
+                  {filterOptions.cores.map((core) => (
+                    <button
+                      key={core}
+                      type="button"
+                      aria-pressed={selectedCores.includes(core)}
+                      className={`catalog-filter-tag${
+                        selectedCores.includes(core)
+                          ? ' catalog-filter-tag--active'
+                          : ''
+                      }`}
+                      onClick={() => toggleCsvParam('cores', core)}
+                    >
+                      {core}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {filterOptions.sections.length > 0 && (
+              <div className="catalog-filter-row">
+                <span className="catalog-filter-row__label">Сечение, мм²</span>
+                <div className="catalog-filter-row__tags">
+                  {filterOptions.sections.map((section) => (
+                    <button
+                      key={section}
+                      type="button"
+                      aria-pressed={selectedSections.includes(section)}
+                      className={`catalog-filter-tag${
+                        selectedSections.includes(section)
+                          ? ' catalog-filter-tag--active'
+                          : ''
+                      }`}
+                      onClick={() => toggleCsvParam('section', section)}
+                    >
+                      {section.toLocaleString('ru-RU')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {filterOptions.voltages.length > 0 && (
+              <div className="catalog-filter-row">
+                <span className="catalog-filter-row__label">
+                  Напряжение, кВ
+                </span>
+                <div className="catalog-filter-row__tags">
+                  {filterOptions.voltages.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={selectedVoltages.includes(v)}
+                      className={`catalog-filter-tag${
+                        selectedVoltages.includes(v)
+                          ? ' catalog-filter-tag--active'
+                          : ''
+                      }`}
+                      onClick={() => toggleCsvParam('voltage', v)}
+                    >
+                      {formatVoltage(v)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showAppType && filterOptions.appTypes.length > 0 && (
+              <div className="catalog-filter-row">
+                <span className="catalog-filter-row__label">Применение</span>
+                <div className="catalog-filter-row__tags">
+                  {filterOptions.appTypes.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      aria-pressed={selectedAppTypes.includes(t)}
+                      className={`catalog-filter-tag${
+                        selectedAppTypes.includes(t)
+                          ? ' catalog-filter-tag--active'
+                          : ''
+                      }`}
+                      onClick={() => toggleCsvParam('appType', t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showSPE && filterOptions.hasSPE && (
+              <div className="catalog-filter-row">
+                <span className="catalog-filter-row__label">Тип изоляции</span>
+                <div className="catalog-filter-row__tags">
                   <button
                     type="button"
-                    className="catalog-filter-panel__reset"
-                    onClick={resetFilters}
+                    aria-pressed={onlySPE}
+                    className={`catalog-filter-tag${
+                      onlySPE ? ' catalog-filter-tag--active' : ''
+                    }`}
+                    onClick={() => updateParam('spe', onlySPE ? '' : '1')}
                   >
-                    ✕ Сбросить фильтр
+                    Только СПЭ
                   </button>
-                )}
+                </div>
               </div>
+            )}
+
+            <div className="catalog-filter-panel__footer">
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className="catalog-filter-panel__reset"
+                  onClick={resetFilters}
+                >
+                  ✕ Сбросить фильтр
+                </button>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
 

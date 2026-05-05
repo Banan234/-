@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import Container from '../components/ui/Container';
 import CategoryShowcase from '../components/home/CategoryShowcase';
+import HeroLeadForm from '../components/home/HeroLeadForm';
 import { fetchFeaturedProducts } from '../lib/productsApi';
 import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
@@ -19,7 +20,7 @@ import {
   SITE_URL,
   absoluteUrl,
 } from '../lib/siteConfig';
-import '../styles/sections/home.css';
+import '../styles/sections/home-critical.css';
 
 const heroBenefits = [
   'Более 5 000 позиций в наличии',
@@ -28,23 +29,9 @@ const heroBenefits = [
   'Работаем с НДС и по договору',
 ];
 
-const LazyHeroLeadForm = lazy(() => import('../components/home/HeroLeadForm'));
 const LazyStockProductsGrid = lazy(
   () => import('../components/home/StockProductsGrid')
 );
-
-function HeroLeadFormFallback() {
-  return (
-    <div className="hero-lead-card hero-lead-card--loading" aria-busy="true">
-      <div className="hero-lead-card__head">
-        <h2 className="hero-lead-card__title">
-          Не тратьте время на поиск кабеля
-        </h2>
-        <p className="hero-lead-card__subtitle">Загружаем форму...</p>
-      </div>
-    </div>
-  );
-}
 
 const audienceSegments = [
   {
@@ -229,6 +216,10 @@ export default function HomePage() {
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
+    void import('../styles/sections/home.css');
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
 
     async function loadProducts() {
@@ -340,9 +331,7 @@ export default function HomePage() {
         </section>
 
         <div className="home-hero-zone__form">
-          <Suspense fallback={<HeroLeadFormFallback />}>
-            <LazyHeroLeadForm source="Форма в герое главной" />
-          </Suspense>
+          <HeroLeadForm source="Форма в герое главной" />
         </div>
       </div>
 

@@ -2,7 +2,10 @@ import { useId, useRef, useState } from 'react';
 import HoneypotField from '../forms/HoneypotField';
 import { expectOkApiJson } from '../../lib/apiResponse';
 import { captureException } from '../../lib/errorTracking';
-import { isValidRussianPhone } from '../../../shared/quoteValidation.js';
+import {
+  MAX_QUOTE_CUSTOMER_COMMENT_LENGTH,
+  isValidRussianPhone,
+} from '../../../shared/quoteValidation.js';
 import { formatMessage, messages } from '../../../shared/messages.js';
 
 const quickCommentOptions = [
@@ -244,6 +247,7 @@ export default function HeroLeadForm({
             placeholder="Например: ВВГ 3×2.5, 500 метров"
             className="hero-lead-form__textarea"
             rows={3}
+            maxLength={MAX_QUOTE_CUSTOMER_COMMENT_LENGTH}
           />
         </div>
 

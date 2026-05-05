@@ -32,25 +32,8 @@
   .home-hero__title {
     font-size: 46px;
   }
-  .home-trust__logos {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .products-grid,
-  .home-adv__grid {
+  .products-grid {
     grid-template-columns: 1fr 1fr;
-  }
-  .products-grid--stock-showcase .product-card--stock {
-    flex-basis: calc((100% - 42px) / 4);
-  }
-  .home-category-showcase__grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .home-workflow__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .home-workflow__intro {
-    grid-template-columns: 1fr;
-    align-items: start;
   }
   .favorites-grid {
     grid-template-columns: 1fr 1fr;
@@ -98,16 +81,6 @@
   }
   .hero-lead-card__title {
     font-size: 22px;
-  }
-  .home-trust__logos {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .home-category-showcase__grid,
-  .home-workflow__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .products-grid--stock-showcase .product-card--stock {
-    flex-basis: calc((100% - 28px) / 3);
   }
   .favorites-grid {
     grid-template-columns: 1fr;
@@ -185,39 +158,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: 100%;
   }
-  .home-trust__logos {
-    grid-template-columns: 1fr;
-  }
-  .home-adv__grid {
-    grid-template-columns: 1fr;
-  }
-  .home-category-showcase__grid,
-  .home-workflow__grid {
-    grid-template-columns: 1fr;
-  }
-  .home-category-showcase__card,
-  .home-workflow__card {
-    min-height: auto;
-  }
-  .home-workflow__card::after {
-    display: none;
-  }
   .products-grid {
     grid-template-columns: 1fr;
-  }
-  .products-grid--stock-showcase .product-card--stock {
-    flex-basis: calc((100% - 14px) / 2);
-  }
-  .home-stock-showcase__arrow {
-    width: 46px;
-    height: 46px;
-    margin-top: -23px;
-  }
-  .home-stock-showcase__arrow--prev {
-    left: -10px;
-  }
-  .home-stock-showcase__arrow--next {
-    right: -10px;
   }
   .section-title,
   .page-title {
@@ -231,13 +173,5 @@
     width: 100%;
     max-height: 92vh;
     border-radius: 18px;
-  }
-}
-@media (max-width: 640px) {
-  .products-grid--stock-showcase .product-card--stock {
-    flex-basis: 100%;
-  }
-  .home-stock-showcase__arrow {
-    display: none;
   }
 }

@@ -186,4 +186,25 @@ describe('ProductListingView render flow', () => {
       screen.getByRole('heading', { level: 2, name: 'Товары каталога' })
     ).toBeInTheDocument();
   });
+
+  it('связывает кнопку фильтров с раскрываемой панелью', async () => {
+    const user = userEvent.setup();
+    renderListing();
+
+    const filterButton = screen.getByRole('button', {
+      name: 'Подбор по параметрам',
+    });
+    expect(filterButton).toHaveAttribute('aria-expanded', 'true');
+    const filterBodyId = filterButton.getAttribute('aria-controls');
+    expect(filterBodyId).toMatch(/catalog-filter-panel-body$/);
+
+    const filterBody = document.getElementById(filterBodyId);
+    expect(filterBody).toBeInTheDocument();
+    expect(filterBody).not.toHaveAttribute('hidden');
+
+    await user.click(filterButton);
+
+    expect(filterButton).toHaveAttribute('aria-expanded', 'false');
+    expect(filterBody).toHaveAttribute('hidden');
+  });
 });

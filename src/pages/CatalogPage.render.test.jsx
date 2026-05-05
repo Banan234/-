@@ -102,6 +102,39 @@ describe('CatalogPage', () => {
     expect(fetchProducts).toHaveBeenCalledTimes(1);
   });
 
+  it('не показывает prerender-товары, если query не совпадает с /catalog', () => {
+    fetchProducts.mockReturnValue(new Promise(() => {}));
+    const prerenderData = {
+      catalog: {
+        path: '/catalog',
+        items: [
+          {
+            id: 1,
+            slug: 'vvg-3x2-5',
+            title: 'ВВГ 3х2,5',
+            mark: 'ВВГ',
+            price: 100,
+            stock: 10,
+          },
+        ],
+        catalogSections: [],
+        meta: {
+          total: 1,
+          catalogCount: 1,
+          pagination: { page: 1, limit: 24, total: 1, totalPages: 1 },
+        },
+      },
+    };
+
+    renderCatalogPage('/catalog?search=кг', prerenderData);
+
+    expect(screen.queryByText('ВВГ 3х2,5')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Подготавливаем товары из прайса...')
+    ).toBeInTheDocument();
+    expect(fetchProducts).toHaveBeenCalledTimes(1);
+  });
+
   it('считает prerender data неподходящими при фильтрах или другой странице', () => {
     const prerenderData = {
       path: '/catalog',

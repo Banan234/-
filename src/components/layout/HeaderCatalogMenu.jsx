@@ -101,7 +101,7 @@ export default function HeaderCatalogMenu() {
           }`}
           onMouseEnter={openCatalogMenu}
           onClick={pinCatalogMenuOpen}
-          aria-controls={CATALOG_DROPDOWN_ID}
+          aria-controls={isCatalogOpen ? CATALOG_DROPDOWN_ID : undefined}
           aria-expanded={isCatalogOpen}
         >
           <span className="catalog-button__icon" aria-hidden="true">

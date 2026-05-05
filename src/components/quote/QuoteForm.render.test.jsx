@@ -22,6 +22,34 @@ async function fillRequiredFields(user) {
 }
 
 describe('QuoteForm render flow', () => {
+  it('не сохраняет контактные данные в localStorage и удаляет старый черновик', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(
+      'yuzhural-quote-form',
+      JSON.stringify({
+        name: 'Старое имя',
+        phone: '+7 900 000-00-00',
+        email: 'old@example.test',
+        comment: 'старый комментарий',
+      })
+    );
+
+    render(<QuoteForm itemsOverride={[quoteItem]} />);
+
+    expect(screen.getByLabelText(/Имя/)).toHaveValue('');
+    expect(screen.getByLabelText(/Телефон/)).toHaveValue('');
+    expect(localStorage.getItem('yuzhural-quote-form')).toBeNull();
+
+    await fillRequiredFields(user);
+    await user.type(
+      screen.getByRole('textbox', { name: /Email/ }),
+      'buyer@company.ru'
+    );
+    await user.type(screen.getByLabelText(/Комментарий/), 'Не сохранять');
+
+    expect(localStorage.getItem('yuzhural-quote-form')).toBeNull();
+  });
+
   it('блокирует отправку при пустой корзине и не вызывает API', async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn();

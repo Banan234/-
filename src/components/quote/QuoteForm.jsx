@@ -4,16 +4,12 @@ import { trackEvent } from '../../lib/analytics';
 import { expectOkApiJson } from '../../lib/apiResponse';
 import { captureException } from '../../lib/errorTracking';
 import HoneypotField from '../forms/HoneypotField';
-import {
-  loadStoredJson,
-  removeStoredValue,
-  saveStoredJson,
-} from '../../lib/browserStorage';
+import { removeStoredValue } from '../../lib/browserStorage';
 import { messages } from '../../../shared/messages.js';
 import { MAX_QUOTE_CUSTOMER_COMMENT_LENGTH } from '../../../shared/quoteValidation.js';
 import { validateForm } from './quoteFormValidation';
 
-const FORM_STORAGE_KEY = 'yuzhural-quote-form';
+const LEGACY_FORM_STORAGE_KEY = 'yuzhural-quote-form';
 
 const CHANNEL_OPTIONS = [
   { value: 'phone', label: 'Звонок' },
@@ -30,26 +26,6 @@ const initialForm = {
   preferredChannel: 'phone',
 };
 
-function loadFormFromStorage() {
-  const parsedForm = loadStoredJson(FORM_STORAGE_KEY, initialForm);
-
-  return {
-    name: parsedForm?.name || '',
-    phone: parsedForm?.phone || '',
-    email: parsedForm?.email || '',
-    comment: parsedForm?.comment || '',
-    preferredChannel: parsedForm?.preferredChannel || 'phone',
-  };
-}
-
-function saveFormToStorage(form) {
-  saveStoredJson(FORM_STORAGE_KEY, form);
-}
-
-function clearFormStorage() {
-  removeStoredValue(FORM_STORAGE_KEY);
-}
-
 export default function QuoteForm({
   title = 'Запрос коммерческого предложения',
   description = 'Заполните форму, и мы подготовим предложение по текущему составу корзины.',
@@ -59,7 +35,7 @@ export default function QuoteForm({
   const items = itemsOverride || cartItems;
   const shouldClearCartOnSuccess = !itemsOverride;
 
-  const [form, setForm] = useState(loadFormFromStorage);
+  const [form, setForm] = useState(initialForm);
   const [honeypot, setHoneypot] = useState('');
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -87,9 +63,8 @@ export default function QuoteForm({
   );
 
   useEffect(() => {
-    const timer = setTimeout(() => saveFormToStorage(form), 300);
-    return () => clearTimeout(timer);
-  }, [form]);
+    removeStoredValue(LEGACY_FORM_STORAGE_KEY);
+  }, []);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -181,7 +156,6 @@ export default function QuoteForm({
       setErrors({});
       setForm(initialForm);
       renderedAtRef.current = Date.now();
-      clearFormStorage();
       if (shouldClearCartOnSuccess) {
         clearCart();
       }

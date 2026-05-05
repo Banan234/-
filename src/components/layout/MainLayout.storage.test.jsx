@@ -113,15 +113,16 @@ describe('MainLayout', () => {
     const mobileMenuButton = screen.getByRole('button', {
       name: 'Открыть меню',
     });
-    expect(mobileMenuButton).toHaveAttribute(
-      'aria-controls',
-      'mobile-navigation'
-    );
+    expect(mobileMenuButton).not.toHaveAttribute('aria-controls');
     expect(mobileMenuButton).toHaveAttribute('aria-expanded', 'false');
 
     await user.click(mobileMenuButton);
 
     expect(mobileMenuButton).toHaveAttribute('aria-expanded', 'true');
+    expect(mobileMenuButton).toHaveAttribute(
+      'aria-controls',
+      'mobile-navigation'
+    );
     expect(
       await screen.findByRole('dialog', { name: 'Мобильное меню' })
     ).toHaveAttribute('id', 'mobile-navigation');
@@ -133,12 +134,13 @@ describe('MainLayout', () => {
     const catalogButton = await screen.findByRole('button', {
       name: 'Каталог',
     });
-    expect(catalogButton).toHaveAttribute('aria-controls', 'catalog-dropdown');
+    expect(catalogButton).not.toHaveAttribute('aria-controls');
     expect(catalogButton).toHaveAttribute('aria-expanded', 'false');
 
     await user.click(catalogButton);
 
     expect(catalogButton).toHaveAttribute('aria-expanded', 'true');
+    expect(catalogButton).toHaveAttribute('aria-controls', 'catalog-dropdown');
     expect(document.getElementById('catalog-dropdown')).toBeInTheDocument();
     expect(
       screen.getAllByRole('link', { name: 'Силовой кабель' }).length
