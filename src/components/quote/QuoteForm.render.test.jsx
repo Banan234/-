@@ -265,8 +265,12 @@ describe('QuoteForm render flow', () => {
 
     const nameInput = screen.getByLabelText(/Имя/);
     const phoneInput = screen.getByLabelText(/Телефон/);
+    const consentInput = screen.getByLabelText(/Даю согласие/);
     const nameError = screen.getByText('Введите имя');
     const phoneError = screen.getByText('Введите телефон');
+    const consentError = screen.getByText(
+      'Нужно согласие на обработку данных'
+    );
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(nameInput).toHaveAttribute('aria-invalid', 'true');
@@ -275,5 +279,8 @@ describe('QuoteForm render flow', () => {
     expect(phoneInput).toHaveAttribute('aria-invalid', 'true');
     expect(phoneInput).toHaveAttribute('aria-describedby', phoneError.id);
     expect(phoneInput).toHaveAccessibleDescription(phoneError.textContent);
+    expect(consentInput).toHaveAttribute('aria-invalid', 'true');
+    expect(consentInput).toHaveAttribute('aria-describedby', consentError.id);
+    expect(consentInput).toHaveAccessibleDescription(consentError.textContent);
   });
 });
