@@ -9,6 +9,7 @@ import { useSEO } from '../hooks/useSEO';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { trackEvent } from '../lib/analytics';
 import { captureException } from '../lib/errorTracking';
+import { formatProductPrice } from '../lib/productPrice';
 import { usePrerenderData } from '../lib/prerenderData';
 import {
   buildProductBreadcrumbJsonLd,
@@ -197,6 +198,7 @@ export default function ProductPage() {
       ? product.inStock
       : Number(product.stock) > 0;
   const leadTime = product.leadTime || 'уточняем';
+  const productPrice = formatProductPrice(product.price, product.unit);
 
   return (
     <section className="section">
@@ -269,12 +271,12 @@ export default function ProductPage() {
             </div>
 
             <div className="product-page__price">
-              {product.price.toLocaleString('ru-RU')} ₽
+              {productPrice.value}
             </div>
 
-            <div className="product-page__unit">
-              {product.unit ? `/ ${product.unit}` : ''}
-            </div>
+            {productPrice.unitLabel ? (
+              <div className="product-page__unit">{productPrice.unitLabel}</div>
+            ) : null}
 
             <div className="product-page__buttons">
               <div className="product-qty">

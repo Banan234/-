@@ -4,6 +4,7 @@ import Container from '../components/ui/Container';
 import { useCartStore } from '../store/useCartStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useSEO } from '../hooks/useSEO';
+import { formatProductPrice } from '../lib/productPrice';
 import '../styles/sections/cart-favorites.css';
 
 export default function FavoritesPage() {
@@ -69,6 +70,7 @@ export default function FavoritesPage() {
               const quantity = getQuantity(item.id);
               const specs = Object.entries(item.specs || {}).slice(0, 4);
               const isInStock = item.inStock ?? Number(item.stock || 0) > 0;
+              const itemPrice = formatProductPrice(item.price, item.unit);
 
               return (
                 <article key={item.id} className="favorite-card">
@@ -122,10 +124,10 @@ export default function FavoritesPage() {
 
                     <div className="favorite-card__price-block">
                       <div className="favorite-card__price-note">
-                        {item.unit}
+                        {itemPrice.hasPrice ? item.unit : 'КП'}
                       </div>
                       <div className="favorite-card__price">
-                        {item.price.toLocaleString('ru-RU')} ₽
+                        {itemPrice.value}
                       </div>
                     </div>
 

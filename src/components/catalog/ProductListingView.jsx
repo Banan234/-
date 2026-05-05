@@ -1,11 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import ProductCard from '../ui/ProductCard';
 import {
-  getCoreVariantLabel,
-  getConductorMaterial,
-  getWireConstruction,
   formatVoltage,
 } from '../../lib/catalogFilters';
+import {
+  applyProductFiltersCore,
+  buildCatalogFacetsCore,
+  sortProductsCore,
+} from '../../../shared/catalogQueryCore.js';
 import { trackEvent } from '../../lib/analytics';
 import { useCatalogFilters } from '../../hooks/useCatalogFilters';
 
@@ -169,124 +171,26 @@ export default function ProductListingView({
   }, [products, search]);
 
   const localFilterOptions = useMemo(() => {
-    const materialSet = new Set();
-    const constructionSet = new Set();
-    const coreSet = new Set();
-    const sectionSet = new Set();
-    const voltageSet = new Set();
-    const appTypeSet = new Set();
-    let hasSPE = false;
-    let minPrice = Infinity;
-    let maxPrice = -Infinity;
-
-    for (const product of searchedProducts) {
-      materialSet.add(getConductorMaterial(product));
-      constructionSet.add(getWireConstruction(product));
-      const coreVariant = getCoreVariantLabel(product);
-      if (coreVariant) coreSet.add(coreVariant);
-      if (product.crossSection) sectionSet.add(product.crossSection);
-      if (product.voltage != null) voltageSet.add(product.voltage);
-      if (product.catalogApplicationType)
-        appTypeSet.add(product.catalogApplicationType);
-      if (product.catalogType === 'СПЭ') hasSPE = true;
-      const p = Number(product.price);
-      if (Number.isFinite(p) && p > 0) {
-        if (p < minPrice) minPrice = p;
-        if (p > maxPrice) maxPrice = p;
-      }
-    }
-
-    return {
-      materials: [...materialSet].sort((a, b) => a.localeCompare(b, 'ru')),
-      constructions: [...constructionSet].sort((a, b) =>
-        a.localeCompare(b, 'ru')
-      ),
-      cores: [...coreSet].sort((a, b) =>
-        a.localeCompare(b, 'ru', { numeric: true })
-      ),
-      sections: [...sectionSet].sort((a, b) => a - b),
-      voltages: [...voltageSet].sort((a, b) => a - b),
-      appTypes: [...appTypeSet].sort((a, b) => a.localeCompare(b, 'ru')),
-      hasSPE,
-      minPrice: Number.isFinite(minPrice) ? minPrice : 0,
-      maxPrice: Number.isFinite(maxPrice) ? maxPrice : 0,
-    };
+    return buildCatalogFacetsCore(searchedProducts);
   }, [searchedProducts]);
 
   const filteredProducts = useMemo(() => {
     if (isServerPaged) return products;
 
-    let result = [...searchedProducts];
-
-    if (selectedMaterials.length > 0) {
-      result = result.filter((p) =>
-        selectedMaterials.includes(getConductorMaterial(p))
-      );
-    }
-    if (selectedConstructions.length > 0) {
-      result = result.filter((p) =>
-        selectedConstructions.includes(getWireConstruction(p))
-      );
-    }
-    if (selectedCores.length > 0) {
-      result = result.filter((p) =>
-        selectedCores.includes(getCoreVariantLabel(p))
-      );
-    }
-    if (selectedSections.length > 0) {
-      result = result.filter((p) => selectedSections.includes(p.crossSection));
-    }
-    if (selectedVoltages.length > 0) {
-      result = result.filter((p) => selectedVoltages.includes(p.voltage));
-    }
-    if (showAppType && selectedAppTypes.length > 0) {
-      result = result.filter((p) =>
-        selectedAppTypes.includes(p.catalogApplicationType)
-      );
-    }
-    if (showSPE && onlySPE) {
-      result = result.filter((p) => p.catalogType === 'СПЭ');
-    }
-
-    if (priceMinNumber !== null) {
-      result = result.filter((p) => Number(p.price) >= priceMinNumber);
-    }
-    if (priceMaxNumber !== null) {
-      result = result.filter((p) => Number(p.price) <= priceMaxNumber);
-    }
-
-    // «Цена по запросу» (price=0/null) всегда уезжает в конец списка —
-    // и при возрастании, и при убывании. Иначе при price-asc такие позиции
-    // оказывались бы первыми, что вводит снабженца в заблуждение.
-    const sortPrice = (p) => {
-      const value = Number(p.price);
-      return Number.isFinite(value) && value > 0 ? value : null;
-    };
-    if (sortBy === 'price-asc') {
-      result.sort((a, b) => {
-        const pa = sortPrice(a);
-        const pb = sortPrice(b);
-        if (pa === null && pb === null) return 0;
-        if (pa === null) return 1;
-        if (pb === null) return -1;
-        return pa - pb;
-      });
-    }
-    if (sortBy === 'price-desc') {
-      result.sort((a, b) => {
-        const pa = sortPrice(a);
-        const pb = sortPrice(b);
-        if (pa === null && pb === null) return 0;
-        if (pa === null) return 1;
-        if (pb === null) return -1;
-        return pb - pa;
-      });
-    }
-    if (sortBy === 'title-asc')
-      result.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
-    if (sortBy === 'popular') result.sort((a, b) => b.stock - a.stock);
-
-    return result;
+    return sortProductsCore(
+      applyProductFiltersCore(searchedProducts, {
+        selectedMaterials,
+        selectedConstructions,
+        selectedCores,
+        selectedSections,
+        selectedVoltages,
+        selectedAppTypes: showAppType ? selectedAppTypes : [],
+        onlySPE: showSPE && onlySPE,
+        priceMinNumber,
+        priceMaxNumber,
+      }),
+      sortBy
+    );
   }, [
     searchedProducts,
     selectedMaterials,

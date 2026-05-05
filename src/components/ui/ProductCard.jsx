@@ -10,6 +10,7 @@ import {
   ProductSummary,
   ProductTitle,
 } from './ProductCardParts';
+import { formatProductPrice } from '../../lib/productPrice';
 import '../../styles/sections/product-card.css';
 
 function formatStockLabel(product) {
@@ -40,8 +41,9 @@ export default function ProductCard({ product, variant = 'default' }) {
     badges.push('Хит');
   }
 
-  const priceValue = `${product.price.toLocaleString('ru-RU')} ₽`;
-  const priceUnitLabel = product.unit ? `/ ${product.unit}` : '';
+  const productPrice = formatProductPrice(product.price, product.unit);
+  const priceValue = productPrice.value;
+  const priceUnitLabel = productPrice.unitLabel;
   const brand = product.brand || product.manufacturer || product.catalogBrand;
   const displayTitle = (() => {
     if (!brand) return product.title;

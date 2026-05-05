@@ -6,6 +6,7 @@ import { useSEO } from '../hooks/useSEO';
 import { trackEvent } from '../lib/analytics';
 import { expectOkApiJson } from '../lib/apiResponse';
 import { captureException } from '../lib/errorTracking';
+import { formatProductPrice } from '../lib/productPrice';
 import { formatMessage, messages } from '../../shared/messages.js';
 import {
   MAX_QUOTE_ITEM_COMMENT_LENGTH,
@@ -336,6 +337,9 @@ export default function CartPage() {
                 const quantity = Number(item.quantity || 0);
                 const unit = item.unit || 'м';
                 const lineTotal = Number(item.price || 0) * quantity;
+                const itemPrice = formatProductPrice(item.price, unit, {
+                  fallback: 'Цена будет рассчитана в КП',
+                });
 
                 return (
                   <article key={item.id} className="cart-item">
@@ -379,11 +383,7 @@ export default function CartPage() {
                       ) : null}
 
                       <div className="cart-item__price-row">
-                        <div className="cart-item__price">
-                          {Number(item.price || 0) > 0
-                            ? `${Number(item.price).toLocaleString('ru-RU')} ₽ / ${unit}`
-                            : 'Цена будет рассчитана в КП'}
-                        </div>
+                        <div className="cart-item__price">{itemPrice.text}</div>
                         {lineTotal > 0 ? (
                           <div className="cart-item__line-total">
                             Предварительно: {lineTotal.toLocaleString('ru-RU')}{' '}
