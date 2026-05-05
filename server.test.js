@@ -72,6 +72,7 @@ const validPayload = {
     email: 'ivan@example.com',
     comment: '',
     preferredChannel: 'phone',
+    consent: true,
   },
   items: [
     {

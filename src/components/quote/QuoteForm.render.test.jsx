@@ -19,6 +19,7 @@ const quoteItem = {
 async function fillRequiredFields(user) {
   await user.type(screen.getByLabelText(/Имя/), 'Иван Петров');
   await user.type(screen.getByLabelText(/Телефон/), '+7 900 123-45-67');
+  await user.click(screen.getByLabelText(/Даю согласие/));
 }
 
 describe('QuoteForm render flow', () => {
@@ -91,6 +92,7 @@ describe('QuoteForm render flow', () => {
       name: 'Иван Петров',
       phone: '+7 900 123-45-67',
       preferredChannel: 'phone',
+      consent: true,
     });
     expect(payload.items).toHaveLength(1);
     expect(payload.totalCount).toBe(1);

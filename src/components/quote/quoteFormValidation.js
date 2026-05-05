@@ -50,6 +50,10 @@ export function validateForm(form, items) {
     );
   }
 
+  if (form?.consent !== true) {
+    errors.consent = messages.errors.quoteForm.consentRequired;
+  }
+
   if (!Array.isArray(items) || items.length === 0) {
     errors.cart = messages.errors.quoteForm.cartEmpty;
   } else if (items.length > MAX_QUOTE_ITEMS) {

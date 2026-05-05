@@ -24,6 +24,7 @@ const initialForm = {
   email: '',
   comment: '',
   preferredChannel: 'phone',
+  consent: false,
 };
 
 export default function QuoteForm({
@@ -48,12 +49,14 @@ export default function QuoteForm({
     phone: `${fieldIdPrefix}-quote-phone`,
     email: `${fieldIdPrefix}-quote-email`,
     comment: `${fieldIdPrefix}-quote-comment`,
+    consent: `${fieldIdPrefix}-quote-consent`,
   };
   const errorIds = {
     name: `${fieldIds.name}-error`,
     phone: `${fieldIds.phone}-error`,
     email: `${fieldIds.email}-error`,
     comment: `${fieldIds.comment}-error`,
+    consent: `${fieldIds.consent}-error`,
   };
 
   const totalCount = items.length;
@@ -67,11 +70,11 @@ export default function QuoteForm({
   }, []);
 
   function handleChange(event) {
-    const { name, value } = event.target;
+    const { checked, name, type, value } = event.target;
 
     setForm((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     }));
 
     setErrors((prev) => ({
@@ -109,6 +112,7 @@ export default function QuoteForm({
       email: form.email.trim(),
       comment: form.comment.trim(),
       preferredChannel: form.preferredChannel,
+      consent: form.consent,
     };
 
     const orderPayload = {
@@ -313,6 +317,30 @@ export default function QuoteForm({
                 {form.comment.length} / {MAX_QUOTE_CUSTOMER_COMMENT_LENGTH}
               </span>
             </div>
+          </div>
+
+          <div className="quote-field quote-field--full">
+            <label className="quote-form__consent">
+              <input
+                id={fieldIds.consent}
+                name="consent"
+                type="checkbox"
+                checked={form.consent}
+                onChange={handleChange}
+                aria-invalid={errors.consent ? 'true' : undefined}
+                aria-describedby={
+                  errors.consent ? errorIds.consent : undefined
+                }
+              />
+              <span>
+                Даю согласие на обработку персональных данных для подготовки КП
+              </span>
+            </label>
+            {errors.consent ? (
+              <span id={errorIds.consent} className="field-error">
+                {errors.consent}
+              </span>
+            ) : null}
           </div>
         </div>
 

@@ -12,6 +12,7 @@ const okForm = {
   email: '',
   comment: '',
   preferredChannel: 'phone',
+  consent: true,
 };
 const okItems = [{ id: 1, title: 'ВВГ', price: 100, quantity: 1 }];
 
@@ -59,6 +60,12 @@ describe('validateForm', () => {
       okItems
     );
     expect(errors.email).toMatch(/Укажите email/);
+  });
+
+  it('требует согласие на обработку данных', () => {
+    expect(validateForm({ ...okForm, consent: false }, okItems).consent).toBe(
+      'Нужно согласие на обработку данных'
+    );
   });
 
   it('пустая корзина даёт errors.cart', () => {

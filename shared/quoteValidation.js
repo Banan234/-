@@ -143,6 +143,10 @@ export function isValidQuoteRequest(payload = {}) {
     return false;
   }
 
+  if (customer.consent !== true) {
+    return false;
+  }
+
   if (
     !isWithinLength(customer.name, MAX_QUOTE_CUSTOMER_NAME_LENGTH) ||
     !isWithinLength(customer.comment, MAX_QUOTE_CUSTOMER_COMMENT_LENGTH) ||

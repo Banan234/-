@@ -70,6 +70,7 @@ export const MESSAGE_DICTIONARIES = Object.freeze({
         tooManyItems: 'В заявке не должно быть больше {max} позиций',
         itemCommentTooLong:
           'Комментарий к позиции не должен превышать {max} символов',
+        consentRequired: 'Нужно согласие на обработку данных',
         submitFailed: 'Не удалось отправить заявку',
         submitRequestFailed: 'Ошибка отправки',
       }),
