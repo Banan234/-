@@ -1,3 +1,5 @@
+// Файл создаёт browser router приложения и lazy-load чанки страниц по маршрутам.
+
 import { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { createRouteObjects } from './routes';

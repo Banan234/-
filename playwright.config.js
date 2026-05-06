@@ -1,3 +1,5 @@
+// Файл задаёт настройки Playwright e2e-тестов, webServer, браузеры, ретраи и отчёты.
+
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number(process.env.E2E_PORT || 4173);

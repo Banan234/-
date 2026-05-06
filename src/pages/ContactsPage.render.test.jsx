@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет страницу контактов, лид-форму, ссылки и SEO-разметку.
 
 import '../test/renderTestSetup.js';
 import { render, screen } from '@testing-library/react';

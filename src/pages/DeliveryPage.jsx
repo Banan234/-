@@ -1,3 +1,5 @@
+// Файл рендерит информационную страницу доставки с условиями, регионами и SEO-метаданными.
+
 import Container from '../components/ui/Container';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { useSEO } from '../hooks/useSEO';

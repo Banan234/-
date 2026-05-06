@@ -1,9 +1,13 @@
+# Файл перечисляет локальные, сгенерированные и секретные файлы, которые Git не должен отслеживать.
+
 node_modules/
 dist/
 test-results/
 playwright-report/
 .DS_Store
 .env
+.env.*
+!.env.example
 
 # Генерируемые файлы импорта прайса
 data/products.json

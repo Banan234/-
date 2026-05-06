@@ -1,3 +1,5 @@
+// Файл проверяет HTML-разметку изображений на важные атрибуты загрузки, размеров и accessibility.
+
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';

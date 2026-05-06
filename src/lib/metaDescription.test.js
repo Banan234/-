@@ -1,3 +1,5 @@
+// Файл проверяет генерацию meta description и ограничения длины для разных типов страниц.
+
 import { describe, expect, it } from 'vitest';
 import {
   META_DESCRIPTION_MAX_LENGTH,

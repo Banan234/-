@@ -1,3 +1,5 @@
+// Файл безопасно читает и пишет browser storage, не ломая SSR, prerender и приватные режимы.
+
 export const STORAGE_WRITE_FAILED_EVENT = 'yuzhural:storage-write-failed';
 
 export function isStorageQuotaError(error) {

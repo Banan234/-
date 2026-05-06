@@ -1,3 +1,5 @@
+// Файл синхронизирует фильтры каталога с URL, данными API, категориями и состояниями выдачи.
+
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {

@@ -1,3 +1,5 @@
+// Файл задаёт общий каркас страниц: шапку, меню, футер, модалки и отслеживание pageview.
+
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import Container from '../ui/Container';

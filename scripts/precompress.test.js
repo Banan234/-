@@ -1,3 +1,5 @@
+// Файл проверяет precompress-скрипт и набор файлов, которые должны получить gzip/brotli копии.
+
 import { access, mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
 import os from 'os';
 import path from 'path';

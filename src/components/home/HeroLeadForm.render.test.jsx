@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет лид-форму главной страницы, валидацию и успешную отправку.
 
 import '../../test/renderTestSetup.js';
 import { render, screen } from '@testing-library/react';

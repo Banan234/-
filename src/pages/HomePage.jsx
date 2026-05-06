@@ -1,3 +1,5 @@
+// Файл рендерит главную страницу: hero, лид-форма, категории, товары в наличии и SEO-блоки.
+
 import { useEffect, useState } from 'react';
 import Container from '../components/ui/Container';
 import CategoryShowcase from '../components/home/CategoryShowcase';

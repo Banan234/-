@@ -1,3 +1,5 @@
+// Файл рендерит build-time HTML для статических страниц и важных карточек товаров с SEO-метаданными.
+
 // Build-time prerender для статических страниц и карточек товаров.
 // Запускается после `vite build && vite build --ssr src/entry-server.jsx`
 // и пишет в dist/<route>/index.html HTML-шаблоны с заполненным <head>

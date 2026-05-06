@@ -1,3 +1,5 @@
+// Файл проверяет конфигурацию сайта, URL, контакты и обязательные поля company metadata.
+
 import { describe, expect, it } from 'vitest';
 import {
   SITE_ADDRESS,

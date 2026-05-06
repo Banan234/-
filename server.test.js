@@ -1,3 +1,5 @@
+// Файл проверяет Express API, валидацию заявок, антибот-защиту, каталожные endpoints и health checks.
+
 import {
   afterAll,
   beforeAll,
@@ -270,7 +272,7 @@ const productFixtures = [
   },
 ];
 
-function createProductCatalogApp(items = productFixtures) {
+function createProductCatalogApp(items = productFixtures, appOptions = {}) {
   const catalogStore = {
     loadCatalogProducts: vi.fn(async () => items),
     getCatalogProductListItems: vi.fn((value) => value),
@@ -291,6 +293,7 @@ function createProductCatalogApp(items = productFixtures) {
   const app = createTestApp({
     catalogStore,
     catalogQueryStore,
+    ...appOptions,
   });
 
   return { app, catalogStore };
@@ -320,7 +323,7 @@ describe('GET /api/health', () => {
 });
 
 describe('GET /api/forms/health', () => {
-  it('показывает, что SMTP настроен и verify прошёл', async () => {
+  it('возвращает только публичный статус готовых форм', async () => {
     const app = createTestApp({
       formsDiagnostic: {
         formsEnabled: true,
@@ -337,16 +340,15 @@ describe('GET /api/forms/health', () => {
       expect(res.status).toBe(200);
       expect(data).toEqual({
         ok: true,
-        formsEnabled: true,
-        smtpConfigured: true,
-        smtpVerified: true,
-        smtpReady: true,
-        missingConfig: [],
+        status: 'ready',
       });
+      expect(JSON.stringify(data)).not.toContain('smtpConfigured');
+      expect(JSON.stringify(data)).not.toContain('smtpVerified');
+      expect(JSON.stringify(data)).not.toContain('missingConfig');
     });
   });
 
-  it('возвращает диагностический статус форм без секретов', async () => {
+  it('не раскрывает диагностические детали при недоступных формах', async () => {
     const app = createTestApp({
       env: createTestEnv({ FORMS_ENABLED: 'false' }),
     });
@@ -358,13 +360,12 @@ describe('GET /api/forms/health', () => {
       expect(res.status).toBe(503);
       expect(data).toEqual({
         ok: false,
-        formsEnabled: false,
-        smtpConfigured: true,
-        smtpVerified: null,
-        smtpReady: false,
-        missingConfig: [],
+        status: 'unavailable',
       });
       expect(JSON.stringify(data)).not.toContain('secret');
+      expect(JSON.stringify(data)).not.toContain('smtpConfigured');
+      expect(JSON.stringify(data)).not.toContain('smtpVerified');
+      expect(JSON.stringify(data)).not.toContain('missingConfig');
     });
   });
 });
@@ -380,6 +381,7 @@ describe('GET /api/runtime', () => {
       expect(res.status).toBe(404);
       expect(data.ok).toBe(false);
       expect(data.runtime).toBeUndefined();
+      expect(data.forms).toBeUndefined();
     });
   });
 
@@ -424,6 +426,13 @@ describe('GET /api/runtime', () => {
             user: expect.any(Number),
             system: expect.any(Number),
           },
+        });
+        expect(data.forms).toEqual({
+          formsEnabled: true,
+          smtpConfigured: true,
+          smtpVerified: null,
+          smtpReady: true,
+          missingConfig: [],
         });
       });
     } finally {
@@ -1061,6 +1070,98 @@ describe('GET /api/products/featured', () => {
 
     expect(catalogStore.loadCatalogProducts).toHaveBeenCalledTimes(2);
     expect(catalogStore.getCatalogProductListItems).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('catalog public API rate limit', () => {
+  it('uses one soft bucket for the public catalog endpoints', async () => {
+    const { app } = createProductCatalogApp(productFixtures, {
+      productApiRateLimitOptions: { limit: 2 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      expect((await fetch(`${localBaseUrl}/api/products`)).status).toBe(200);
+      expect(
+        (await fetch(`${localBaseUrl}/api/products/featured`)).status
+      ).toBe(200);
+
+      const res = await fetch(`${localBaseUrl}/api/products/suggestions`);
+      const data = await res.json();
+
+      expect(res.status).toBe(429);
+      expect(data).toEqual({
+        ok: false,
+        message: 'Слишком много запросов к каталогу. Попробуйте немного позже.',
+      });
+    });
+  });
+
+  it('limits lookup without sharing counters with form rate limits', async () => {
+    const mailTransporter = { sendMail: vi.fn().mockResolvedValue({}) };
+    const { app } = createProductCatalogApp(productFixtures, {
+      mailTransporter,
+      productApiRateLimitOptions: { limit: 1 },
+      quoteRateLimitOptions: { limit: 10 },
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/products/lookup', { ids: [101] }))
+          .status
+      ).toBe(200);
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/products/lookup', { ids: [102] }))
+          .status
+      ).toBe(429);
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/quote', validPayload)).status
+      ).toBe(200);
+    });
+  });
+
+  it('does not apply the catalog API bucket to product detail routes', async () => {
+    const { app } = createProductCatalogApp(productFixtures, {
+      productApiRateLimitOptions: { limit: 1 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      expect((await fetch(`${localBaseUrl}/api/products`)).status).toBe(200);
+
+      const detail = await fetch(`${localBaseUrl}/api/products/vvgng-ls-3x2-5`);
+
+      expect(detail.status).toBe(200);
+    });
+  });
+
+  it('keys requests by trusted proxy client IP', async () => {
+    const { app } = createProductCatalogApp(productFixtures, {
+      productApiRateLimitOptions: { limit: 1 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      expect(
+        (
+          await fetch(`${localBaseUrl}/api/products`, {
+            headers: { 'X-Forwarded-For': '203.0.113.10' },
+          })
+        ).status
+      ).toBe(200);
+      expect(
+        (
+          await fetch(`${localBaseUrl}/api/products/featured`, {
+            headers: { 'X-Forwarded-For': '203.0.113.11' },
+          })
+        ).status
+      ).toBe(200);
+      expect(
+        (
+          await fetch(`${localBaseUrl}/api/products/suggestions`, {
+            headers: { 'X-Forwarded-For': '203.0.113.10' },
+          })
+        ).status
+      ).toBe(429);
+    });
   });
 });
 

@@ -1,3 +1,5 @@
+// Файл готовит jsdom-окружение, моки браузерных API и общие настройки render-тестов.
+
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';

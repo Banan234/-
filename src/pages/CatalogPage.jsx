@@ -1,3 +1,5 @@
+// Файл рендерит страницу каталога с фильтрами, поиском, категориями и списком товаров.
+
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Container from '../components/ui/Container';

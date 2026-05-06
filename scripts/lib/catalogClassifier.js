@@ -1,3 +1,5 @@
+// Файл классифицирует товары из прайса по правилам, источникам, брендам и fallback-эвристикам.
+
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';

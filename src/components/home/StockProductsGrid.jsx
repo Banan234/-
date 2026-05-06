@@ -1,3 +1,5 @@
+// Файл рендерит блок товаров в наличии на главной странице с карточками и состояниями загрузки.
+
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Container from '../ui/Container';

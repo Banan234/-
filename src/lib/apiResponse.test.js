@@ -1,3 +1,5 @@
+// Файл проверяет нормализацию успешных и ошибочных API-ответов для клиентского кода.
+
 import { describe, expect, it } from 'vitest';
 import { expectOkApiJson, readApiJson } from './apiResponse.js';
 

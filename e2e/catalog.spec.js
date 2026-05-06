@@ -1,3 +1,5 @@
+// Файл проверяет ключевые пользовательские сценарии каталога в браузере через Playwright.
+
 import { expect, test } from '@playwright/test';
 
 function escapeRegExp(value) {

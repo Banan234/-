@@ -1,3 +1,5 @@
+// Файл рендерит товарную карточку каталога с ценой, статусом, действиями и ссылкой на товар.
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCartStore } from '../../store/useCartStore';

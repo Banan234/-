@@ -1,3 +1,5 @@
+// Файл проверяет Dockerfile на ожидаемые стадии сборки, команды, права пользователя и production-настройки.
+
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 

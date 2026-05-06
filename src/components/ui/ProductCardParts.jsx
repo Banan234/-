@@ -1,3 +1,5 @@
+// Файл содержит мелкие части товарной карточки: бейджи, цена, действия и подписи характеристик.
+
 import { Link } from 'react-router-dom';
 
 export function ProductBadges({ badges }) {

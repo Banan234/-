@@ -1,3 +1,5 @@
+// Файл проверяет prerender-процесс, итоговый HTML и SEO-данные сгенерированных страниц.
+
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import os from 'os';
 import path from 'path';

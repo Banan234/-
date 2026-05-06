@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет рендер товарной карточки, действия пользователя и доступные подписи.
 
 import '../../test/renderTestSetup.js';
 import { MemoryRouter } from 'react-router-dom';

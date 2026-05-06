@@ -1,3 +1,5 @@
+// Файл настраивает Vite, React-плагин, dev-редиректы товаров, порядок stylesheet и proxy для API.
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';

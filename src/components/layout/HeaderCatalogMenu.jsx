@@ -1,3 +1,5 @@
+// Файл отвечает за выпадающее меню каталога в шапке и навигацию по группам категорий.
+
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CABLE_SECTION_NAME, CATALOG_MENU } from './catalogMenuData';

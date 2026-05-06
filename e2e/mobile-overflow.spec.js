@@ -1,3 +1,5 @@
+// Файл ловит горизонтальный overflow и критичные адаптивные проблемы на мобильных viewport.
+
 import { expect, test } from '@playwright/test';
 
 const VIEWPORT_WIDTHS = [360, 390, 414];

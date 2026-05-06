@@ -1,3 +1,5 @@
+// Файл переэкспортирует общий query-core каталога для совместимости клиентских и серверных импортов.
+
 import {
   applyCatalogFiltersAndSortCore,
   applyProductFiltersCore,

@@ -1,3 +1,5 @@
+<!-- Файл объясняет назначение проекта, локальный запуск, конфигурацию, импорт прайса, SEO и деплой. -->
+
 # ЮжУралЭлектроКабель — сайт + B2B-каталог
 
 React 18 + Vite + Express. Каталог из 6 700+ позиций импортируется из прайса Excel,
@@ -16,21 +18,48 @@ npm run dev            # фронт на 5173, API на 3001
 
 Полный набор команд:
 
-| Команда                                           | Что делает                                                                              |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `npm run dev`                                     | Vite + сервер, прокси /api/\*                                                           |
-| `npm run build`                                   | Прод-сборка в `dist/`                                                                   |
-| `npm run preview`                                 | Локальный smoke-тест прод-сборки                                                        |
-| `npx vitest run`                                  | Тесты (39 кейсов)                                                                       |
-| `npm run e2e`                                     | Playwright E2E smoke/user-flow тесты                                                    |
-| `npm run load:test`                               | Короткий нагрузочный прогон API; настраивается `API_BASE`, `LOAD_CONCURRENCY`           |
-| `npm run load:soak`                               | Длинный soak-прогон API на 30 минут для контроля RSS/event loop                         |
-| `node scripts/importPrice.js [path/to/price.xls]` | Импорт прайса → `data/products.json`, отчёты, `public/sitemap.xml`, `public/robots.txt` |
-| `node scripts/importPrice.js --dry-run`           | То же, но без записи файлов                                                             |
+| Команда                                           | Что делает                                                                                                                                |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                     | Vite + сервер, прокси /api/\*                                                                                                             |
+| `npm run build`                                   | Прод-сборка в `dist/`                                                                                                                     |
+| `npm run preview`                                 | Локальный smoke-тест прод-сборки                                                                                                          |
+| `npx vitest run`                                  | Тесты (39 кейсов)                                                                                                                         |
+| `npm run e2e`                                     | Playwright E2E smoke/user-flow тесты                                                                                                      |
+| `npm run load:test`                               | Короткий нагрузочный прогон API; настраивается `API_BASE`, `LOAD_CONCURRENCY`                                                             |
+| `npm run load:soak`                               | Длинный soak-прогон API на 30 минут для контроля RSS/event loop                                                                           |
+| `node scripts/importPrice.js [path/to/price.xls]` | Импорт прайса → `data/products.json`, отчёты, `public/sitemap.xml`, `public/robots.txt`, runtime HTML карточек при `PUBLIC_ARTIFACTS_DIR` |
+| `npm run check:product-prerender`                 | Проверка, что все product URL из sitemap имеют HTML с meta/JSON-LD, включая long-tail за `PRODUCT_PRERENDER_LIMIT`                        |
+| `node scripts/importPrice.js --dry-run`           | То же, но без записи файлов                                                                                                               |
 
 ## Конфигурация (`.env`)
 
 Все переменные описаны в [`.env.example`](./.env.example). Кратко:
+
+### Хранение секретов
+
+В репозитории хранится только безопасный [`.env.example`](./.env.example) с
+пустыми значениями и плейсхолдерами. Локальные файлы `.env`, `.env.staging`,
+`.env.production` и другие `.env.*` игнорируются Git; `.dockerignore` также
+исключает их из Docker build context, оставляя в контексте только
+`.env.example`.
+
+Для production не коммитьте реальные `SMTP_PASS`, `INTERNAL_METRICS_TOKEN`,
+Sentry DSN, URL прайса с токеном и другие секреты. Храните их вне репозитория:
+
+- на VPS — в отдельном env-файле с правами только для пользователя деплоя,
+  например `/etc/yuzhural-site/production.env`;
+- в Docker — передавайте на runtime через `docker compose --env-file
+/etc/yuzhural-site/production.env up -d --no-build` или через `env_file`,
+  указывающий на файл вне рабочей копии;
+- в CI/CD — через secrets хранилища платформы (`GitHub Actions secrets`,
+  GitLab CI variables и т.п.);
+- в managed-инфраструктуре — через secret manager/Vault/SSM/Secrets Manager и
+  инъекцию переменных окружения при запуске контейнера.
+
+Build args в `docker-compose.yml` предназначены только для публичных значений,
+которые попадают во фронтовый bundle (`VITE_*`, `SITE_URL`, release tag).
+Никогда не передавайте туда SMTP-пароли, внутренние токены или другие секреты:
+они могут попасть в слои образа, историю build и клиентский JavaScript.
 
 ### Почта (SMTP)
 
@@ -227,8 +256,23 @@ web-образ.
 
 Build-time prerender карточек ограничен переменной `PRODUCT_PRERENDER_LIMIT`
 (по умолчанию `720`), чтобы web-образ не тащил все 6 700+ HTML-файлов. Полный
-sitemap при этом сохраняется; long tail карточек берётся из runtime volume после
-импорта прайса, а если runtime HTML ещё нет, nginx падает на общий `index.html`.
+product sitemap при этом сохраняется, а весь long tail обязан появиться в
+runtime volume после импорта прайса.
+
+Production-контракт такой:
+
+1. `app` запускает `importPrice.js` с `PUBLIC_ARTIFACTS_DIR=/app/data/public`.
+2. Импортёр пишет свежие `sitemap*.xml`, затем генерирует
+   `product/<slug>.html` для всех product URL из sitemap.
+3. В конце импортёр запускает аудит runtime-prerender. Если хотя бы один URL из
+   sitemap не имеет HTML с canonical/meta/JSON-LD, или случайная карточка за
+   `PRODUCT_PRERENDER_LIMIT` выглядит как голый `index.html`, импорт падает с
+   ненулевым кодом.
+4. Nginx отдаёт `/product/<slug>` из `./data/public/product/<slug>.html`, затем
+   из build-time fallback для важных SKU. До успешного runtime-импорта long-tail
+   URL могут попасть в SPA fallback, поэтому после деплоя/импорта держите
+   `npm run check:product-prerender` в smoke-check.
+
 Для ручного pinning важных позиций используйте `PRODUCT_PRERENDER_INCLUDE` со
 списком SKU/slug; `PRODUCT_PRERENDER_LIMIT=all` возвращает прежний полный
 build-time prerender.
@@ -282,12 +326,15 @@ Production compose использует immutable tag из `DEPLOY_TAG`. Не д
 
 ### Staging / preview
 
-Staging изолирован от production: другие container names, порт, сеть и каталог
-данных. По умолчанию сайт доступен на `http://localhost:8080`.
+Staging изолирован от production: другие container names, сеть и каталог
+данных. При standalone-запуске сайт доступен на `http://localhost:8080`; если
+production уже использует локальный `8080`, задайте `STAGING_HTTP_PORT=8081`.
 
 ```bash
 cp .env.example .env.staging
-# В .env.staging задайте SMTP/QUOTE_TO_EMAIL, STAGING_SITE_URL и при необходимости
+# .env.staging игнорируется Git. Для shared/VPS лучше хранить staging-секреты
+# вне рабочей копии и передавать их через docker compose --env-file.
+# Задайте SMTP/QUOTE_TO_EMAIL, STAGING_SITE_URL и при необходимости
 # STAGING_HTTP_PORT, STAGING_SENTRY_DSN.
 
 mkdir -p data-staging
@@ -304,14 +351,25 @@ curl -fsS http://127.0.0.1:${STAGING_HTTP_PORT:-8080}/healthz
 
 ### Production release
 
+Production `web` в `docker-compose.yml` по умолчанию слушает только
+`127.0.0.1:8080` (`WEB_HTTP_BIND=127.0.0.1:8080`). Не публикуйте этот Nginx
+на внешний plain HTTP: перед ним обязателен внешний TLS reverse proxy
+(Caddy, Traefik, nginx на хосте или балансер), который принимает 443,
+выпускает/обновляет сертификат и проксирует на `http://127.0.0.1:8080`.
+
+Если локальный upstream-порт занят, поменяйте только loopback bind, например
+`WEB_HTTP_BIND=127.0.0.1:8081`. Не используйте значения вида `0.0.0.0:80` на
+публичном хосте: сайт не должен открываться в интернет по plain HTTP.
+
 ```bash
 export DEPLOY_TAG=$(date +%Y%m%d%H%M)-$(git rev-parse --short HEAD)
 export VITE_SENTRY_RELEASE=$DEPLOY_TAG
 
 docker compose build
-docker compose up -d --no-build
+docker compose --env-file /etc/yuzhural-site/production.env up -d --no-build
 docker compose ps
-curl -fsS http://127.0.0.1/healthz
+curl -fsS http://127.0.0.1:8080/healthz
+docker compose exec app npm run check:product-prerender
 ```
 
 Перед деплоем убедитесь, что на хосте есть `./data/products.json`: этот каталог
@@ -332,7 +390,7 @@ export VITE_SENTRY_RELEASE=$DEPLOY_TAG
 
 docker compose up -d --no-build
 docker compose ps
-curl -fsS http://127.0.0.1/healthz
+curl -fsS http://127.0.0.1:8080/healthz
 ```
 
 Если образы хранятся в registry, перед `up` выполните `docker compose pull`.

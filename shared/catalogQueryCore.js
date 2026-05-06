@@ -1,3 +1,5 @@
+// Файл содержит чистые функции нормализации и построения query string для фильтров каталога.
+
 import {
   getConductorMaterial,
   getCoreVariantLabel,

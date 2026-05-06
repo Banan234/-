@@ -1,3 +1,5 @@
+// Файл инкапсулирует клиентские запросы к API товаров, категорий, подсказок и лид-форм.
+
 import { messages } from '../../shared/messages.js';
 import { expectOkApiJson } from './apiResponse.js';
 

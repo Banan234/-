@@ -1,3 +1,5 @@
+// Файл управляет формой запроса КП: позиции, контакты, PDF, отправка и пользовательские ошибки.
+
 import { useEffect, useRef, useState } from 'react';
 import { useCartStore } from '../../store/useCartStore';
 import { trackEvent } from '../../lib/analytics';

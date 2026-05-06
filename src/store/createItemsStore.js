@@ -1,3 +1,5 @@
+// Файл создаёт общую zustand-логику persisted store для корзины и избранного.
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createMigratingItemsStorage } from '../lib/browserStorage.js';

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет форму КП, добавленные позиции, валидацию и пользовательские сценарии отправки.
 
 import '../../test/renderTestSetup.js';
 import { render, screen, waitFor } from '@testing-library/react';

@@ -1,3 +1,5 @@
+// Файл формирует футер сайта с контактами, навигацией, реквизитами и сервисными ссылками.
+
 import { Link } from 'react-router-dom';
 import Container from '../ui/Container';
 import {

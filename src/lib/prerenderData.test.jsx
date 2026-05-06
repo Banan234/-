@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет контекст prerender data и чтение встроенных данных в браузерной среде.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getBrowserPrerenderData } from './prerenderData.jsx';

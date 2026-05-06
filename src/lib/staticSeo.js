@@ -1,3 +1,5 @@
+// Файл хранит SEO-метаданные статических страниц и тексты для canonical/meta tags.
+
 import { SITE_NAME } from './siteConfig.js';
 
 export const STATIC_PAGE_SEO = {

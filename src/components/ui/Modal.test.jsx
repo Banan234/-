@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет поведение модального окна, закрытие и работу portal в jsdom.
 
 import '../../test/renderTestSetup.js';
 import { useState } from 'react';

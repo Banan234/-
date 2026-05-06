@@ -1,3 +1,5 @@
+// Файл проверяет lazy-init error tracking, no-op режим и буферизацию ошибок.
+
 import { describe, expect, it } from 'vitest';
 import {
   redactSentryString,

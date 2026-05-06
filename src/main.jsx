@@ -1,3 +1,5 @@
+// Файл инициализирует клиентское React-приложение, аналитику, error tracking и гидрацию prerender HTML.
+
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';

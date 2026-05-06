@@ -1,3 +1,5 @@
+// Файл рендерит список товаров каталога, состояния загрузки, пустые результаты и управление выдачей.
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ProductCard from '../ui/ProductCard';
 import { formatVoltage } from '../../lib/catalogFilters';

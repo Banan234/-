@@ -1,3 +1,5 @@
+// Файл проверяет защитные обёртки browser storage для отсутствующего или падающего localStorage.
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   STORAGE_WRITE_FAILED_EVENT,

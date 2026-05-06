@@ -1,3 +1,5 @@
+// Файл проверяет импорт прайса, генерацию каталожных данных и обработку edge-case строк.
+
 import { describe, it, expect } from 'vitest';
 import {
   buildRedirectsNginxConf,
@@ -26,6 +28,9 @@ import {
   formatThresholdSource,
   summarizeSkips,
   summarizeByCategory,
+  fetchPriceWithTimeout,
+  parsePriceDownloadMaxBytes,
+  DEFAULT_PRICE_DOWNLOAD_MAX_BYTES,
 } from './importPrice.js';
 
 describe('mergeImportConfig', () => {
@@ -57,6 +62,80 @@ describe('normalizeMarkKey', () => {
   it('возвращает пустую строку для null/undefined', () => {
     expect(normalizeMarkKey(null)).toBe('');
     expect(normalizeMarkKey(undefined)).toBe('');
+  });
+});
+
+describe('download price limits', () => {
+  it('parsePriceDownloadMaxBytes возвращает разумный дефолт для пустых и невалидных значений', () => {
+    expect(parsePriceDownloadMaxBytes()).toBe(DEFAULT_PRICE_DOWNLOAD_MAX_BYTES);
+    expect(parsePriceDownloadMaxBytes('')).toBe(
+      DEFAULT_PRICE_DOWNLOAD_MAX_BYTES
+    );
+    expect(parsePriceDownloadMaxBytes('wrong')).toBe(
+      DEFAULT_PRICE_DOWNLOAD_MAX_BYTES
+    );
+    expect(parsePriceDownloadMaxBytes('-1')).toBe(
+      DEFAULT_PRICE_DOWNLOAD_MAX_BYTES
+    );
+    expect(parsePriceDownloadMaxBytes('123.9')).toBe(123);
+  });
+
+  it('падает с понятной ошибкой на пустом скачанном файле', async () => {
+    await expect(
+      fetchPriceWithTimeout('https://example.test/price.xls', 1000, {
+        maxBytes: 10,
+        fetchImpl: async () => new Response(new Uint8Array()),
+      })
+    ).rejects.toThrow(/Скачанный файл пустой/);
+  });
+
+  it('падает до чтения тела, если Content-Length превышает лимит', async () => {
+    let bodyRead = false;
+    const response = {
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-length': '6' }),
+      get body() {
+        bodyRead = true;
+        return new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array([1]));
+            controller.close();
+          },
+        });
+      },
+    };
+
+    await expect(
+      fetchPriceWithTimeout('https://example.test/price.xls', 1000, {
+        maxBytes: 5,
+        fetchImpl: async () => response,
+      })
+    ).rejects.toThrow(/Content-Length.*лимит/);
+    expect(bodyRead).toBe(false);
+  });
+
+  it('прерывает streaming-чтение, если тело превысило лимит', async () => {
+    let signal;
+
+    await expect(
+      fetchPriceWithTimeout('https://example.test/price.xls', 1000, {
+        maxBytes: 5,
+        fetchImpl: async (_url, options) => {
+          signal = options.signal;
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(new Uint8Array([1, 2, 3]));
+                controller.enqueue(new Uint8Array([4, 5, 6]));
+                controller.close();
+              },
+            })
+          );
+        },
+      })
+    ).rejects.toThrow(/скачано.*лимит/);
+    expect(signal.aborted).toBe(true);
   });
 });
 
@@ -523,15 +602,21 @@ describe('buildRedirectsNginxConf', () => {
     expect(conf).toMatch(/^#/);
   });
 
-  it('отбрасывает slugи с небезопасными символами', () => {
+  it('отбрасывает slugи с небезопасными символами и попытками директив', () => {
     const conf = buildRedirectsNginxConf({
       'safe-slug': 'new-1',
       'evil slug; }': 'broken',
       'with/slash': 'broken',
+      'inject-include': 'new; include /etc/nginx/nginx.conf',
+      'inject-return': 'new } return 200 hacked',
     });
     expect(conf).toContain('/product/safe-slug');
     expect(conf).not.toContain('evil');
     expect(conf).not.toContain('slash');
+    expect(conf).not.toContain('include /etc/nginx');
+    expect(conf).not.toContain('hacked');
+    expect(conf).not.toContain('inject-include');
+    expect(conf).not.toContain('inject-return');
   });
 });
 

@@ -1,3 +1,5 @@
+/* Файл задаёт CSS-токены, базовую типографику, layout primitives и общие UI-состояния. */
+
 /* TOKENS */
 :root {
   --bg: #ffffff;

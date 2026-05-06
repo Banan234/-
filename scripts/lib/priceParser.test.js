@@ -1,3 +1,5 @@
+// Файл проверяет парсер прайса на реальных и пограничных вариантах товарных строк.
+
 import { describe, expect, test } from 'vitest';
 import {
   buildCategoryMap,

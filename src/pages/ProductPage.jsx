@@ -1,3 +1,5 @@
+// Файл рендерит карточку товара, характеристики, похожие позиции, действия корзины и SEO.
+
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Container from '../components/ui/Container';

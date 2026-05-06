@@ -1,3 +1,5 @@
+# Файл задаёт список файлов, которые не попадают в Docker build context и не раздувают образы.
+
 node_modules
 npm-debug.log
 dist

@@ -1,3 +1,5 @@
+// Файл готовит структуру пунктов меню каталога для desktop и mobile навигации.
+
 import catalogCategoriesData from '../../../shared/catalogCategories.json';
 
 const cableSection = catalogCategoriesData.sections.find(

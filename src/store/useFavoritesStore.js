@@ -1,3 +1,5 @@
+// Файл хранит избранные товары и persisted-операции добавления, удаления и проверки наличия.
+
 import { createItemsStore } from './createItemsStore.js';
 
 export const useFavoritesStore = createItemsStore({

@@ -1,3 +1,5 @@
+# Файл описывает production-compose стек сайта: API, nginx, volumes, сети и переменные окружения.
+
 # Production-окружение: Express API + Nginx со статикой.
 # Запуск: docker compose up -d --build
 # Перед сборкой: убедиться, что data/products.json существует
@@ -56,10 +58,9 @@ services:
     container_name: yuzhural-web
     restart: unless-stopped
     ports:
-      # На VPS обычно фронт-балансировщик/Caddy уже занимает 80/443 и форвардит.
-      # Если этот контейнер сам публичный — добавьте 443 + сертификат
-      # (см. README, раздел про деплой).
-      - '80:80'
+      # По умолчанию Nginx доступен только локально для внешнего TLS reverse proxy.
+      # Для другого локального upstream задайте WEB_HTTP_BIND=127.0.0.1:8081.
+      - '${WEB_HTTP_BIND:-127.0.0.1:8080}:80'
     depends_on:
       app:
         condition: service_healthy

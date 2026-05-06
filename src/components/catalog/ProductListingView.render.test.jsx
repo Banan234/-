@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет рендер выдачи каталога, пустые состояния и доступность карточек товаров.
 
 import '../../test/renderTestSetup.js';
 import { useEffect } from 'react';

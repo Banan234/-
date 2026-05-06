@@ -1,3 +1,5 @@
+// Файл рендерит мобильную навигацию, поиск, корзину, избранное и раскрытие каталога.
+
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CATALOG_MENU } from './catalogMenuData';

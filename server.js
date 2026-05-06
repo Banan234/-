@@ -1,3 +1,5 @@
+// Файл создаёт Express API: каталог, заявки, лиды, безопасность, rate limiting, SMTP и health endpoints.
+
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
@@ -53,9 +55,11 @@ const DEFAULT_SMTP_RETRY_DELAY_MS = 750;
 const QUOTE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const LEAD_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const BOT_FORM_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const PRODUCT_API_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const QUOTE_RATE_LIMIT = 12;
 const LEAD_RATE_LIMIT = 30;
 const BOT_FORM_RATE_LIMIT = 5;
+const PRODUCT_API_RATE_LIMIT = 3_000;
 const MAX_LEAD_NAME_LENGTH = 120;
 const MAX_LEAD_COMMENT_LENGTH = 1000;
 const MAX_LEAD_SOURCE_LENGTH = 160;
@@ -690,6 +694,7 @@ export function createApp({
   quoteRateLimitOptions,
   leadRateLimitOptions,
   botRateLimitOptions,
+  productApiRateLimitOptions,
   env = process.env,
   trustProxy = createTrustedProxyFn(),
   catalogStore = createCatalogStore(),
@@ -805,6 +810,17 @@ export function createApp({
     ...sharedFormRateLimitOptions,
     ...leadRateLimitOptions,
   });
+  const productApiRateLimiter = rateLimit({
+    windowMs: PRODUCT_API_RATE_LIMIT_WINDOW_MS,
+    limit: PRODUCT_API_RATE_LIMIT,
+    message: {
+      ok: false,
+      message: messages.errors.api.productApiRateLimited,
+    },
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    ...productApiRateLimitOptions,
+  });
 
   // CORS-allowlist. В проде фронт и API на одном домене — CORS не нужен;
   // если ALLOWED_ORIGINS не задан, отдаём заголовки только для same-origin
@@ -891,6 +907,13 @@ export function createApp({
       runtime: getRuntimeHealthSnapshot({
         activeRequests: app.locals.activeRequests,
       }),
+      forms: {
+        formsEnabled: app.locals.formsDiagnostic.formsEnabled,
+        smtpConfigured: app.locals.formsDiagnostic.smtpConfigured,
+        smtpVerified: app.locals.formsDiagnostic.smtpVerified,
+        smtpReady: app.locals.formsDiagnostic.smtpReady,
+        missingConfig: app.locals.formsDiagnostic.missing,
+      },
     });
   });
 
@@ -900,15 +923,11 @@ export function createApp({
 
     return res.status(ok ? 200 : 503).json({
       ok,
-      formsEnabled: diagnostic.formsEnabled,
-      smtpConfigured: diagnostic.smtpConfigured,
-      smtpVerified: diagnostic.smtpVerified,
-      smtpReady: diagnostic.smtpReady,
-      missingConfig: diagnostic.missing,
+      status: ok ? 'ready' : 'unavailable',
     });
   });
 
-  app.get('/api/products', async (req, res) => {
+  app.get('/api/products', productApiRateLimiter, async (req, res) => {
     try {
       applyCatalogCache(res);
 
@@ -988,7 +1007,7 @@ export function createApp({
     }
   });
 
-  app.get('/api/products/featured', async (req, res) => {
+  app.get('/api/products/featured', productApiRateLimiter, async (req, res) => {
     try {
       applyCatalogCache(res);
 
@@ -1008,25 +1027,29 @@ export function createApp({
     }
   });
 
-  app.get('/api/products/suggestions', async (req, res) => {
-    try {
-      applyCatalogCache(res);
+  app.get(
+    '/api/products/suggestions',
+    productApiRateLimiter,
+    async (req, res) => {
+      try {
+        applyCatalogCache(res);
 
-      const limit = parseLimit(req.query.limit, 7, 20);
-      const items = await catalogStore.loadCatalogProducts();
+        const limit = parseLimit(req.query.limit, 7, 20);
+        const items = await catalogStore.loadCatalogProducts();
 
-      return res.json({
-        ok: true,
-        items: buildProductSuggestions(items, req.query.search, limit),
-      });
-    } catch (error) {
-      logger.error('catalog.suggestions.failed', { err: error });
-      return createErrorResponse(
-        res,
-        messages.errors.api.suggestionsLoadFailed
-      );
+        return res.json({
+          ok: true,
+          items: buildProductSuggestions(items, req.query.search, limit),
+        });
+      } catch (error) {
+        logger.error('catalog.suggestions.failed', { err: error });
+        return createErrorResponse(
+          res,
+          messages.errors.api.suggestionsLoadFailed
+        );
+      }
     }
-  });
+  );
 
   app.get('/api/products/:slug/related', async (req, res) => {
     try {
@@ -1095,52 +1118,57 @@ export function createApp({
   // стабильных id, в ответ — список найденных позиций (актуальные slug,
   // price, unit, stock, name) и список отсутствующих. Сверка по id, а не
   // по slug, чтобы переименования не выглядели как удаление товара.
-  app.post('/api/products/lookup', requireJsonContentType, async (req, res) => {
-    try {
-      const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : null;
-      if (!rawIds) {
-        return createErrorResponse(
-          res,
-          messages.errors.api.idsArrayExpected,
-          400
-        );
-      }
-      if (rawIds.length > MAX_QUOTE_ITEMS) {
-        return createErrorResponse(
-          res,
-          formatMessage(messages.errors.api.tooManyIds, {
-            max: MAX_QUOTE_ITEMS,
-          }),
-          400
-        );
-      }
-      const requestedIds = [];
-      const seen = new Set();
-      for (const value of rawIds) {
-        const id = Number(value);
-        if (!Number.isFinite(id) || id <= 0 || seen.has(id)) continue;
-        seen.add(id);
-        requestedIds.push(id);
-      }
+  app.post(
+    '/api/products/lookup',
+    productApiRateLimiter,
+    requireJsonContentType,
+    async (req, res) => {
+      try {
+        const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : null;
+        if (!rawIds) {
+          return createErrorResponse(
+            res,
+            messages.errors.api.idsArrayExpected,
+            400
+          );
+        }
+        if (rawIds.length > MAX_QUOTE_ITEMS) {
+          return createErrorResponse(
+            res,
+            formatMessage(messages.errors.api.tooManyIds, {
+              max: MAX_QUOTE_ITEMS,
+            }),
+            400
+          );
+        }
+        const requestedIds = [];
+        const seen = new Set();
+        for (const value of rawIds) {
+          const id = Number(value);
+          if (!Number.isFinite(id) || id <= 0 || seen.has(id)) continue;
+          seen.add(id);
+          requestedIds.push(id);
+        }
 
-      const items = await catalogStore.loadCatalogProducts();
-      const listItems = catalogStore.getCatalogProductListItems(items);
-      const byId = new Map(listItems.map((item) => [item.id, item]));
+        const items = await catalogStore.loadCatalogProducts();
+        const listItems = catalogStore.getCatalogProductListItems(items);
+        const byId = new Map(listItems.map((item) => [item.id, item]));
 
-      const found = [];
-      const missing = [];
-      for (const id of requestedIds) {
-        const item = byId.get(id);
-        if (item) found.push(item);
-        else missing.push(id);
+        const found = [];
+        const missing = [];
+        for (const id of requestedIds) {
+          const item = byId.get(id);
+          if (item) found.push(item);
+          else missing.push(id);
+        }
+
+        return res.json({ ok: true, found, missing });
+      } catch (error) {
+        logger.error('catalog.lookup.failed', { err: error });
+        return createErrorResponse(res, messages.errors.api.lookupFailed);
       }
-
-      return res.json({ ok: true, found, missing });
-    } catch (error) {
-      logger.error('catalog.lookup.failed', { err: error });
-      return createErrorResponse(res, messages.errors.api.lookupFailed);
     }
-  });
+  );
 
   app.post(
     '/api/quote',

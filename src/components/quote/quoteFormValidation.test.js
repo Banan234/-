@@ -1,3 +1,5 @@
+// Файл проверяет клиентские правила валидации формы КП и сообщения для некорректных полей.
+
 import { describe, expect, it } from 'vitest';
 import {
   MAX_QUOTE_CUSTOMER_COMMENT_LENGTH,

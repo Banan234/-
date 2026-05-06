@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет SEO статических информационных страниц: доставку, оплату и о компании.
 
 import '../test/renderTestSetup.js';
 import { MemoryRouter } from 'react-router-dom';

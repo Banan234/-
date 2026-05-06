@@ -1,3 +1,5 @@
+// Файл показывает на главной витрину ключевых категорий каталога с переходами в разделы.
+
 import { Link } from 'react-router-dom';
 import Container from '../ui/Container';
 

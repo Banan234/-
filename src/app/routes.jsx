@@ -1,3 +1,5 @@
+// Файл собирает общие route objects, layout, SEO-хуки и scroll-поведение для всех страниц.
+
 import MainLayout from '../components/layout/MainLayout';
 
 export function createRouteObjects({

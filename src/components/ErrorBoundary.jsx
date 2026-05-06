@@ -1,3 +1,5 @@
+// Файл оборачивает React-приложение в fallback UI и отправляет runtime-ошибки в error tracking.
+
 import { Component } from 'react';
 import { captureException } from '../lib/errorTracking';
 import { messages } from '../../shared/messages.js';

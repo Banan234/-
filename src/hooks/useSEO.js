@@ -1,3 +1,5 @@
+// Файл обновляет title, description, canonical, OpenGraph и Twitter meta для текущей страницы.
+
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {

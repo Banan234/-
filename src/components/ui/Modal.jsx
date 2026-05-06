@@ -1,3 +1,5 @@
+// Файл реализует доступное модальное окно с portal, escape-close и блокировкой фонового скролла.
+
 import { useEffect, useRef } from 'react';
 
 const FOCUSABLE_SELECTOR = [

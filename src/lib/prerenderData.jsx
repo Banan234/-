@@ -1,3 +1,5 @@
+// Файл передаёт build-time данные prerender между серверным entry и клиентской гидрацией.
+
 import { createContext, useContext } from 'react';
 
 const PrerenderDataContext = createContext({});

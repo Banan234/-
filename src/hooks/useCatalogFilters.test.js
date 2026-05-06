@@ -1,3 +1,5 @@
+// Файл проверяет хук фильтров каталога: URL-параметры, сортировку, категории и запросы API.
+
 import { describe, expect, it } from 'vitest';
 import {
   applyCatalogFiltersAndSort as applyServerCatalogFiltersAndSort,

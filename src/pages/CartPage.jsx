@@ -1,3 +1,5 @@
+// Файл рендерит корзину выбранных позиций, изменение количества и переход к запросу КП.
+
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Container from '../components/ui/Container';

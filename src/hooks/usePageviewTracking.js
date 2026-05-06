@@ -1,3 +1,5 @@
+// Файл отправляет виртуальные pageview-события при переходах внутри SPA.
+
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { trackPageview } from '../lib/analytics';

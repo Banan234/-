@@ -1,3 +1,5 @@
+// Файл проверяет операции корзины, генерацию item id и persisted-поведение store.
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_QUOTE_ITEMS } from '../../shared/quoteValidation.js';
 

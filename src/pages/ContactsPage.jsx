@@ -1,3 +1,5 @@
+// Файл рендерит страницу контактов с адресом, реквизитами, картой, формой и structured data.
+
 import Container from '../components/ui/Container';
 import HeroLeadForm from '../components/home/HeroLeadForm';
 import { useSEO } from '../hooks/useSEO';

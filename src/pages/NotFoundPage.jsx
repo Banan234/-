@@ -1,3 +1,5 @@
+// Файл рендерит страницу 404 с навигацией обратно к каталогу и главной.
+
 import { Link } from 'react-router-dom';
 import Container from '../components/ui/Container';
 import { useSEO } from '../hooks/useSEO';

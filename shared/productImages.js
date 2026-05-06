@@ -1,3 +1,5 @@
+// Файл определяет правила выбора изображений товаров и fallback-ассетов для карточек каталога.
+
 export const PRODUCT_IMAGE_FALLBACKS = {
   powerCable: '/category-placeholders/power-cable.svg',
   controlCable: '/category-placeholders/control-cable.svg',

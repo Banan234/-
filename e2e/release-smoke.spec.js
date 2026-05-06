@@ -1,3 +1,5 @@
+// Файл выполняет smoke-проверку релизной сборки по главным страницам и базовым сценариям.
+
 import { expect, test } from '@playwright/test';
 
 const ROUTES = ['/', '/catalog', '/contacts', '/product/e2e-vvgng-ls-3x2-5'];

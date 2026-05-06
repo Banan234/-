@@ -1,3 +1,5 @@
+/* Файл подключает все CSS-слои приложения в порядке базовых, layout, секционных и адаптивных стилей. */
+
 @import './core/base.css';
 @import './layout/header.css';
 @import './layout/overlays.css';

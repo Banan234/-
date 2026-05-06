@@ -1,3 +1,5 @@
+// Файл проверяет генерацию sitemap, robots.txt, canonical URL и сегментацию SEO-карт.
+
 import { describe, expect, it } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import os from 'os';

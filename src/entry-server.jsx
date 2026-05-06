@@ -1,3 +1,5 @@
+// Файл экспортирует SSR/prerender entry, который строит HTML приложения для build-time страниц.
+
 import { StrictMode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';

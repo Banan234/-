@@ -1,3 +1,5 @@
+// Файл хранит общие шаблоны сообщений, используемые сервером и тестами заявок.
+
 export const DEFAULT_LOCALE = 'ru';
 
 export const MESSAGE_DICTIONARIES = Object.freeze({
@@ -8,6 +10,8 @@ export const MESSAGE_DICTIONARIES = Object.freeze({
         payloadTooLarge: 'Слишком большой запрос',
         quoteRateLimited:
           'Слишком много заявок. Попробуйте позже или свяжитесь с нами по телефону или email.',
+        productApiRateLimited:
+          'Слишком много запросов к каталогу. Попробуйте немного позже.',
         catalogLoadFailed: 'Не удалось загрузить каталог',
         productsLoadFailed: 'Не удалось загрузить позиции',
         suggestionsLoadFailed: 'Не удалось загрузить подсказки',

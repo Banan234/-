@@ -1,3 +1,5 @@
+// Файл проверяет nginx-конфигурацию на важные заголовки, прокси-правила и корректные fallback-сценарии.
+
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -105,12 +107,12 @@ describe('nginx runtime import artifacts', () => {
     );
   });
 
-  it('loads slug redirects from the runtime data directory only', () => {
+  it('does not include executable nginx config from the runtime data directory', () => {
     const runtimeInclude =
       'include /usr/share/nginx/runtime-data/public/redirects.nginx.conf*;';
     const buildInclude = 'include /usr/share/nginx/html/redirects.nginx.conf*;';
 
-    expect(config).toContain(runtimeInclude);
-    expect(config).not.toContain(buildInclude);
+    expect(config).toContain(buildInclude);
+    expect(config).not.toContain(runtimeInclude);
   });
 });

@@ -1,3 +1,5 @@
+// Файл управляет JSON-LD script-тегами страницы и очищает их при размонтировании React-компонента.
+
 import { useEffect } from 'react';
 
 // Вставляет <script type="application/ld+json"> в <head> с указанным id

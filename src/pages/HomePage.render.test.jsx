@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет рендер главной страницы, SEO, hero-форму и ключевые блоки витрины.
 
 import '../test/renderTestSetup.js';
 import { renderToString } from 'react-dom/server';

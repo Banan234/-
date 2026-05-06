@@ -1,3 +1,5 @@
+// Файл проверяет открытие и работу модального окна заявки с главной страницы.
+
 import { expect, test } from '@playwright/test';
 
 test('home page opens quote modal and traps focus', async ({ page }) => {

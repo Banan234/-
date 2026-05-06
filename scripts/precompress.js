@@ -1,3 +1,5 @@
+// Файл создаёт gzip и brotli версии статических файлов dist для nginx-раздачи.
+
 import fs from 'fs/promises';
 import path from 'path';
 import { gzip, brotliCompress, constants as zlibConstants } from 'zlib';

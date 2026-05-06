@@ -1,3 +1,5 @@
+// Файл запускает тестовый Express/Vite сервер для интеграционных и e2e-сценариев.
+
 import { createServer } from 'node:http';
 
 function closeServer(server) {

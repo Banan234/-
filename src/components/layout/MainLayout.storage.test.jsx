@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
+// Файл проверяет работу layout с localStorage, избранным, корзиной и пользовательскими состояниями.
 
 import '../../test/renderTestSetup.js';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchProductSuggestions } from '../../lib/productsApi.js';
 import MainLayout from './MainLayout.jsx';
 import { STORAGE_WRITE_FAILED_EVENT } from '../../lib/browserStorage.js';
@@ -42,6 +50,10 @@ beforeEach(() => {
   ]);
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('MainLayout', () => {
   it('показывает UX-фидбек при ошибке сохранения корзины и даёт закрыть предупреждение', async () => {
     const user = userEvent.setup();
@@ -63,7 +75,7 @@ describe('MainLayout', () => {
   });
 
   it('рендерит поиск в шапке как полноценный combobox с listbox и option', async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers();
     renderLayout();
 
     const searchInput = screen.getByRole('combobox', {
@@ -79,9 +91,14 @@ describe('MainLayout', () => {
     );
     expect(searchInput).toHaveAttribute('aria-expanded', 'false');
 
-    await user.type(searchInput, 'В');
+    fireEvent.change(searchInput, { target: { value: 'В' } });
 
-    const listbox = await screen.findByRole('listbox', {
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+      await Promise.resolve();
+    });
+
+    const listbox = screen.getByRole('listbox', {
       name: 'Подсказки поиска по каталогу',
     });
     const options = within(listbox).getAllByRole('option');
@@ -90,20 +107,54 @@ describe('MainLayout', () => {
     expect(options).toHaveLength(2);
     expect(options[0]).toHaveTextContent('ВВГнг-LS');
 
-    await user.keyboard('{ArrowDown}');
+    fireEvent.keyDown(searchInput, { key: 'ArrowDown' });
 
     expect(options[0]).toHaveAttribute('aria-selected', 'true');
     expect(searchInput).toHaveAttribute('aria-activedescendant', options[0].id);
 
-    await user.keyboard('{ArrowDown}');
+    fireEvent.keyDown(searchInput, { key: 'ArrowDown' });
 
     expect(options[1]).toHaveAttribute('aria-selected', 'true');
     expect(searchInput).toHaveAttribute('aria-activedescendant', options[1].id);
 
-    await user.keyboard('{Enter}');
+    fireEvent.keyDown(searchInput, { key: 'Enter' });
 
-    await waitFor(() => expect(searchInput).toHaveValue('АВВГ'));
+    expect(searchInput).toHaveValue('АВВГ');
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('не запрашивает подсказки на каждый символ при быстром вводе', async () => {
+    vi.useFakeTimers();
+    renderLayout();
+
+    const searchInput = screen.getByRole('combobox', {
+      name: 'Поиск по каталогу',
+    });
+
+    fireEvent.change(searchInput, { target: { value: 'В' } });
+    fireEvent.change(searchInput, { target: { value: 'ВВ' } });
+    fireEvent.change(searchInput, { target: { value: 'ВВГ' } });
+
+    expect(fetchProductSuggestions).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(299);
+      await Promise.resolve();
+    });
+
+    expect(fetchProductSuggestions).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+      await Promise.resolve();
+    });
+
+    expect(fetchProductSuggestions).toHaveBeenCalledTimes(1);
+    expect(fetchProductSuggestions).toHaveBeenCalledWith(
+      'ВВГ',
+      7,
+      expect.any(AbortSignal)
+    );
   });
 
   it('связывает кнопки мобильного меню и каталога с управляемыми панелями', async () => {

@@ -1,3 +1,5 @@
+// Файл рендерит информационную страницу оплаты и условий работы с юридическими лицами.
+
 import Container from '../components/ui/Container';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { useSEO } from '../hooks/useSEO';

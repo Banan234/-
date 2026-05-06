@@ -1,3 +1,5 @@
+// Файл запускает нагрузочные HTTP-проверки API и сайта с настраиваемой длительностью и concurrency.
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';

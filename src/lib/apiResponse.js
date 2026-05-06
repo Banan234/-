@@ -1,3 +1,5 @@
+// Файл нормализует клиентскую обработку API-ответов и ошибок fetch-запросов.
+
 const DEFAULT_API_ERROR_MESSAGE = 'Сервис временно недоступен';
 
 export async function readApiJson(response, fallbackMessage) {

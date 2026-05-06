@@ -1,3 +1,5 @@
+// Файл реализует лид-форму на главном экране, включая отправку, аналитику и антибот-поля.
+
 import { useRef, useState } from 'react';
 import HoneypotField from '../forms/HoneypotField';
 import { expectOkApiJson } from '../../lib/apiResponse';

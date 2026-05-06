@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Файл проверяет страницу товара, состояния загрузки, ошибки, SEO и пользовательские действия.
 
 import '../test/renderTestSetup.js';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';

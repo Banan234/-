@@ -1,3 +1,5 @@
+// Файл проверяет стабильность реестра товаров, обработку переименований и генерацию redirect map.
+
 import { describe, it, expect } from 'vitest';
 import {
   assignStableIdentity,

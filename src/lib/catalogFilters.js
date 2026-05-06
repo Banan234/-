@@ -1,3 +1,5 @@
+// Файл готовит клиентские фильтры каталога, фасеты и признаки товаров для UI выдачи.
+
 import {
   getConductorMaterial,
   getCoreVariantLabel,

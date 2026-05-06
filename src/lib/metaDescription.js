@@ -1,3 +1,5 @@
+// Файл строит короткие SEO description для страниц, категорий и товарных карточек.
+
 export const META_DESCRIPTION_MAX_LENGTH = 160;
 
 export function normalizeMetaDescription(

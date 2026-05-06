@@ -1,3 +1,5 @@
+# Файл описывает staging-окружение с отдельными портами, env-файлами и сервисами предпросмотра.
+
 # Изолированное staging/preview-окружение рядом с production.
 # Запуск:
 #   docker compose -f docker-compose.staging.yml up -d --build

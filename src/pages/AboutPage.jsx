@@ -1,3 +1,5 @@
+// Файл рендерит страницу о компании с преимуществами, реквизитами и SEO-структурой.
+
 import Container from '../components/ui/Container';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { useSEO } from '../hooks/useSEO';

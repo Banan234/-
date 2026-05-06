@@ -1,3 +1,5 @@
+// Файл импортирует прайс XLS, нормализует товары, категории, SEO-данные и публичные файлы каталога.
+
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -22,6 +24,7 @@ import {
   loadProductRegistry,
   saveProductRegistry,
 } from './lib/productRegistry.js';
+import { assertProductPrerenderCoverage } from './lib/productPrerenderAudit.js';
 import { writeSeoArtifacts } from './lib/siteSeo.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -566,17 +569,20 @@ export function isServiceRow(cells) {
   );
 }
 
-async function writeFileAtomic(filePath, data) {
+async function writeFileAtomic(filePath, data, { mode } = {}) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
   let handle;
   try {
-    handle = await fs.open(tmpPath, 'w');
+    handle = await fs.open(tmpPath, 'w', mode);
     await handle.writeFile(data);
     await handle.sync();
     await handle.close();
     handle = null;
     await fs.rename(tmpPath, filePath);
+    if (mode != null) {
+      await fs.chmod(filePath, mode);
+    }
   } catch (error) {
     if (handle) {
       await handle.close().catch(() => {});
@@ -633,8 +639,13 @@ async function countHtmlFiles(dir) {
   }
 }
 
-async function writeRuntimeProductPrerender(products) {
+async function writeRuntimeProductPrerender(products, seoSummary = null) {
   if (!process.env.PUBLIC_ARTIFACTS_DIR) return null;
+  if (!seoSummary) {
+    throw new Error(
+      'Runtime product-prerender требует свежий sitemap из writeSeoArtifacts.'
+    );
+  }
 
   let template;
   try {
@@ -664,6 +675,16 @@ async function writeRuntimeProductPrerender(products) {
     const productDir = path.join(tmpDir, 'product');
     const writtenCount = await countHtmlFiles(productDir);
     await replaceDirectory(productDir, path.join(publicDir, 'product'));
+    const coverage = await assertProductPrerenderCoverage({
+      publicDir,
+      products,
+      productSitemapPaths: seoSummary?.productSitemapPaths || [],
+    });
+    if (writtenCount !== coverage.htmlCount) {
+      throw new Error(
+        `Runtime prerender записал ${writtenCount} HTML, но product sitemap содержит ${coverage.htmlCount} URL.`
+      );
+    }
     return writtenCount;
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
@@ -671,8 +692,9 @@ async function writeRuntimeProductPrerender(products) {
 }
 
 // Slug может попасть в URL только через [a-z0-9-], всё остальное транслит/чистка
-// в slugify. На всякий случай отбрасываем записи с подозрительными символами,
-// чтобы сгенерированная nginx-конфигурация не падала при reload.
+// в slugify. На всякий случай отбрасываем записи с подозрительными символами:
+// этот файл исполняется nginx из immutable web-образа, поэтому не даём
+// протащить директивы через runtime/import data.
 const SAFE_SLUG_RE = /^[a-z0-9-]+$/;
 
 export function buildRedirectsNginxConf(redirects) {
@@ -1762,27 +1784,144 @@ function buildReportHtml(report) {
 const PRICE_DOWNLOAD_TIMEOUT_MS =
   Number(process.env.PRICE_DOWNLOAD_TIMEOUT_MS) || 60_000;
 const PRICE_DOWNLOAD_RETRIES = Number(process.env.PRICE_DOWNLOAD_RETRIES) || 3;
+export const DEFAULT_PRICE_DOWNLOAD_MAX_BYTES = 50 * 1024 * 1024;
 
-async function fetchPriceWithTimeout(url, timeoutMs) {
+class PriceDownloadError extends Error {
+  constructor(message, { retryable = true } = {}) {
+    super(message);
+    this.name = 'PriceDownloadError';
+    this.retryable = retryable;
+  }
+}
+
+export function parsePriceDownloadMaxBytes(value) {
+  if (value == null || value === '') {
+    return DEFAULT_PRICE_DOWNLOAD_MAX_BYTES;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_PRICE_DOWNLOAD_MAX_BYTES;
+  }
+
+  return Math.floor(parsed);
+}
+
+const PRICE_DOWNLOAD_MAX_BYTES = parsePriceDownloadMaxBytes(
+  process.env.PRICE_DOWNLOAD_MAX_BYTES
+);
+
+function formatBytes(value) {
+  if (!Number.isFinite(value)) return '0 Б';
+  if (value >= 1024 * 1024) {
+    return `${(value / (1024 * 1024)).toFixed(1)} МБ`;
+  }
+  if (value >= 1024) {
+    return `${(value / 1024).toFixed(1)} КБ`;
+  }
+  return `${value} Б`;
+}
+
+function createPriceDownloadLimitError(url, actualBytes, maxBytes, source) {
+  return new PriceDownloadError(
+    `Прайс по URL ${url} слишком большой: ${source} ${formatBytes(
+      actualBytes
+    )}, лимит ${formatBytes(
+      maxBytes
+    )}. Увеличь PRICE_DOWNLOAD_MAX_BYTES, если файл ожидаемо больше.`,
+    { retryable: false }
+  );
+}
+
+async function readResponseBodyWithLimit(response, url, maxBytes, controller) {
+  if (!response.body) {
+    return Buffer.alloc(0);
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        controller.abort(
+          createPriceDownloadLimitError(url, totalBytes, maxBytes, 'скачано')
+        );
+        throw createPriceDownloadLimitError(
+          url,
+          totalBytes,
+          maxBytes,
+          'скачано'
+        );
+      }
+
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks, totalBytes);
+}
+
+export async function fetchPriceWithTimeout(
+  url,
+  timeoutMs,
+  { maxBytes = PRICE_DOWNLOAD_MAX_BYTES, fetchImpl = fetch } = {}
+) {
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(new Error(`timeout ${timeoutMs}ms`)),
     timeoutMs
   );
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetchImpl(url, { signal: controller.signal });
     if (!response.ok) {
       throw new Error(
         `Не удалось скачать прайс по URL ${url}: HTTP ${response.status}`
       );
     }
-    return Buffer.from(await response.arrayBuffer());
+
+    const contentLengthHeader = response.headers.get('content-length');
+    if (contentLengthHeader) {
+      const contentLength = Number(contentLengthHeader);
+      if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+        throw createPriceDownloadLimitError(
+          url,
+          contentLength,
+          maxBytes,
+          'Content-Length'
+        );
+      }
+    }
+
+    const buffer = await readResponseBodyWithLimit(
+      response,
+      url,
+      maxBytes,
+      controller
+    );
+    if (buffer.length === 0) {
+      throw new PriceDownloadError(`Скачанный файл пустой: ${url}`, {
+        retryable: false,
+      });
+    }
+
+    return buffer;
   } finally {
     clearTimeout(timer);
   }
 }
 
 function isRetryableHttpError(error) {
+  if (typeof error?.retryable === 'boolean') {
+    return error.retryable;
+  }
   // Network errors / timeouts ретраим всегда; HTTP ретраим только 5xx и 429.
   const httpMatch = /HTTP (\d{3})/.exec(error?.message || '');
   if (!httpMatch) return true;
@@ -1791,7 +1930,11 @@ function isRetryableHttpError(error) {
 }
 
 async function downloadPriceFile() {
-  console.log(`Скачивание прайса: ${priceUrl}`);
+  console.log(
+    `Скачивание прайса: ${priceUrl} (лимит ${formatBytes(
+      PRICE_DOWNLOAD_MAX_BYTES
+    )})`
+  );
   let buffer;
   let lastError;
   for (let attempt = 1; attempt <= PRICE_DOWNLOAD_RETRIES; attempt += 1) {
@@ -1812,9 +1955,6 @@ async function downloadPriceFile() {
   }
   if (!buffer) {
     throw lastError || new Error('Не удалось скачать прайс');
-  }
-  if (buffer.length === 0) {
-    throw new Error(`Скачанный файл пустой: ${priceUrl}`);
   }
   await fs.mkdir(path.dirname(inputFile), { recursive: true });
   await fs.writeFile(inputFile, buffer);
@@ -1908,7 +2048,8 @@ async function main() {
     );
     await writeFileAtomic(
       redirectsNginxFile,
-      buildRedirectsNginxConf(slugRedirects)
+      buildRedirectsNginxConf(slugRedirects),
+      { mode: 0o444 }
     );
 
     try {
@@ -1926,9 +2067,15 @@ async function main() {
         'Не удалось сгенерировать sitemap.xml/robots.txt:',
         error.message
       );
+      if (process.env.PUBLIC_ARTIFACTS_DIR) {
+        throw error;
+      }
     }
 
-    runtimeProductPrerenderCount = await writeRuntimeProductPrerender(products);
+    runtimeProductPrerenderCount = await writeRuntimeProductPrerender(
+      products,
+      seoSummary
+    );
   }
 
   const diff = buildDiff(previousProducts, products);

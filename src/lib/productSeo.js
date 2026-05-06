@@ -1,3 +1,5 @@
+// Файл строит SEO-метаданные, canonical и JSON-LD для страниц товара без React-зависимостей.
+
 // SEO-логика для карточки товара. Используется и в React (ProductPage),
 // и в build-time prerender (scripts/prerender.js) — поэтому никаких импортов
 // из react/react-router здесь быть не должно.

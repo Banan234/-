@@ -1,3 +1,5 @@
+// Файл проверяет Vite-конфигурацию и HTML-transform, который приоритизирует stylesheet перед module script.
+
 import { describe, expect, it } from 'vitest';
 import { moveStylesheetsBeforeModuleScripts } from './vite.config.js';
 

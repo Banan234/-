@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1.7
+# Файл собирает production-образы API и nginx-статики, включая build, prerender и runtime-слои.
 
 # ---------- 1. Зависимости (всё, включая dev) ----------
 # Отдельный слой ускоряет повторные сборки: при правке кода без изменения
@@ -14,8 +15,8 @@ RUN npm ci
 # ---------- 2. Сборка фронта (vite → dist/) + prerender SEO ----------
 # build:prod = vite build && scripts/prerender.js. Prerender пишет статику
 # главной/каталога/контактов и ограниченный набор product HTML для важных SKU.
-# Полный sitemap остаётся в public; длинный хвост product URL обслуживается
-# runtime-prerender из volume или nginx fallback на index.html.
+# Полный sitemap остаётся в public; длинный хвост product URL обязан пройти
+# runtime-prerender из volume после importPrice.js.
 FROM node:20-slim AS build
 USER node
 WORKDIR /home/node
@@ -118,8 +119,7 @@ RUN { \
     && mv /tmp/nginx.conf /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /home/node/app/dist /usr/share/nginx/html
-RUN mkdir -p /usr/share/nginx/runtime-data/public \
-    && cp -f /usr/share/nginx/html/redirects.nginx.conf /usr/share/nginx/runtime-data/public/redirects.nginx.conf 2>/dev/null || true
+RUN mkdir -p /usr/share/nginx/runtime-data/public
 
 EXPOSE 80
 

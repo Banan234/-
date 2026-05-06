@@ -1,3 +1,5 @@
+// Файл проверяет классификацию товаров, декодирование кабельных марок и приоритеты правил.
+
 import { describe, expect, test } from 'vitest';
 import { classifyProduct } from './catalogClassifier.js';
 import { normalizeImportedProduct } from './priceParser.js';

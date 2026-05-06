@@ -1,3 +1,5 @@
+// Файл хранит состояние корзины, выбранные позиции, количество и persisted-синхронизацию.
+
 import { createItemsStore } from './createItemsStore.js';
 import { MAX_QUOTE_ITEMS } from '../../shared/quoteValidation.js';
 import { PRODUCT_IMAGE_FALLBACKS } from '../../shared/productImages.js';

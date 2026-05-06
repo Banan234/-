@@ -1,3 +1,5 @@
+// Файл реализует поисковую строку шапки, подсказки товаров и переходы к результатам каталога.
+
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { trackEvent } from '../../lib/analytics';
@@ -5,6 +7,7 @@ import { captureException } from '../../lib/errorTracking';
 import { fetchProductSuggestions } from '../../lib/productsApi';
 
 const SEARCH_SUGGESTIONS_LIMIT = 7;
+const SEARCH_SUGGESTIONS_DEBOUNCE_MS = 300;
 const HEADER_SEARCH_INPUT_ID = 'header-search';
 const HEADER_SEARCH_LISTBOX_ID = 'header-search-suggestions';
 const HEADER_SEARCH_STATUS_ID = 'site-header-search-status';
@@ -50,6 +53,7 @@ export default function HeaderSearch() {
   const [activeSearchSuggestionIndex, setActiveSearchSuggestionIndex] =
     useState(-1);
   const searchLoadControllerRef = useRef(null);
+  const searchSuggestionsDebounceTimerRef = useRef(null);
   const normalizedHeaderSearch = normalizeSearchSuggestionKey(headerSearch);
   const shouldShowSearchSuggestions = Boolean(
     isSearchSuggestionsOpen &&
@@ -70,6 +74,7 @@ export default function HeaderSearch() {
 
   useEffect(() => {
     return () => {
+      clearSearchSuggestionsDebounce();
       searchLoadControllerRef.current?.abort();
     };
   }, []);
@@ -119,6 +124,7 @@ export default function HeaderSearch() {
   }
 
   function loadSearchSuggestions(value) {
+    clearSearchSuggestionsDebounce();
     const search = value.trim();
 
     if (!search) {
@@ -153,12 +159,42 @@ export default function HeaderSearch() {
       });
   }
 
+  function clearSearchSuggestionsDebounce() {
+    if (!searchSuggestionsDebounceTimerRef.current) {
+      return;
+    }
+
+    window.clearTimeout(searchSuggestionsDebounceTimerRef.current);
+    searchSuggestionsDebounceTimerRef.current = null;
+  }
+
+  function scheduleSearchSuggestionsLoad(value) {
+    const search = value.trim();
+
+    clearSearchSuggestionsDebounce();
+    searchLoadControllerRef.current?.abort();
+    searchLoadControllerRef.current = null;
+
+    if (!search) {
+      setSearchSuggestions([]);
+      setIsSearchCatalogLoading(false);
+      setActiveSearchSuggestionIndex(-1);
+      return;
+    }
+
+    setIsSearchCatalogLoading(true);
+    searchSuggestionsDebounceTimerRef.current = window.setTimeout(() => {
+      searchSuggestionsDebounceTimerRef.current = null;
+      loadSearchSuggestions(search);
+    }, SEARCH_SUGGESTIONS_DEBOUNCE_MS);
+  }
+
   function handleSearchInputChange(event) {
     const value = event.target.value;
     setHeaderSearch(value);
     setIsSearchSuggestionsOpen(true);
     setActiveSearchSuggestionIndex(-1);
-    loadSearchSuggestions(value);
+    scheduleSearchSuggestionsLoad(value);
   }
 
   function handleSearchSuggestionSelect(mark) {
