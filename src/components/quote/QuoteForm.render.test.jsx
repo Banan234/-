@@ -23,6 +23,16 @@ async function fillRequiredFields(user) {
 }
 
 describe('QuoteForm render flow', () => {
+  it('рендерит обязательный checkbox согласия с ожидаемым текстом', () => {
+    render(<QuoteForm itemsOverride={[quoteItem]} />);
+
+    expect(
+      screen.getByLabelText(
+        'Даю согласие на обработку персональных данных'
+      )
+    ).toBeInTheDocument();
+  });
+
   it('не сохраняет контактные данные в localStorage и удаляет старый черновик', async () => {
     const user = userEvent.setup();
     localStorage.setItem(
@@ -65,6 +75,25 @@ describe('QuoteForm render flow', () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByText(/^Корзина пуста$/)).toBeInTheDocument();
+  });
+
+  it('блокирует отправку без согласия и не вызывает API', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<QuoteForm itemsOverride={[quoteItem]} />);
+
+    await user.type(screen.getByLabelText(/Имя/), 'Иван Петров');
+    await user.type(screen.getByLabelText(/Телефон/), '+7 900 123-45-67');
+    await user.click(
+      screen.getByRole('button', { name: /Отправить запрос КП/ })
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('Нужно согласие на обработку данных')
+    ).toBeInTheDocument();
   });
 
   it('показывает success-сообщение после успешной отправки', async () => {

@@ -1,5 +1,22 @@
+const PRICE_FALLBACKS = Object.freeze({
+  request: 'Цена по запросу',
+  quote: 'Цена будет рассчитана в КП',
+});
+
+function getPriceFallback(options = {}) {
+  if (typeof options.fallback === 'string' && options.fallback.trim()) {
+    return options.fallback;
+  }
+
+  if (options.context === 'quote') {
+    return PRICE_FALLBACKS.quote;
+  }
+
+  return PRICE_FALLBACKS.request;
+}
+
 export function formatProductPrice(price, unit, options = {}) {
-  const fallback = options.fallback || 'Цена по запросу';
+  const fallback = getPriceFallback(options);
   const positivePrice = Number(price);
 
   if (!Number.isFinite(positivePrice) || positivePrice <= 0) {

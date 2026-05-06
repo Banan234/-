@@ -77,4 +77,16 @@ describe('ProductPage', () => {
     ).toHaveAttribute('aria-controls', 'product-quantity-input');
     expect(screen.queryByText(/^Производитель:/)).not.toBeInTheDocument();
   });
+
+  it('показывает цену по запросу при price=0', async () => {
+    fetchProductBySlug.mockResolvedValue({
+      ...product,
+      price: 0,
+    });
+
+    renderProductPage();
+
+    expect(await screen.findByText('Цена по запросу')).toBeInTheDocument();
+    expect(screen.queryByText('/ м')).not.toBeInTheDocument();
+  });
 });

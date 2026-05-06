@@ -70,7 +70,9 @@ export default function FavoritesPage() {
               const quantity = getQuantity(item.id);
               const specs = Object.entries(item.specs || {}).slice(0, 4);
               const isInStock = item.inStock ?? Number(item.stock || 0) > 0;
-              const itemPrice = formatProductPrice(item.price, item.unit);
+              const itemPrice = formatProductPrice(item.price, item.unit, {
+                context: 'request',
+              });
 
               return (
                 <article key={item.id} className="favorite-card">

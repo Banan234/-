@@ -19,6 +19,10 @@ export const MESSAGE_DICTIONARIES = Object.freeze({
         lookupFailed: 'Не удалось сверить позиции',
         invalidQuoteRequest: 'Некорректные данные заявки',
         quoteSendFailed: 'Не удалось отправить заявку',
+        formsDisabled:
+          'Формы временно отключены. Свяжитесь с нами по телефону или email.',
+        formsUnavailable:
+          'Формы временно недоступны. Свяжитесь с нами по телефону или email.',
         phoneInvalid: 'Укажите корректный телефон',
       }),
       cart: Object.freeze({

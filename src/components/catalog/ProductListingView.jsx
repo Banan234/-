@@ -1,13 +1,12 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import ProductCard from '../ui/ProductCard';
+import { formatVoltage } from '../../lib/catalogFilters';
 import {
-  formatVoltage,
-} from '../../lib/catalogFilters';
-import {
-  applyProductFiltersCore,
-  buildCatalogFacetsCore,
-  sortProductsCore,
-} from '../../../shared/catalogQueryCore.js';
+  applyCatalogFiltersAndSort,
+  buildCatalogFacets,
+  filterProductsBySearch,
+  normalizeCatalogFilterQuery,
+} from '../../../shared/catalogQuery.js';
 import { trackEvent } from '../../lib/analytics';
 import { useCatalogFilters } from '../../hooks/useCatalogFilters';
 
@@ -154,60 +153,46 @@ export default function ProductListingView({
   }
 
   const searchedProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((product) => {
-      const mark = (product.mark || '').toLowerCase();
-      const title = (product.title || '').toLowerCase();
-      const fullName = (product.fullName || '').toLowerCase();
-      const sku = (product.sku || '').toLowerCase();
-      return (
-        mark.includes(q) ||
-        title.includes(q) ||
-        fullName.includes(q) ||
-        sku.includes(q)
-      );
-    });
+    return filterProductsBySearch(products, search);
   }, [products, search]);
 
   const localFilterOptions = useMemo(() => {
-    return buildCatalogFacetsCore(searchedProducts);
+    return buildCatalogFacets(searchedProducts);
   }, [searchedProducts]);
 
-  const filteredProducts = useMemo(() => {
-    if (isServerPaged) return products;
-
-    return sortProductsCore(
-      applyProductFiltersCore(searchedProducts, {
-        selectedMaterials,
-        selectedConstructions,
-        selectedCores,
-        selectedSections,
-        selectedVoltages,
-        selectedAppTypes: showAppType ? selectedAppTypes : [],
-        onlySPE: showSPE && onlySPE,
-        priceMinNumber,
-        priceMaxNumber,
-      }),
-      sortBy
-    );
+  const clientFilterQuery = useMemo(() => {
+    return normalizeCatalogFilterQuery({
+      selectedMaterials,
+      selectedConstructions,
+      selectedCores,
+      selectedSections,
+      selectedVoltages,
+      selectedAppTypes: showAppType ? selectedAppTypes : [],
+      onlySPE: showSPE && onlySPE,
+      priceMinNumber,
+      priceMaxNumber,
+      sortBy,
+    });
   }, [
-    searchedProducts,
     selectedMaterials,
     selectedConstructions,
     selectedCores,
     selectedSections,
     selectedVoltages,
     selectedAppTypes,
-    onlySPE,
     showAppType,
     showSPE,
+    onlySPE,
     priceMinNumber,
     priceMaxNumber,
     sortBy,
-    isServerPaged,
-    products,
   ]);
+
+  const filteredProducts = useMemo(() => {
+    if (isServerPaged) return products;
+
+    return applyCatalogFiltersAndSort(searchedProducts, clientFilterQuery);
+  }, [searchedProducts, clientFilterQuery, isServerPaged, products]);
 
   const filterOptions = serverFilterOptions || localFilterOptions;
   const page = pagination?.page || localPage;

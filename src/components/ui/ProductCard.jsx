@@ -41,7 +41,9 @@ export default function ProductCard({ product, variant = 'default' }) {
     badges.push('Хит');
   }
 
-  const productPrice = formatProductPrice(product.price, product.unit);
+  const productPrice = formatProductPrice(product.price, product.unit, {
+    context: 'request',
+  });
   const priceValue = productPrice.value;
   const priceUnitLabel = productPrice.unitLabel;
   const brand = product.brand || product.manufacturer || product.catalogBrand;

@@ -17,7 +17,7 @@ function makeProduct(overrides) {
     fullName: overrides.fullName || overrides.title,
     mark: overrides.mark || overrides.title,
     category: 'Силовой кабель',
-    price: overrides.price || 120,
+    price: overrides.price ?? 120,
     stock: overrides.stock ?? 250,
     unit: 'м',
     image: '/product-placeholder.svg',
@@ -101,6 +101,24 @@ describe('ProductListingView render flow', () => {
     expect(screen.getByText('ВВГнг-LS 3x2.5')).toBeInTheDocument();
     expect(screen.getByText('АВВГ 4x16')).toBeInTheDocument();
     expect(screen.getByText(/Найдено:/)).toHaveTextContent('2');
+  });
+
+  it('показывает цену по запросу для товара с price=0', () => {
+    renderListing({
+      viewProps: {
+        products: [
+          makeProduct({
+            id: 3,
+            slug: 'request-price',
+            title: 'Кабель под расчет',
+            price: 0,
+          }),
+        ],
+      },
+    });
+
+    expect(screen.getByText('Кабель под расчет')).toBeInTheDocument();
+    expect(screen.getByText('Цена по запросу')).toBeInTheDocument();
   });
 
   it('коммитит поиск в URL по Enter', async () => {

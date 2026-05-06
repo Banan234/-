@@ -1,5 +1,9 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import {
+  normalizeCatalogFilterQuery,
+  parseCsvParam,
+} from '../../shared/catalogQuery.js';
 
 const BASE_PRODUCT_QUERY_KEYS = [
   'search',
@@ -28,25 +32,6 @@ const RESET_FILTER_KEYS = [
   'page',
 ];
 
-function parseCsvParam(raw) {
-  if (!raw) return [];
-  return raw
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function parseCsvNumbers(raw) {
-  return parseCsvParam(raw)
-    .map((item) => Number(item))
-    .filter((item) => Number.isFinite(item));
-}
-
-function parsePositiveNumber(raw) {
-  const value = Number(raw);
-  return Number.isFinite(value) && value > 0 ? value : null;
-}
-
 function setParamValue(params, key, value) {
   if (
     value === null ||
@@ -62,21 +47,37 @@ function setParamValue(params, key, value) {
 }
 
 export function parseCatalogFilters(searchParams) {
+  const priceMin = searchParams.get('priceMin') || '';
+  const priceMax = searchParams.get('priceMax') || '';
+  const normalized = normalizeCatalogFilterQuery({
+    search: searchParams.get('search') || '',
+    priceMin,
+    priceMax,
+    sort: searchParams.get('sort') || '',
+    material: searchParams.get('material') || '',
+    construction: searchParams.get('construction') || '',
+    cores: searchParams.get('cores') || '',
+    section: searchParams.get('section') || '',
+    voltage: searchParams.get('voltage') || '',
+    appType: searchParams.get('appType') || '',
+    spe: searchParams.get('spe') || '',
+  });
+
   return {
     category: searchParams.get('category') || '',
-    search: searchParams.get('search') || '',
-    priceMin: searchParams.get('priceMin') || '',
-    priceMax: searchParams.get('priceMax') || '',
-    priceMinNumber: parsePositiveNumber(searchParams.get('priceMin')),
-    priceMaxNumber: parsePositiveNumber(searchParams.get('priceMax')),
-    sortBy: searchParams.get('sort') || 'default',
-    selectedMaterials: parseCsvParam(searchParams.get('material')),
-    selectedConstructions: parseCsvParam(searchParams.get('construction')),
-    selectedCores: parseCsvParam(searchParams.get('cores')),
-    selectedSections: parseCsvNumbers(searchParams.get('section')),
-    selectedVoltages: parseCsvNumbers(searchParams.get('voltage')),
-    selectedAppTypes: parseCsvParam(searchParams.get('appType')),
-    onlySPE: searchParams.get('spe') === '1',
+    search: normalized.search,
+    priceMin,
+    priceMax,
+    priceMinNumber: normalized.priceMinNumber,
+    priceMaxNumber: normalized.priceMaxNumber,
+    sortBy: normalized.sortBy,
+    selectedMaterials: normalized.selectedMaterials,
+    selectedConstructions: normalized.selectedConstructions,
+    selectedCores: normalized.selectedCores,
+    selectedSections: normalized.selectedSections,
+    selectedVoltages: normalized.selectedVoltages,
+    selectedAppTypes: normalized.selectedAppTypes,
+    onlySPE: normalized.onlySPE,
   };
 }
 

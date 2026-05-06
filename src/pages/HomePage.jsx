@@ -1,11 +1,13 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Container from '../components/ui/Container';
 import CategoryShowcase from '../components/home/CategoryShowcase';
 import HeroLeadForm from '../components/home/HeroLeadForm';
+import StockProductsGrid from '../components/home/StockProductsGrid';
 import { fetchFeaturedProducts } from '../lib/productsApi';
 import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useJsonLd } from '../hooks/useJsonLd';
+import { usePrerenderData } from '../lib/prerenderData';
 import { messages } from '../../shared/messages.js';
 import {
   SITE_ADDRESS,
@@ -28,10 +30,6 @@ const heroBenefits = [
   '16 лет на рынке',
   'Работаем с НДС и по договору',
 ];
-
-const LazyStockProductsGrid = lazy(
-  () => import('../components/home/StockProductsGrid')
-);
 
 const audienceSegments = [
   {
@@ -211,8 +209,16 @@ export default function HomePage() {
   useJsonLd('home-organization-json-ld', ORGANIZATION_JSON_LD);
   useJsonLd('home-website-json-ld', WEBSITE_JSON_LD);
 
-  const [products, setProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const prerenderData = usePrerenderData();
+  const initialFeaturedProducts = Array.isArray(
+    prerenderData.home?.featuredProducts
+  )
+    ? prerenderData.home.featuredProducts
+    : [];
+  const hasInitialFeaturedProducts = initialFeaturedProducts.length > 0;
+
+  const [products, setProducts] = useState(initialFeaturedProducts);
+  const [isLoading, setIsLoading] = useState(!hasInitialFeaturedProducts);
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
@@ -224,14 +230,18 @@ export default function HomePage() {
 
     async function loadProducts() {
       try {
-        setIsLoading(true);
+        if (!hasInitialFeaturedProducts) {
+          setIsLoading(true);
+        }
         setLoadError('');
         const items = await fetchFeaturedProducts(10, controller.signal);
         setProducts(items);
       } catch (error) {
         if (error.name !== 'AbortError') {
           captureException(error, { source: 'HomePage.loadFeatured' });
-          setLoadError(messages.errors.home.featuredLoadFailed);
+          if (!hasInitialFeaturedProducts) {
+            setLoadError(messages.errors.home.featuredLoadFailed);
+          }
         }
       } finally {
         setIsLoading(false);
@@ -240,7 +250,7 @@ export default function HomePage() {
 
     loadProducts();
     return () => controller.abort();
-  }, []);
+  }, [hasInitialFeaturedProducts]);
 
   const openQuoteModal = () => {
     window.dispatchEvent(
@@ -337,13 +347,11 @@ export default function HomePage() {
 
       <CategoryShowcase />
 
-      <Suspense fallback={null}>
-        <LazyStockProductsGrid
-          products={products}
-          isLoading={isLoading}
-          loadError={loadError}
-        />
-      </Suspense>
+      <StockProductsGrid
+        products={products}
+        isLoading={isLoading}
+        loadError={loadError}
+      />
 
       <section className="section home-documents">
         <Container>

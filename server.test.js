@@ -7,6 +7,10 @@ import {
   it,
   vi,
 } from 'vitest';
+import {
+  closeTestServer,
+  startTestServer,
+} from './src/test/startTestServer.js';
 
 // Мокаем nodemailer ДО импорта server.js — чтобы createTransport вернул
 // заглушку и реальные SMTP-вызовы не уходили никуда. vi.hoisted гарантирует,
@@ -28,11 +32,14 @@ const {
   createTransporter,
   getMailSendOptions,
   getRuntimeHealthSnapshot,
+  getFormsDiagnostic,
   getSmtpTransportOptions,
   isRetryableMailError,
   sendMailWithRetry,
   createTrustedProxyFn,
   parseTrustedProxyIps,
+  validateStartupEnv,
+  validateFormsEnv,
   validateSiteUrlEnv,
 } = await import('./server.js');
 const { createCatalogQueryStore } = await import('./lib/catalogQuery.js');
@@ -42,20 +49,48 @@ const { MAX_QUOTE_ITEM_COMMENT_LENGTH, MAX_QUOTE_PAYLOAD_BYTES } =
 let server;
 let baseUrl;
 const renderedAt = Date.parse('2026-04-26T05:00:00.000Z');
+const TEST_SMTP_ENV = Object.freeze({
+  NODE_ENV: 'test',
+  FORMS_ENABLED: 'true',
+  SMTP_HOST: 'smtp.example.test',
+  SMTP_PORT: '465',
+  SMTP_SECURE: 'true',
+  SMTP_USER: 'mailer@example.test',
+  SMTP_PASS: 'secret',
+  SMTP_FROM: 'ЮУЭК <mailer@example.test>',
+  QUOTE_TO_EMAIL: 'sales@example.test',
+});
+
+function createTestEnv(overrides = {}) {
+  return {
+    ...TEST_SMTP_ENV,
+    ...overrides,
+  };
+}
+
+function createTestApp({
+  env = createTestEnv(),
+  rateLimitOptions = { limit: 1000 },
+  ...options
+} = {}) {
+  return createApp({
+    env,
+    rateLimitOptions,
+    ...options,
+  });
+}
 
 beforeAll(async () => {
   // Высокий лимит: тестам нужно слать больше 5 запросов в минуту, иначе
   // boilerplate-проверки (415, 400 на bad payload и т.п.) уткнутся в rate limit.
-  const app = createApp({ rateLimitOptions: { limit: 1000 } });
-  await new Promise((resolve) => {
-    server = app.listen(0, resolve);
-  });
-  const { port } = server.address();
-  baseUrl = `http://127.0.0.1:${port}`;
+  const app = createTestApp();
+  const started = await startTestServer(app);
+  server = started.server;
+  baseUrl = started.baseUrl;
 });
 
 afterAll(async () => {
-  await new Promise((resolve) => server.close(resolve));
+  await closeTestServer(server);
 });
 
 beforeEach(() => {
@@ -123,17 +158,13 @@ async function postJsonTo(targetBaseUrl, path, body, init = {}) {
 }
 
 async function withTestServer(app, callback) {
-  let localServer;
-  await new Promise((resolve) => {
-    localServer = app.listen(0, resolve);
-  });
-  const { port } = localServer.address();
-  const localBaseUrl = `http://127.0.0.1:${port}`;
+  const { server: localServer, baseUrl: localBaseUrl } =
+    await startTestServer(app);
 
   try {
     return await callback(localBaseUrl);
   } finally {
-    await new Promise((resolve) => localServer.close(resolve));
+    await closeTestServer(localServer);
   }
 }
 
@@ -246,8 +277,7 @@ function createProductCatalogApp(items = productFixtures) {
     getCatalogProductsByCategory: catalogStore.getCatalogProductsByCategory,
     facetCacheTtlMs: 0,
   });
-  const app = createApp({
-    rateLimitOptions: { limit: 1000 },
+  const app = createTestApp({
     catalogStore,
     catalogQueryStore,
   });
@@ -278,9 +308,31 @@ describe('GET /api/health', () => {
   });
 });
 
+describe('GET /api/forms/health', () => {
+  it('возвращает диагностический статус форм без секретов', async () => {
+    const app = createTestApp({
+      env: createTestEnv({ FORMS_ENABLED: 'false' }),
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await fetch(`${localBaseUrl}/api/forms/health`);
+      const data = await res.json();
+
+      expect(res.status).toBe(503);
+      expect(data).toEqual({
+        ok: false,
+        formsEnabled: false,
+        smtpConfigured: true,
+        missingConfig: [],
+      });
+      expect(JSON.stringify(data)).not.toContain('secret');
+    });
+  });
+});
+
 describe('GET /api/runtime', () => {
   it('скрывает runtime-метрики без внутреннего токена', async () => {
-    const app = createApp({ rateLimitOptions: { limit: 1000 } });
+    const app = createTestApp();
 
     await withTestServer(app, async (localBaseUrl) => {
       const res = await fetch(`${localBaseUrl}/api/runtime`);
@@ -295,7 +347,7 @@ describe('GET /api/runtime', () => {
   it('возвращает runtime-метрики только с валидным токеном', async () => {
     const originalToken = process.env.INTERNAL_METRICS_TOKEN;
     process.env.INTERNAL_METRICS_TOKEN = 'test-runtime-token';
-    const app = createApp({ rateLimitOptions: { limit: 1000 } });
+    const app = createTestApp();
 
     try {
       await withTestServer(app, async (localBaseUrl) => {
@@ -366,6 +418,76 @@ describe('runtime health snapshot', () => {
   });
 });
 
+describe('forms diagnostics', () => {
+  it('reports SMTP readiness without secret values', () => {
+    expect(
+      getFormsDiagnostic({
+        NODE_ENV: 'production',
+        FORMS_ENABLED: 'true',
+        SMTP_HOST: 'smtp.example.test',
+        SMTP_USER: '',
+        SMTP_PASS: 'secret',
+        SMTP_FROM: 'robot@example.test',
+        QUOTE_TO_EMAIL: 'sales@example.test',
+      })
+    ).toEqual({
+      formsEnabled: true,
+      smtpConfigured: false,
+      missing: ['SMTP_USER'],
+    });
+  });
+
+  it('fails fast in production unless forms are explicitly disabled', () => {
+    expect(() =>
+      validateFormsEnv({ NODE_ENV: 'production', FORMS_ENABLED: 'true' })
+    ).toThrow(/SMTP не настроен/);
+
+    expect(
+      validateFormsEnv({ NODE_ENV: 'production', FORMS_ENABLED: 'false' })
+    ).toMatchObject({
+      formsEnabled: false,
+      smtpConfigured: false,
+    });
+  });
+
+  it('accepts production startup when forms are explicitly disabled', () => {
+    expect(
+      validateStartupEnv({
+        NODE_ENV: 'production',
+        FORMS_ENABLED: 'false',
+      }).forms
+    ).toEqual({
+      formsEnabled: false,
+      smtpConfigured: false,
+      missing: [
+        'SMTP_HOST',
+        'SMTP_USER',
+        'SMTP_PASS',
+        'SMTP_FROM',
+        'QUOTE_TO_EMAIL',
+      ],
+    });
+  });
+
+  it('accepts production startup with a complete SMTP configuration', () => {
+    expect(
+      validateStartupEnv({
+        NODE_ENV: 'production',
+        FORMS_ENABLED: 'true',
+        SMTP_HOST: 'smtp.example.test',
+        SMTP_USER: 'mailer@example.test',
+        SMTP_PASS: 'secret',
+        SMTP_FROM: 'ЮУЭК <mailer@example.test>',
+        QUOTE_TO_EMAIL: 'sales@example.test',
+      }).forms
+    ).toEqual({
+      formsEnabled: true,
+      smtpConfigured: true,
+      missing: [],
+    });
+  });
+});
+
 describe('security headers', () => {
   it('выставляет security headers', async () => {
     const res = await fetch(`${baseUrl}/api/health`);
@@ -425,10 +547,7 @@ describe('trusted proxy configuration', () => {
 
   it('sets Express trust proxy to the injected function', () => {
     const trustProxy = vi.fn(() => false);
-    const app = createApp({
-      rateLimitOptions: { limit: 1000 },
-      trustProxy,
-    });
+    const app = createTestApp({ trustProxy });
 
     expect(app.get('trust proxy')).toBe(trustProxy);
     expect(app.get('trust proxy fn')('127.0.0.1')).toBe(false);
@@ -531,7 +650,7 @@ describe('SMTP delivery', () => {
   it('creates one app-scoped transporter', () => {
     createTransportMock.mockClear();
 
-    const app = createApp({ rateLimitOptions: { limit: 1000 } });
+    const app = createTestApp();
 
     expect(createTransportMock).toHaveBeenCalledTimes(1);
     expect(app.locals.mailTransporter).toBeDefined();
@@ -629,8 +748,7 @@ describe('GET /api/products', () => {
       getCatalogSections: vi.fn(() => []),
     };
 
-    const app = createApp({
-      rateLimitOptions: { limit: 1000 },
+    const app = createTestApp({
       catalogStore,
       catalogQueryStore,
       warmCatalogOnStart: true,
@@ -681,8 +799,7 @@ describe('GET /api/products', () => {
       getCatalogFacets: vi.fn(() => ({ materials: ['медь'] })),
       getCatalogSections: vi.fn(() => []),
     };
-    const app = createApp({
-      rateLimitOptions: { limit: 1000 },
+    const app = createTestApp({
       catalogStore,
       catalogQueryStore,
     });
@@ -910,6 +1027,52 @@ describe('POST /api/products/lookup', () => {
 });
 
 describe('POST /api/quote', () => {
+  it('503 с понятным сообщением, если формы отключены через FORMS_ENABLED=false', async () => {
+    const mailTransporter = { sendMail: vi.fn() };
+    const app = createTestApp({
+      env: createTestEnv({ FORMS_ENABLED: 'false' }),
+      mailTransporter,
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await postJsonTo(localBaseUrl, '/api/quote', validPayload);
+      const data = await res.json();
+
+      expect(res.status).toBe(503);
+      expect(data).toEqual({
+        ok: false,
+        message:
+          'Формы временно отключены. Свяжитесь с нами по телефону или email.',
+      });
+    });
+
+    expect(mailTransporter.sendMail).not.toHaveBeenCalled();
+  });
+
+  it('503 без попытки SMTP, если формы включены, но SMTP-конфигурация неполная', async () => {
+    const mailTransporter = { sendMail: vi.fn() };
+    const app = createTestApp({
+      env: createTestEnv({ SMTP_PASS: '' }),
+      mailTransporter,
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await postJsonTo(localBaseUrl, '/api/quote', validPayload);
+      const data = await res.json();
+
+      expect(res.status).toBe(503);
+      expect(data).toEqual({
+        ok: false,
+        message:
+          'Формы временно недоступны. Свяжитесь с нами по телефону или email.',
+      });
+    });
+
+    expect(mailTransporter.sendMail).not.toHaveBeenCalled();
+  });
+
   it('happy path: валидный payload отправляет письмо и возвращает ok', async () => {
     const res = await postJson('/api/quote', validPayload);
     const data = await res.json();
@@ -927,6 +1090,21 @@ describe('POST /api/quote', () => {
     );
   });
 
+  it('принимает валидную заявку с consent=true', async () => {
+    const res = await postJson('/api/quote', {
+      ...validPayload,
+      customer: {
+        ...validPayload.customer,
+        consent: true,
+      },
+    });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(sendMailMock).toHaveBeenCalledTimes(1);
+  });
+
   it('повторяет отправку при временной SMTP-ошибке', async () => {
     const transientError = Object.assign(new Error('temporary SMTP failure'), {
       responseCode: 421,
@@ -937,8 +1115,7 @@ describe('POST /api/quote', () => {
         .mockRejectedValueOnce(transientError)
         .mockResolvedValueOnce({ messageId: 'retry-ok' }),
     };
-    const app = createApp({
-      rateLimitOptions: { limit: 1000 },
+    const app = createTestApp({
       mailTransporter,
       mailSendOptions: { maxRetries: 1, retryDelayMs: 0 },
     });
@@ -961,8 +1138,7 @@ describe('POST /api/quote', () => {
     const mailTransporter = {
       sendMail: vi.fn().mockRejectedValue(timeoutError),
     };
-    const app = createApp({
-      rateLimitOptions: { limit: 1000 },
+    const app = createTestApp({
       mailTransporter,
       mailSendOptions: { maxRetries: 0, retryDelayMs: 0 },
     });
@@ -992,8 +1168,7 @@ describe('POST /api/quote', () => {
   });
 
   it('honeypot — фейковый success ждёт response floor', async () => {
-    const app = createApp({
-      rateLimitOptions: { limit: 1000 },
+    const app = createTestApp({
       formResponseDelayRange: { min: 40, max: 40 },
     });
 
@@ -1120,6 +1295,19 @@ describe('POST /api/quote', () => {
     expect(sendMailMock).not.toHaveBeenCalled();
   });
 
+  it('400 при отсутствии согласия на обработку данных', async () => {
+    const res = await postJson('/api/quote', {
+      ...validPayload,
+      customer: {
+        ...validPayload.customer,
+        consent: false,
+      },
+    });
+
+    expect(res.status).toBe(400);
+    expect(sendMailMock).not.toHaveBeenCalled();
+  });
+
   it('replyTo не выставляется, если email пустой', async () => {
     await postJson('/api/quote', {
       ...validPayload,
@@ -1145,6 +1333,33 @@ describe('POST /api/quote', () => {
 });
 
 describe('POST /api/lead-request', () => {
+  it('503 с понятным сообщением, если формы отключены через FORMS_ENABLED=false', async () => {
+    const mailTransporter = { sendMail: vi.fn() };
+    const app = createTestApp({
+      env: createTestEnv({ FORMS_ENABLED: 'false' }),
+      mailTransporter,
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await postJsonTo(
+        localBaseUrl,
+        '/api/lead-request',
+        validLeadPayload
+      );
+      const data = await res.json();
+
+      expect(res.status).toBe(503);
+      expect(data).toEqual({
+        ok: false,
+        message:
+          'Формы временно отключены. Свяжитесь с нами по телефону или email.',
+      });
+    });
+
+    expect(mailTransporter.sendMail).not.toHaveBeenCalled();
+  });
+
   it('happy path: валидный payload отправляет письмо и возвращает ok', async () => {
     const res = await postJson('/api/lead-request', validLeadPayload);
     const data = await res.json();

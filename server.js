@@ -21,13 +21,12 @@ import {
   CANONICAL_CATEGORY_ORDER,
   DEFAULT_PRODUCTS_LIMIT,
   MAX_PRODUCTS_LIMIT,
-  applyProductFilters,
+  applyCatalogFiltersAndSort,
   buildProductSuggestions,
   createCatalogQueryStore,
   hasProductFilters,
   parseLimit,
   parsePage,
-  sortProducts,
 } from './lib/catalogQuery.js';
 
 dotenv.config();
@@ -259,12 +258,11 @@ export function getFormsDiagnostic(env = process.env) {
     (key) => !String(env[key] || '').trim()
   );
   const formsEnabled = parseBooleanEnv(env.FORMS_ENABLED, true);
-  const isTestEnv = env.NODE_ENV === 'test' || env.VITEST === 'true';
 
   return {
     formsEnabled,
-    smtpConfigured: isTestEnv || missing.length === 0,
-    missing: isTestEnv ? [] : missing,
+    smtpConfigured: missing.length === 0,
+    missing,
   };
 }
 
@@ -280,6 +278,13 @@ export function validateFormsEnv(env = process.env) {
     );
   }
   return diagnostic;
+}
+
+export function validateStartupEnv(env = process.env) {
+  const site = validateSiteUrlEnv(env);
+  const forms = validateFormsEnv(env);
+
+  return { site, forms };
 }
 
 function getBearerToken(req) {
@@ -444,6 +449,14 @@ export function createTransporter(env = process.env) {
   return nodemailer.createTransport(getSmtpTransportOptions(env));
 }
 
+function getFormsUnavailableMessage(formsDiagnostic) {
+  if (!formsDiagnostic.formsEnabled) {
+    return messages.errors.api.formsDisabled;
+  }
+
+  return messages.errors.api.formsUnavailable;
+}
+
 function wait(ms) {
   if (ms <= 0) return Promise.resolve();
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -598,21 +611,29 @@ function createQuoteItemsHtml(items) {
 // влиять друг на друга. На проде вызывается ровно один раз из main-блока.
 export function createApp({
   rateLimitOptions,
+  env = process.env,
   trustProxy = createTrustedProxyFn(),
   catalogStore = createCatalogStore(),
   catalogQueryStore = createCatalogQueryStore({
     getCatalogProductsByCategory: catalogStore.getCatalogProductsByCategory,
     facetCacheTtlMs: CATALOG_CACHE_TTL_MS,
   }),
-  mailTransporter = createTransporter(),
-  mailSendOptions = getMailSendOptions(),
+  mailTransporter,
+  mailSendOptions = getMailSendOptions(env),
   formResponseDelayRange = getDefaultFormResponseDelayRange(),
   warmCatalogOnStart = false,
 } = {}) {
   const app = express();
+  const startupFormsDiagnostic = validateFormsEnv(env);
+  const resolvedMailTransporter =
+    mailTransporter ||
+    (startupFormsDiagnostic.formsEnabled && startupFormsDiagnostic.smtpConfigured
+      ? createTransporter(env)
+      : null);
+
   app.set('etag', false);
   app.set('trust proxy', trustProxy);
-  app.locals.mailTransporter = mailTransporter;
+  app.locals.mailTransporter = resolvedMailTransporter;
   app.locals.activeRequests = 0;
   app.locals.catalogWarmupPromise = null;
   let featuredProductsCache = null;
@@ -676,7 +697,7 @@ export function createApp({
   // если ALLOWED_ORIGINS не задан, отдаём заголовки только для same-origin
   // (cors() c origin=false по сути выключает CORS). В dev указывайте
   // ALLOWED_ORIGINS=http://localhost:5173 или совпадающий VITE_SITE_URL.
-  const allowedOrigins = String(process.env.ALLOWED_ORIGINS || '')
+  const allowedOrigins = String(env.ALLOWED_ORIGINS || '')
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
@@ -761,7 +782,7 @@ export function createApp({
   });
 
   app.get('/api/forms/health', (req, res) => {
-    const diagnostic = getFormsDiagnostic();
+    const diagnostic = getFormsDiagnostic(env);
     const ok = diagnostic.formsEnabled && diagnostic.smtpConfigured;
 
     return res.status(ok ? 200 : 503).json({
@@ -794,10 +815,7 @@ export function createApp({
         search: req.query.search,
         catalogItems: allItems,
       });
-      const filteredItems = sortProducts(
-        applyProductFilters(searchedItems, req.query),
-        req.query.sort
-      );
+      const filteredItems = applyCatalogFiltersAndSort(searchedItems, req.query);
       const total = filteredItems.length;
 
       let responseItems;
@@ -1017,13 +1035,13 @@ export function createApp({
       );
 
       try {
-        const formsDiagnostic = getFormsDiagnostic();
+        const formsDiagnostic = getFormsDiagnostic(env);
         if (!formsDiagnostic.formsEnabled || !formsDiagnostic.smtpConfigured) {
           return sendFormErrorResponse(
             res,
             formResponseStartedAt,
             formResponseDelayMs,
-            messages.errors.api.quoteSendFailed,
+            getFormsUnavailableMessage(formsDiagnostic),
             503
           );
         }
@@ -1100,10 +1118,10 @@ export function createApp({
         const replyTo = safeReplyTo(customer.email);
 
         await sendMailWithRetry(
-          mailTransporter,
+          resolvedMailTransporter,
           {
-            from: process.env.SMTP_FROM,
-            to: process.env.QUOTE_TO_EMAIL,
+            from: env.SMTP_FROM,
+            to: env.QUOTE_TO_EMAIL,
             ...(replyTo ? { replyTo } : {}),
             subject: 'Новая заявка на КП — ЮжУралЭлектроКабель',
             html,
@@ -1138,13 +1156,13 @@ export function createApp({
       );
 
       try {
-        const formsDiagnostic = getFormsDiagnostic();
+        const formsDiagnostic = getFormsDiagnostic(env);
         if (!formsDiagnostic.formsEnabled || !formsDiagnostic.smtpConfigured) {
           return sendFormErrorResponse(
             res,
             formResponseStartedAt,
             formResponseDelayMs,
-            messages.errors.api.quoteSendFailed,
+            getFormsUnavailableMessage(formsDiagnostic),
             503
           );
         }
@@ -1196,10 +1214,10 @@ export function createApp({
       `;
 
         await sendMailWithRetry(
-          mailTransporter,
+          resolvedMailTransporter,
           {
-            from: process.env.SMTP_FROM,
-            to: process.env.QUOTE_TO_EMAIL,
+            from: env.SMTP_FROM,
+            to: env.QUOTE_TO_EMAIL,
             subject: 'Новая короткая заявка — ЮжУралЭлектроКабель',
             html,
           },
@@ -1231,8 +1249,8 @@ const isMain =
   process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 // Проверка обязательных env-переменных на старте.
-function warnIfSmtpMisconfigured() {
-  const diagnostic = validateFormsEnv();
+function logFormsStartupState(formsDiagnostic) {
+  const diagnostic = formsDiagnostic || validateFormsEnv();
   if (diagnostic.formsEnabled && diagnostic.missing.length > 0) {
     logger.warn('startup.smtp_misconfigured', {
       missing: diagnostic.missing,
@@ -1247,8 +1265,8 @@ function warnIfSmtpMisconfigured() {
 
 if (isMain) {
   try {
-    validateSiteUrlEnv();
-    warnIfSmtpMisconfigured();
+    const startup = validateStartupEnv();
+    logFormsStartupState(startup.forms);
   } catch (error) {
     logger.error('startup.env_invalid', { err: error });
     process.exit(1);

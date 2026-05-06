@@ -4,6 +4,7 @@ import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildJsonLdScripts,
+  buildHomePrerenderData,
   buildMetaTags,
   buildCompactProductBodyShell,
   buildPrerenderDataScript,
@@ -338,6 +339,25 @@ describe('prerender HTML helpers', () => {
       'first-product',
     ]);
     expect(selection.missing).toEqual(['missing-sku']);
+  });
+
+  it('готовит featured-товары для SSR главной без loading-заглушки', () => {
+    const featured = buildHomePrerenderData([
+      { ...product, id: 1, slug: 'regular', stock: 500, promoted: false },
+      { ...product, id: 2, slug: 'promoted', stock: 10, promoted: true },
+      { ...product, id: 3, slug: 'stock-leader', stock: 1000 },
+    ]);
+
+    expect(featured.featuredProducts.map((item) => item.slug)).toEqual([
+      'promoted',
+      'stock-leader',
+      'regular',
+    ]);
+    expect(featured.featuredProducts[0]).toMatchObject({
+      id: 2,
+      title: 'ВВГнг(A)-LS 3х2,5',
+      image: '/images/vvg.png',
+    });
   });
 });
 

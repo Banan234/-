@@ -108,6 +108,7 @@ export const STATIC_ROUTES = [
 const PRODUCT_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const URL_OR_ROOT_PATH_RE = /^(https?:\/\/[^\s"<>]+|\/(?!\/)[^\s"<>]*)$/i;
 const PRODUCT_NAME_FIELDS = ['title', 'fullName', 'name'];
+const HOME_FEATURED_PRODUCTS_LIMIT = 10;
 const OPTIONAL_STRING_FIELDS = [
   'title',
   'fullName',
@@ -722,6 +723,22 @@ export function buildCatalogPrerenderData(products) {
   };
 }
 
+function getFeaturedProducts(products, limit = HOME_FEATURED_PRODUCTS_LIMIT) {
+  return [...products]
+    .sort((a, b) => {
+      const promotedDiff = (b.promoted ? 1 : 0) - (a.promoted ? 1 : 0);
+      if (promotedDiff !== 0) return promotedDiff;
+      return (Number(b.stock) || 0) - (Number(a.stock) || 0);
+    })
+    .slice(0, limit);
+}
+
+export function buildHomePrerenderData(products) {
+  return {
+    featuredProducts: getFeaturedProducts(products).map(buildCatalogListItem),
+  };
+}
+
 export function buildBreadcrumbsHtml(crumbs) {
   return [
     '<nav aria-label="Хлебные крошки" class="prerender-only">',
@@ -1071,9 +1088,11 @@ export async function prerenderStatic(
     const staticJsonLd = buildStaticPageJsonLd(route.path);
     const staticJsonLdId = getStaticPageJsonLdId(route.path);
     const prerenderData =
-      route.path === '/catalog'
-        ? { catalog: buildCatalogPrerenderData(products) }
-        : {};
+      route.path === '/'
+        ? { home: buildHomePrerenderData(products) }
+        : route.path === '/catalog'
+          ? { catalog: buildCatalogPrerenderData(products) }
+          : {};
     const headExtras = [
       buildMetaTags({
         title: route.title,

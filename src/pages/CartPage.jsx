@@ -338,7 +338,7 @@ export default function CartPage() {
                 const unit = item.unit || 'м';
                 const lineTotal = Number(item.price || 0) * quantity;
                 const itemPrice = formatProductPrice(item.price, unit, {
-                  fallback: 'Цена будет рассчитана в КП',
+                  context: 'quote',
                 });
 
                 return (

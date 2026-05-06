@@ -198,7 +198,9 @@ export default function ProductPage() {
       ? product.inStock
       : Number(product.stock) > 0;
   const leadTime = product.leadTime || 'уточняем';
-  const productPrice = formatProductPrice(product.price, product.unit);
+  const productPrice = formatProductPrice(product.price, product.unit, {
+    context: 'request',
+  });
 
   return (
     <section className="section">

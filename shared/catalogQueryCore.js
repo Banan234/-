@@ -4,6 +4,121 @@ import {
   getWireConstruction,
 } from '../lib/catalogClassifiers.js';
 
+export function normalizeSearchText(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/(\d)\s*[xх×*]\s*(?=\d)/gi, '$1х');
+}
+
+export function normalizeSearchKey(value) {
+  return normalizeSearchText(value).replace(/[^0-9a-zа-я]+/g, '');
+}
+
+export function parseCsvParam(value) {
+  if (typeof value !== 'string' || !value.trim()) return [];
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function parseCsvNumbers(value) {
+  return parseCsvParam(value)
+    .map((item) => Number(item))
+    .filter((item) => Number.isFinite(item));
+}
+
+function parsePositiveNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function normalizeStringList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
+  }
+
+  return parseCsvParam(value);
+}
+
+function normalizeNumberList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => Number(item))
+      .filter((item) => Number.isFinite(item));
+  }
+
+  return parseCsvNumbers(value);
+}
+
+export function normalizeCatalogFilterQueryCore(query = {}) {
+  return {
+    search: typeof query.search === 'string' ? query.search : '',
+    priceMinNumber:
+      query.priceMinNumber != null
+        ? parsePositiveNumber(query.priceMinNumber)
+        : parsePositiveNumber(query.priceMin),
+    priceMaxNumber:
+      query.priceMaxNumber != null
+        ? parsePositiveNumber(query.priceMaxNumber)
+        : parsePositiveNumber(query.priceMax),
+    sortBy:
+      typeof query.sortBy === 'string' && query.sortBy.trim()
+        ? query.sortBy
+        : typeof query.sort === 'string' && query.sort.trim()
+          ? query.sort
+          : 'default',
+    selectedMaterials: normalizeStringList(
+      query.selectedMaterials ?? query.material
+    ),
+    selectedConstructions: normalizeStringList(
+      query.selectedConstructions ?? query.construction
+    ),
+    selectedCores: normalizeStringList(query.selectedCores ?? query.cores),
+    selectedSections: normalizeNumberList(
+      query.selectedSections ?? query.section
+    ),
+    selectedVoltages: normalizeNumberList(
+      query.selectedVoltages ?? query.voltage
+    ),
+    selectedAppTypes: normalizeStringList(
+      query.selectedAppTypes ?? query.appType
+    ),
+    onlySPE: query.onlySPE === true || query.spe === '1',
+  };
+}
+
+export function productMatchesSearchCore(product, search) {
+  const query = String(search || '')
+    .trim()
+    .toLowerCase();
+  if (!query) return true;
+
+  const normalizedSearch = normalizeSearchKey(query);
+
+  for (const key of ['mark', 'title', 'fullName', 'sku']) {
+    const value = String(product?.[key] || '');
+    if (value.toLowerCase().includes(query)) return true;
+    if (
+      normalizedSearch &&
+      normalizeSearchKey(value).includes(normalizedSearch)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function filterProductsBySearchCore(items, search) {
+  if (!String(search || '').trim()) return items;
+  return items.filter((product) => productMatchesSearchCore(product, search));
+}
+
 export function buildCatalogFacetsCore(items) {
   const materialSet = new Set();
   const constructionSet = new Set();
@@ -103,9 +218,22 @@ export function applyProductFiltersCore(items, query) {
   return result;
 }
 
-function comparePrices(a, b, sortPrice, direction) {
-  const priceA = sortPrice(a);
-  const priceB = sortPrice(b);
+export function applyCatalogFiltersAndSortCore(items, query) {
+  const normalizedQuery = normalizeCatalogFilterQueryCore(query);
+  return sortProductsCore(
+    applyProductFiltersCore(items, normalizedQuery),
+    normalizedQuery.sortBy
+  );
+}
+
+export function getSortablePrice(product) {
+  const value = Number(product.price);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export function compareProductsByPrice(a, b, direction = 1) {
+  const priceA = getSortablePrice(a);
+  const priceB = getSortablePrice(b);
   if (priceA === null && priceB === null) return 0;
   if (priceA === null) return 1;
   if (priceB === null) return -1;
@@ -116,15 +244,11 @@ export function sortProductsCore(items, sortBy) {
   if (!sortBy || sortBy === 'default') return items;
 
   const result = [...items];
-  const sortPrice = (product) => {
-    const value = Number(product.price);
-    return Number.isFinite(value) && value > 0 ? value : null;
-  };
 
   if (sortBy === 'price-asc') {
-    result.sort((a, b) => comparePrices(a, b, sortPrice, 1));
+    result.sort((a, b) => compareProductsByPrice(a, b, 1));
   } else if (sortBy === 'price-desc') {
-    result.sort((a, b) => comparePrices(a, b, sortPrice, -1));
+    result.sort((a, b) => compareProductsByPrice(a, b, -1));
   } else if (sortBy === 'title-asc') {
     result.sort((a, b) => a.title.localeCompare(b.title, 'ru'));
   } else if (sortBy === 'popular') {
