@@ -26,6 +26,18 @@ const categoryCards = [
     examples: 'UTP · FTP · КВК',
     image: '/category-placeholders/communication-cable.svg',
   },
+  {
+    title: 'Провода',
+    to: '/catalog/provoda',
+    examples: 'ПУГВ · ПВС · ШВВП',
+    image: '/category-placeholders/wire.svg',
+  },
+  {
+    title: 'Некабельная продукция',
+    to: '/catalog/nekabelnaya-produkciya',
+    examples: 'Муфты · сальники · щиты',
+    image: '/category-placeholders/non-cable.svg',
+  },
 ];
 
 export default function CategoryShowcase() {

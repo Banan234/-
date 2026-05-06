@@ -1,20 +1,22 @@
 <svg width="560" height="320" viewBox="0 0 560 320" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="560" height="320" rx="28" fill="#F7FAFD"/>
-  <rect x="88" y="92" width="314" height="92" rx="46" fill="url(#paint0_linear)"/>
-  <circle cx="402" cy="138" r="46" fill="#1A3150"/>
-  <circle cx="386" cy="123" r="8" fill="#F2B705"/>
-  <circle cx="410" cy="119" r="8" fill="#DDE6EF"/>
-  <circle cx="432" cy="131" r="8" fill="#A7B9C9"/>
-  <circle cx="390" cy="148" r="8" fill="#8A9CAE"/>
-  <circle cx="414" cy="145" r="8" fill="#F6D15B"/>
-  <circle cx="435" cy="152" r="8" fill="#E8EEF4"/>
-  <path d="M132 116H270" stroke="#DCE5EE" stroke-width="10" stroke-linecap="round"/>
-  <path d="M148 140H248" stroke="#8196AA" stroke-width="7" stroke-linecap="round" opacity="0.7"/>
-  <path d="M136 163H278" stroke="#DCE5EE" stroke-width="10" stroke-linecap="round"/>
-  <defs>
-    <linearGradient id="paint0_linear" x1="88" y1="92" x2="402" y2="184" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#435C77"/>
-      <stop offset="1" stop-color="#203653"/>
-    </linearGradient>
-  </defs>
+  <rect width="560" height="320" rx="20" fill="#F6F9FC"/>
+  <path d="M0 232C78 208 152 210 227 236C296 260 362 253 428 225C477 204 520 203 560 216V320H0V232Z" fill="#E9F0F6"/>
+  <ellipse cx="292" cy="225" rx="182" ry="25" fill="#C8D4DF" opacity=".42"/>
+  <rect x="72" y="105" width="342" height="106" rx="53" fill="#263E59"/>
+  <path d="M92 132H262" stroke="#DCE5EE" stroke-width="12" stroke-linecap="round"/>
+  <path d="M112 160H240" stroke="#7D91A4" stroke-width="8" stroke-linecap="round" opacity=".78"/>
+  <path d="M93 187H276" stroke="#EBF1F6" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="414" cy="158" r="59" fill="#162941"/>
+  <circle cx="414" cy="158" r="45" fill="#203751"/>
+  <circle cx="391" cy="136" r="9" fill="#D99A14"/>
+  <circle cx="419" cy="132" r="9" fill="#EDF2F6"/>
+  <circle cx="445" cy="146" r="9" fill="#8FA2B4"/>
+  <circle cx="389" cy="166" r="9" fill="#7C8FA3"/>
+  <circle cx="419" cy="163" r="9" fill="#E7B43D"/>
+  <circle cx="445" cy="175" r="9" fill="#DCE5EE"/>
+  <circle cx="403" cy="190" r="7" fill="#B8C6D3"/>
+  <circle cx="431" cy="193" r="7" fill="#F0C964"/>
+  <path d="M460 126L505 108" stroke="#9EADBA" stroke-width="9" stroke-linecap="round"/>
+  <path d="M468 154L523 150" stroke="#9EADBA" stroke-width="9" stroke-linecap="round"/>
+  <path d="M459 190L504 213" stroke="#9EADBA" stroke-width="9" stroke-linecap="round"/>
 </svg>

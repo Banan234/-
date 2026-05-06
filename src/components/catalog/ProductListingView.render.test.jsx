@@ -140,6 +140,7 @@ describe('ProductListingView render flow', () => {
     const user = userEvent.setup();
     const { getSearchParam } = renderListing();
 
+    await user.click(screen.getByRole('button', { name: 'Все параметры' }));
     await user.click(screen.getByRole('button', { name: 'алюминий' }));
 
     await waitFor(() => expect(getSearchParam('material')).toBe('алюминий'));
@@ -210,19 +211,19 @@ describe('ProductListingView render flow', () => {
     renderListing();
 
     const filterButton = screen.getByRole('button', {
-      name: 'Подбор по параметрам',
+      name: 'Все параметры',
     });
-    expect(filterButton).toHaveAttribute('aria-expanded', 'true');
+    expect(filterButton).toHaveAttribute('aria-expanded', 'false');
     const filterBodyId = filterButton.getAttribute('aria-controls');
     expect(filterBodyId).toMatch(/catalog-filter-panel-body$/);
 
     const filterBody = document.getElementById(filterBodyId);
     expect(filterBody).toBeInTheDocument();
-    expect(filterBody).not.toHaveAttribute('hidden');
+    expect(filterBody).toHaveAttribute('hidden');
 
     await user.click(filterButton);
 
-    expect(filterButton).toHaveAttribute('aria-expanded', 'false');
-    expect(filterBody).toHaveAttribute('hidden');
+    expect(filterButton).toHaveAttribute('aria-expanded', 'true');
+    expect(filterBody).not.toHaveAttribute('hidden');
   });
 });

@@ -18,6 +18,10 @@ import {
   buildProductMetaTitle,
   getProductBreadcrumbs,
 } from '../lib/productSeo';
+import {
+  getProductImage,
+  getProductImageAlt,
+} from '../../shared/productImages.js';
 import { messages } from '../../shared/messages.js';
 import '../styles/sections/product-detail.css';
 
@@ -53,7 +57,7 @@ export default function ProductPage() {
     title: product ? buildProductMetaTitle(product) : undefined,
     description: product ? buildProductMetaDescription(product) : '',
     ogType: 'product',
-    image: product?.image,
+    image: product ? getProductImage(product) : undefined,
     canonical: product ? `/product/${product.slug}` : undefined,
   });
 
@@ -192,7 +196,8 @@ export default function ProductPage() {
   const productTitle = getProductDisplayTitle(product);
   const productDescription =
     product.description || buildProductMetaDescription(product);
-  const productImage = product.image || '/product-placeholder.svg';
+  const productImage = getProductImage(product);
+  const productImageAlt = getProductImageAlt(product);
   const isProductInStock =
     typeof product.inStock === 'boolean'
       ? product.inStock
@@ -234,7 +239,7 @@ export default function ProductPage() {
           <div className="product-page__media">
             <img
               src={productImage}
-              alt={productTitle}
+              alt={productImageAlt}
               className="product-page__image"
               width="560"
               height="320"
@@ -272,9 +277,7 @@ export default function ProductPage() {
               </span>
             </div>
 
-            <div className="product-page__price">
-              {productPrice.value}
-            </div>
+            <div className="product-page__price">{productPrice.value}</div>
 
             {productPrice.unitLabel ? (
               <div className="product-page__unit">{productPrice.unitLabel}</div>

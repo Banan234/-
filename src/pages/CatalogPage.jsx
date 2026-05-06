@@ -226,6 +226,21 @@ export default function CatalogPage() {
   const visibleCount =
     productsMeta.pagination?.total ?? productsMeta.total ?? products.length;
   const catalogCount = productsMeta.catalogCount ?? products.length;
+  const categoryQuickLinks = useMemo(() => {
+    if (!isCategoryRoute || !routeCategory) return [];
+
+    if (parentCategory?.subcategories?.length) {
+      return parentCategory.subcategories;
+    }
+
+    if (routeCategory.subcategories?.length) {
+      return routeCategory.subcategories;
+    }
+
+    return catalogCategoriesData.sections.flatMap(
+      (section) => section.categories
+    );
+  }, [isCategoryRoute, parentCategory, routeCategory]);
 
   useSEO({
     title: isCategoryRoute
@@ -408,6 +423,40 @@ export default function CatalogPage() {
             )}
 
             <div className="catalog-main">
+              {isCategoryRoute && (
+                <div className="catalog-category-strip">
+                  <div className="catalog-category-strip__current">
+                    <span className="catalog-category-strip__label">
+                      Выбрано
+                    </span>
+                    <span className="catalog-category-strip__name">
+                      {activeCategory.name}
+                    </span>
+                  </div>
+                  {categoryQuickLinks.length > 0 && (
+                    <div
+                      className="catalog-category-strip__links"
+                      aria-label="Быстрый выбор категории"
+                    >
+                      {categoryQuickLinks.slice(0, 6).map((cat) => (
+                        <Link
+                          key={cat.slug}
+                          to={`/catalog/${cat.slug}`}
+                          className={`catalog-category-strip__link${
+                            cat.slug === slug
+                              ? ' catalog-category-strip__link--active'
+                              : ''
+                          }`}
+                          aria-current={cat.slug === slug ? 'page' : undefined}
+                        >
+                          {cat.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {isCategoryRoute && hasSubcategories ? (
                 <div className="subcategories-grid">
                   {activeCategory.subcategories.map((sub) => (

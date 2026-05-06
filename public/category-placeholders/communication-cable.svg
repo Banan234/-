@@ -1,11 +1,19 @@
 <svg width="560" height="320" viewBox="0 0 560 320" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="560" height="320" rx="28" fill="#F7FAFD"/>
-  <path d="M92 172C126 134 160 118 194 118H334C360 118 386 126 412 142" stroke="#203655" stroke-width="56" stroke-linecap="round"/>
-  <path d="M118 170C154 142 184 130 214 130H334C355 130 376 136 396 148" stroke="#DFE8F1" stroke-width="18" stroke-linecap="round"/>
-  <path d="M354 120L432 120" stroke="#203655" stroke-width="20" stroke-linecap="round"/>
-  <path d="M382 142L448 142" stroke="#203655" stroke-width="16" stroke-linecap="round"/>
-  <path d="M416 105V170" stroke="#F2B705" stroke-width="8" stroke-linecap="round"/>
-  <path d="M438 108V166" stroke="#C1D0DD" stroke-width="8" stroke-linecap="round"/>
-  <circle cx="128" cy="170" r="18" fill="#F2B705"/>
-  <circle cx="168" cy="150" r="12" fill="#DCE5EE"/>
+  <rect width="560" height="320" rx="20" fill="#F6F9FC"/>
+  <path d="M0 232C68 212 130 214 194 238C267 265 338 258 411 227C468 203 518 203 560 218V320H0V232Z" fill="#E8EFF5"/>
+  <ellipse cx="291" cy="229" rx="181" ry="26" fill="#C8D4DF" opacity=".42"/>
+  <path d="M80 181C130 126 187 103 252 110H358C401 110 435 143 435 185C435 224 403 239 365 229H248C188 229 132 213 80 181Z" fill="#192C44"/>
+  <path d="M106 176C151 141 197 127 250 130H356C386 130 410 153 410 183C410 205 391 215 367 210H250C197 210 148 199 106 176Z" fill="#2B435C"/>
+  <path d="M129 174C166 151 204 141 249 144H341" stroke="#E8EEF4" stroke-width="11" stroke-linecap="round"/>
+  <path d="M148 195C186 204 226 207 270 205" stroke="#8EA0B0" stroke-width="7" stroke-linecap="round" opacity=".8"/>
+  <rect x="371" y="119" width="34" height="122" rx="17" fill="#14253C"/>
+  <path d="M405 132H488" stroke="#14253C" stroke-width="18" stroke-linecap="round"/>
+  <path d="M405 161H507" stroke="#203751" stroke-width="15" stroke-linecap="round"/>
+  <path d="M405 190H490" stroke="#14253C" stroke-width="18" stroke-linecap="round"/>
+  <path d="M434 120V242" stroke="#D99A14" stroke-width="7" stroke-linecap="round"/>
+  <path d="M458 122V240" stroke="#DCE5EE" stroke-width="7" stroke-linecap="round"/>
+  <path d="M481 134V226" stroke="#8EA0B0" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="129" cy="174" r="15" fill="#D99A14"/>
+  <circle cx="171" cy="154" r="10" fill="#E7EEF5"/>
+  <circle cx="208" cy="145" r="8" fill="#AAB9C7"/>
 </svg>

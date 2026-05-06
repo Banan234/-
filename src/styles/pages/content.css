@@ -36,6 +36,7 @@
   font-weight: 800;
   color: var(--text);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .contacts-page__hero-meta {
@@ -51,6 +52,7 @@
   color: var(--primary);
   text-decoration: none;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .contacts-grid {
@@ -81,6 +83,7 @@
   font-weight: 700;
   color: var(--text);
   margin-bottom: 8px;
+  overflow-wrap: anywhere;
 }
 
 .contact-card__meta {
@@ -132,6 +135,7 @@
 
 .contacts-info-row strong {
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .contacts-map-placeholder {
@@ -320,5 +324,28 @@
   .contacts-grid,
   .contacts-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .contacts-page__hero-card,
+  .contact-card,
+  .contacts-info-card,
+  .contacts-map-card {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .contacts-page__hero-phone {
+    font-size: 28px;
+  }
+
+  .contacts-info-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .contacts-info-row strong {
+    text-align: left;
   }
 }

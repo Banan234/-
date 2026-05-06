@@ -5,6 +5,10 @@ import { useCartStore } from '../store/useCartStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useSEO } from '../hooks/useSEO';
 import { formatProductPrice } from '../lib/productPrice';
+import {
+  getProductImage,
+  getProductImageAlt,
+} from '../../shared/productImages.js';
 import '../styles/sections/cart-favorites.css';
 
 export default function FavoritesPage() {
@@ -73,6 +77,8 @@ export default function FavoritesPage() {
               const itemPrice = formatProductPrice(item.price, item.unit, {
                 context: 'request',
               });
+              const itemImage = getProductImage(item);
+              const itemImageAlt = getProductImageAlt(item);
 
               return (
                 <article key={item.id} className="favorite-card">
@@ -96,8 +102,8 @@ export default function FavoritesPage() {
                     className="favorite-card__image-link"
                   >
                     <img
-                      src={item.image}
-                      alt={item.title}
+                      src={itemImage}
+                      alt={itemImageAlt}
                       className="favorite-card__image"
                       width="560"
                       height="320"

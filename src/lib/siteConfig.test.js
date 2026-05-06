@@ -1,0 +1,34 @@
+import { describe, expect, it } from 'vitest';
+import {
+  SITE_ADDRESS,
+  SITE_EMAIL,
+  SITE_LEGAL_FULL_NAME,
+  SITE_PHONE,
+  SITE_REGISTRATION_NUMBER,
+  SITE_TAX_ID,
+  buildOrganizationJsonLd,
+} from './siteConfig.js';
+
+describe('buildOrganizationJsonLd', () => {
+  it('содержит реальные централизованные реквизиты компании', () => {
+    const jsonLd = buildOrganizationJsonLd();
+
+    expect(jsonLd.legalName).toBe(SITE_LEGAL_FULL_NAME);
+    expect(jsonLd.telephone).toBe(SITE_PHONE);
+    expect(jsonLd.email).toBe(SITE_EMAIL);
+    expect(jsonLd.taxID).toBe(SITE_TAX_ID);
+    expect(jsonLd.address.streetAddress).toBe(SITE_ADDRESS.streetAddress);
+    expect(jsonLd.identifier).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          propertyID: 'ИНН',
+          value: SITE_TAX_ID,
+        }),
+        expect.objectContaining({
+          propertyID: 'ОГРН',
+          value: SITE_REGISTRATION_NUMBER,
+        }),
+      ])
+    );
+  });
+});

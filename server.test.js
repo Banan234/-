@@ -15,10 +15,14 @@ import {
 // Мокаем nodemailer ДО импорта server.js — чтобы createTransport вернул
 // заглушку и реальные SMTP-вызовы не уходили никуда. vi.hoisted гарантирует,
 // что объявление sendMail поднимется выше vi.mock.
-const { createTransportMock, sendMailMock } = vi.hoisted(() => {
+const { createTransportMock, sendMailMock, verifyMock } = vi.hoisted(() => {
   const sendMailMock = vi.fn().mockResolvedValue({ messageId: 'test-id' });
-  const createTransportMock = vi.fn(() => ({ sendMail: sendMailMock }));
-  return { createTransportMock, sendMailMock };
+  const verifyMock = vi.fn().mockResolvedValue(true);
+  const createTransportMock = vi.fn(() => ({
+    sendMail: sendMailMock,
+    verify: verifyMock,
+  }));
+  return { createTransportMock, sendMailMock, verifyMock };
 });
 
 vi.mock('nodemailer', () => ({
@@ -34,8 +38,10 @@ const {
   getRuntimeHealthSnapshot,
   getFormsDiagnostic,
   getSmtpTransportOptions,
+  initializeFormsForStartup,
   isRetryableMailError,
   sendMailWithRetry,
+  startServer,
   createTrustedProxyFn,
   parseTrustedProxyIps,
   validateStartupEnv,
@@ -95,9 +101,14 @@ afterAll(async () => {
 
 beforeEach(() => {
   createTransportMock.mockClear();
-  createTransportMock.mockImplementation(() => ({ sendMail: sendMailMock }));
+  createTransportMock.mockImplementation(() => ({
+    sendMail: sendMailMock,
+    verify: verifyMock,
+  }));
   sendMailMock.mockClear();
   sendMailMock.mockResolvedValue({ messageId: 'test-id' });
+  verifyMock.mockClear();
+  verifyMock.mockResolvedValue(true);
 });
 
 const validPayload = {
@@ -309,6 +320,32 @@ describe('GET /api/health', () => {
 });
 
 describe('GET /api/forms/health', () => {
+  it('показывает, что SMTP настроен и verify прошёл', async () => {
+    const app = createTestApp({
+      formsDiagnostic: {
+        formsEnabled: true,
+        smtpConfigured: true,
+        missing: [],
+        smtpVerified: true,
+      },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await fetch(`${localBaseUrl}/api/forms/health`);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data).toEqual({
+        ok: true,
+        formsEnabled: true,
+        smtpConfigured: true,
+        smtpVerified: true,
+        smtpReady: true,
+        missingConfig: [],
+      });
+    });
+  });
+
   it('возвращает диагностический статус форм без секретов', async () => {
     const app = createTestApp({
       env: createTestEnv({ FORMS_ENABLED: 'false' }),
@@ -323,6 +360,8 @@ describe('GET /api/forms/health', () => {
         ok: false,
         formsEnabled: false,
         smtpConfigured: true,
+        smtpVerified: null,
+        smtpReady: false,
         missingConfig: [],
       });
       expect(JSON.stringify(data)).not.toContain('secret');
@@ -484,6 +523,69 @@ describe('forms diagnostics', () => {
       formsEnabled: true,
       smtpConfigured: true,
       missing: [],
+    });
+  });
+
+  it('marks SMTP as verified after transporter.verify succeeds', async () => {
+    const mailTransporter = {
+      verify: vi.fn().mockResolvedValue(true),
+      sendMail: vi.fn(),
+    };
+
+    await expect(
+      initializeFormsForStartup({
+        env: createTestEnv({ NODE_ENV: 'production' }),
+        mailTransporter,
+      })
+    ).resolves.toMatchObject({
+      transporter: mailTransporter,
+      diagnostic: {
+        formsEnabled: true,
+        smtpConfigured: true,
+        smtpVerified: true,
+        smtpReady: true,
+      },
+    });
+    expect(mailTransporter.verify).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails production startup before listen when SMTP verify fails', async () => {
+    const mailTransporter = {
+      verify: vi.fn().mockRejectedValue(new Error('auth failed')),
+      sendMail: vi.fn(),
+    };
+    const listen = vi.fn();
+
+    await expect(
+      startServer({
+        env: createTestEnv({ NODE_ENV: 'production' }),
+        mailTransporter,
+        listen,
+        warmCatalogOnStart: false,
+      })
+    ).rejects.toThrow(/SMTP verify не прошёл/);
+    expect(listen).not.toHaveBeenCalled();
+  });
+
+  it('keeps staging/dev startup explicit and marks forms unavailable when SMTP verify fails', async () => {
+    const mailTransporter = {
+      verify: vi.fn().mockRejectedValue(new Error('auth failed')),
+      sendMail: vi.fn(),
+    };
+
+    const result = await initializeFormsForStartup({
+      env: createTestEnv({ NODE_ENV: 'development' }),
+      mailTransporter,
+    });
+
+    expect(result).toMatchObject({
+      transporter: null,
+      diagnostic: {
+        formsEnabled: true,
+        smtpConfigured: true,
+        smtpVerified: false,
+        smtpReady: false,
+      },
     });
   });
 });
@@ -1235,7 +1337,7 @@ describe('POST /api/quote', () => {
   });
 
   it('400 при мусорном телефоне', async () => {
-    for (const phone of ['0000000000', '1234567890']) {
+    for (const phone of ['3333333333', '1234567890']) {
       sendMailMock.mockClear();
 
       const res = await postJson('/api/quote', {
@@ -1373,8 +1475,38 @@ describe('POST /api/lead-request', () => {
     expect(mailArgs.html).toContain('ВВГ 3х2.5');
   });
 
+  it('500 с пользовательским сообщением при SMTP-ошибке', async () => {
+    const mailTransporter = {
+      sendMail: vi.fn().mockRejectedValue(new Error('535 auth failed')),
+    };
+    const app = createTestApp({
+      mailTransporter,
+      mailSendOptions: { maxRetries: 0, retryDelayMs: 0 },
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await postJsonTo(
+        localBaseUrl,
+        '/api/lead-request',
+        validLeadPayload
+      );
+      const data = await res.json();
+
+      expect(res.status).toBe(500);
+      expect(data).toEqual({
+        ok: false,
+        message: 'Не удалось отправить заявку',
+      });
+      expect(JSON.stringify(data)).not.toContain('535');
+      expect(JSON.stringify(data)).not.toContain('auth failed');
+    });
+
+    expect(mailTransporter.sendMail).toHaveBeenCalledTimes(1);
+  });
+
   it('400 при мусорном телефоне', async () => {
-    for (const phone of ['0000000000', '1234567890']) {
+    for (const phone of ['3333333333', '1234567890']) {
       sendMailMock.mockClear();
 
       const res = await postJson('/api/lead-request', {

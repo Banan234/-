@@ -1,5 +1,6 @@
 import { createItemsStore } from './createItemsStore.js';
 import { MAX_QUOTE_ITEMS } from '../../shared/quoteValidation.js';
+import { PRODUCT_IMAGE_FALLBACKS } from '../../shared/productImages.js';
 
 export const MAX_CART_ITEMS = MAX_QUOTE_ITEMS;
 
@@ -34,7 +35,7 @@ export const useCartStore = createItemsStore({
         id: `manual-${createManualId()}`,
         slug: '',
         sku: '',
-        image: '/product-placeholder.svg',
+        image: PRODUCT_IMAGE_FALLBACKS.nonCable,
         category: 'Ручная позиция',
         price: 0,
         unit: 'м',

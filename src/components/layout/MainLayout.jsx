@@ -11,7 +11,14 @@ import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { trackEvent } from '../../lib/analytics';
 import { usePageviewTracking } from '../../hooks/usePageviewTracking';
 import { STORAGE_WRITE_FAILED_EVENT } from '../../lib/browserStorage';
-import { SITE_PHONE_DISPLAY } from '../../lib/siteConfig';
+import {
+  SITE_ADDRESS_DISPLAY,
+  SITE_EMAIL,
+  SITE_EMAIL_HREF,
+  SITE_PHONE_DISPLAY,
+  SITE_PHONE_HREF,
+  SITE_WORKING_HOURS_DISPLAY,
+} from '../../lib/siteConfig';
 
 const MOBILE_NAV_ID = 'mobile-navigation';
 
@@ -160,7 +167,7 @@ export default function MainLayout() {
                     <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
                     <circle cx="12" cy="10" r="3" />
                   </svg>
-                  Челябинск, ул. Южная, 9А
+                  {SITE_ADDRESS_DISPLAY}
                 </span>
                 <span className="topbar-item">
                   <svg
@@ -177,7 +184,7 @@ export default function MainLayout() {
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
-                  Пн–Пт 09:00–18:00
+                  {SITE_WORKING_HOURS_DISPLAY}
                 </span>
               </div>
               <div className="site-header__topbar-right">
@@ -228,11 +235,11 @@ export default function MainLayout() {
 
               <div className="site-header__main-right">
                 <div className="header-phone-block">
-                  <a href="tel:+78005553552" className="header-phone">
+                  <a href={SITE_PHONE_HREF} className="header-phone">
                     {SITE_PHONE_DISPLAY}
                   </a>
-                  <a href="mailto:sale@site.ru" className="header-phone-sub">
-                    sale@site.ru
+                  <a href={SITE_EMAIL_HREF} className="header-phone-sub">
+                    {SITE_EMAIL}
                   </a>
                 </div>
 
@@ -385,6 +392,15 @@ export default function MainLayout() {
             favoritesCount={favoritesCount}
             totalCount={totalCount}
             onClose={() => setIsMobileNavOpen(false)}
+            onOpenCall={() =>
+              openLeadModal({
+                title: 'Заказать звонок',
+                subtitle:
+                  'Оставьте телефон и комментарий — менеджер перезвонит в рабочее время.',
+                submitLabel: 'Заказать звонок',
+                source: 'Мобильное меню',
+              })
+            }
             onOpenQuote={() =>
               openLeadModal({
                 title: 'Получить КП',

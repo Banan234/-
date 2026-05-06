@@ -10,17 +10,9 @@ import { useJsonLd } from '../hooks/useJsonLd';
 import { usePrerenderData } from '../lib/prerenderData';
 import { messages } from '../../shared/messages.js';
 import {
-  SITE_ADDRESS,
-  SITE_DESCRIPTION,
-  SITE_EMAIL,
-  SITE_LEGAL_NAME,
-  SITE_LOGO_PATH,
   SITE_NAME,
-  SITE_OPENING_HOURS,
-  SITE_PHONE,
-  SITE_SOCIAL_LINKS,
   SITE_URL,
-  absoluteUrl,
+  buildOrganizationJsonLd,
 } from '../lib/siteConfig';
 import '../styles/sections/home-critical.css';
 
@@ -152,39 +144,7 @@ const objectionsFaq = [
 
 const ORGANIZATION_JSON_LD = {
   '@context': 'https://schema.org',
-  '@type': 'Organization',
-  name: SITE_NAME,
-  legalName: SITE_LEGAL_NAME,
-  url: SITE_URL,
-  logo: absoluteUrl(SITE_LOGO_PATH),
-  description: SITE_DESCRIPTION,
-  email: SITE_EMAIL,
-  telephone: SITE_PHONE,
-  address: {
-    '@type': 'PostalAddress',
-    streetAddress: SITE_ADDRESS.streetAddress,
-    addressLocality: SITE_ADDRESS.addressLocality,
-    addressRegion: SITE_ADDRESS.addressRegion,
-    postalCode: SITE_ADDRESS.postalCode,
-    addressCountry: SITE_ADDRESS.addressCountry,
-  },
-  openingHoursSpecification: SITE_OPENING_HOURS.map((spec) => ({
-    '@type': 'OpeningHoursSpecification',
-    // Записан как «Mo-Fr 09:00-18:00» — компактно и совместимо с Google.
-    dayOfWeek: spec.split(' ')[0],
-    opens: spec.split(' ')[1]?.split('-')[0],
-    closes: spec.split(' ')[1]?.split('-')[1],
-  })),
-  contactPoint: [
-    {
-      '@type': 'ContactPoint',
-      telephone: SITE_PHONE,
-      contactType: 'sales',
-      areaServed: 'RU',
-      availableLanguage: ['ru'],
-    },
-  ],
-  ...(SITE_SOCIAL_LINKS.length > 0 ? { sameAs: SITE_SOCIAL_LINKS } : {}),
+  ...buildOrganizationJsonLd(),
 };
 
 const WEBSITE_JSON_LD = {

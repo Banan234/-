@@ -38,7 +38,7 @@ describe('validateForm', () => {
       /корректный/
     );
     expect(
-      validateForm({ ...okForm, phone: '0000000000' }, okItems).phone
+      validateForm({ ...okForm, phone: '3333333333' }, okItems).phone
     ).toMatch(/корректный/);
     expect(
       validateForm({ ...okForm, phone: '1234567890' }, okItems).phone

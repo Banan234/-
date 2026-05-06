@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CATALOG_MENU } from './catalogMenuData';
-import { SITE_PHONE_DISPLAY } from '../../lib/siteConfig';
+import { SITE_PHONE_DISPLAY, SITE_PHONE_HREF } from '../../lib/siteConfig';
 
 export default function MobileNav({
   id,
@@ -9,6 +9,7 @@ export default function MobileNav({
   favoritesCount,
   totalCount,
   onClose,
+  onOpenCall,
   onOpenQuote,
 }) {
   useEffect(() => {
@@ -36,6 +37,11 @@ export default function MobileNav({
   function handleQuoteClick() {
     onClose();
     onOpenQuote();
+  }
+
+  function handleCallClick() {
+    onClose();
+    onOpenCall();
   }
 
   return (
@@ -155,11 +161,18 @@ export default function MobileNav({
           <button
             type="button"
             className="mobile-nav__cta"
+            onClick={handleCallClick}
+          >
+            Заказать звонок
+          </button>
+          <button
+            type="button"
+            className="mobile-nav__cta mobile-nav__cta--secondary"
             onClick={handleQuoteClick}
           >
             Получить КП
           </button>
-          <a href="tel:+78005553552" className="mobile-nav__phone">
+          <a href={SITE_PHONE_HREF} className="mobile-nav__phone">
             {SITE_PHONE_DISPLAY}
           </a>
         </div>

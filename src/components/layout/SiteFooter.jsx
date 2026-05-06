@@ -1,6 +1,14 @@
 import { Link } from 'react-router-dom';
 import Container from '../ui/Container';
-import { SITE_PHONE_DISPLAY } from '../../lib/siteConfig';
+import {
+  SITE_ADDRESS_DISPLAY,
+  SITE_EMAIL,
+  SITE_EMAIL_HREF,
+  SITE_NAME,
+  SITE_PHONE_DISPLAY,
+  SITE_PHONE_HREF,
+  SITE_WORKING_HOURS_DISPLAY,
+} from '../../lib/siteConfig';
 import '../../styles/layout/footer.css';
 
 export default function SiteFooter({ onOpenQuote }) {
@@ -37,7 +45,7 @@ export default function SiteFooter({ onOpenQuote }) {
                 или свяжитесь удобным способом:
               </div>
               <div className="site-footer__quick-links">
-                <a href="tel:+78005553552" className="site-footer__quick-link">
+                <a href={SITE_PHONE_HREF} className="site-footer__quick-link">
                   {SITE_PHONE_DISPLAY}
                 </a>
                 <span className="site-footer__quick-divider" aria-hidden="true">
@@ -111,23 +119,23 @@ export default function SiteFooter({ onOpenQuote }) {
 
           <div className="site-footer__contacts">
             <h3 className="site-footer__title">Контакты</h3>
-            <a href="tel:+78005553552" className="site-footer__phone">
+            <a href={SITE_PHONE_HREF} className="site-footer__phone">
               {SITE_PHONE_DISPLAY}
             </a>
-            <a href="mailto:sale@site.ru" className="site-footer__mail">
-              sale@site.ru
+            <a href={SITE_EMAIL_HREF} className="site-footer__mail">
+              {SITE_EMAIL}
             </a>
             <div className="site-footer__text">
-              Челябинск, ул. Южная, 9А
+              {SITE_ADDRESS_DISPLAY}
               <br />
-              Пн–Пт: 09:00–18:00
+              {SITE_WORKING_HOURS_DISPLAY}
             </div>
           </div>
         </div>
 
         <div className="site-footer__legal">
-          © 2026 ЮжУралЭлектроКабель. Информация на сайте носит справочный
-          характер и не является публичной офертой.
+          © 2026 {SITE_NAME}. Информация на сайте носит справочный характер и не
+          является публичной офертой.
         </div>
       </Container>
     </footer>

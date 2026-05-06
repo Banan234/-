@@ -34,16 +34,18 @@ npm run dev            # фронт на 5173, API на 3001
 
 ### Почта (SMTP)
 
-`server.js` использует `nodemailer`. В production поведение теперь явное:
+`server.js` использует `nodemailer`. В production поведение явное:
 
-- либо `FORMS_ENABLED=true` и заполнены `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`,
-  `SMTP_FROM`, `QUOTE_TO_EMAIL`;
+- либо `FORMS_ENABLED=true`, заполнены `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`,
+  `SMTP_FROM`, `QUOTE_TO_EMAIL`, и `transporter.verify()` успешно проходит
+  на старте;
 - либо `FORMS_ENABLED=false`, и сервер стартует с отключёнными form-endpoints
   (`/api/quote`, `/api/lead-request` отвечают `503` с понятным сообщением).
 
-Если в production формы включены, но SMTP-блок неполный, сервер завершит старт
-с ошибкой до `listen()`. Это лучше, чем падать уже на runtime после отправки
-формы пользователем.
+Если в production формы включены, но SMTP-блок неполный или `verify()` не
+проходит, сервер завершит старт с ошибкой до `listen()`. В staging/dev сервер
+пишет явную ошибку с инструкцией в лог, а формы отвечают пользовательским
+сообщением без SMTP-деталей.
 
 1. Заведите ящик на корпоративном домене (Яндекс.360, Mail для бизнеса и т.п.).
 2. Включите двухфакторную аутентификацию и выпустите **app password** —
@@ -65,7 +67,22 @@ npm run dev            # фронт на 5173, API на 3001
    SMTP_SOCKET_TIMEOUT_MS=20000
    SMTP_SEND_RETRIES=1
    ```
-4. Перезапустите `npm run dev`. Проверить можно так:
+4. Перезапустите `npm run dev`. Сначала проверьте health-check форм:
+   ```bash
+   curl http://localhost:3001/api/forms/health
+   ```
+   Для настроенной среды ответ должен содержать:
+   ```json
+   {
+     "ok": true,
+     "formsEnabled": true,
+     "smtpConfigured": true,
+     "smtpVerified": true,
+     "smtpReady": true,
+     "missingConfig": []
+   }
+   ```
+   Затем можно отправить тестовую заявку:
    ```bash
    curl -X POST http://localhost:3001/api/quote \
      -H 'content-type: application/json' \

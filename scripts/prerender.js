@@ -35,6 +35,7 @@ import {
   buildStaticPageJsonLd,
   getStaticPageJsonLdId,
 } from '../src/lib/staticPageJsonLd.js';
+import { getProductImage } from '../shared/productImages.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -137,12 +138,6 @@ const OPTIONAL_POSITIVE_NUMBER_FIELDS = [
   'voltage',
 ];
 const MAX_VALIDATION_ISSUES_IN_MESSAGE = 20;
-const CATEGORY_IMAGE_FALLBACKS = {
-  'Силовой кабель': '/category-placeholders/power-cable.svg',
-  'Контрольный кабель': '/category-placeholders/control-cable.svg',
-  'Гибкий кабель': '/category-placeholders/flexible-cable.svg',
-  'Кабели связи': '/category-placeholders/communication-cable.svg',
-};
 const ROUTE_MODULES = [
   {
     test: (routePath) => routePath === '/catalog',
@@ -620,11 +615,7 @@ function getProductDisplayName(product) {
 }
 
 function getCatalogProductImage(product) {
-  return (
-    product.image ||
-    CATEGORY_IMAGE_FALLBACKS[product.catalogCategory] ||
-    '/product-placeholder.svg'
-  );
+  return getProductImage(product);
 }
 
 function buildCatalogSections(products) {
@@ -674,7 +665,10 @@ function buildCatalogListItem(product) {
     title,
     mark: product.mark || title,
     category: product.category || product.catalogCategory || '',
+    catalogSection: product.catalogSection || '',
+    catalogSectionSlug: product.catalogSectionSlug || '',
     catalogCategory: product.catalogCategory || '',
+    catalogCategorySlug: product.catalogCategorySlug || '',
     price: Number(product.price) || 0,
     unit: product.unit || 'м',
     stock: Number(product.stock) || 0,
@@ -1152,20 +1146,21 @@ export async function prerenderProducts(
 
   let written = 0;
   for (const product of products) {
-    const canonical = absoluteUrl(`/product/${product.slug}`);
-    const productLabel = buildProductMetaTitle(product, {
-      disambiguate: titleCounts.get(buildProductMetaTitle(product)) > 1,
+    const productImage = getProductImage(product);
+    const productWithImage = { ...product, image: productImage };
+    const canonical = absoluteUrl(`/product/${productWithImage.slug}`);
+    const productLabel = buildProductMetaTitle(productWithImage, {
+      disambiguate:
+        titleCounts.get(buildProductMetaTitle(productWithImage)) > 1,
     });
     const fullTitle = productLabel
       ? `${productLabel} — ${SITE_NAME}`
       : SITE_NAME;
-    const description = buildProductMetaDescription(product);
-    const ogImage = product.image
-      ? resolveSocialImageUrl(product.image)
-      : undefined;
-    const productLd = buildProductJsonLd(product);
-    const breadcrumbLd = buildProductBreadcrumbJsonLd(product);
-    const prerenderData = { product };
+    const description = buildProductMetaDescription(productWithImage);
+    const ogImage = resolveSocialImageUrl(productImage);
+    const productLd = buildProductJsonLd(productWithImage);
+    const breadcrumbLd = buildProductBreadcrumbJsonLd(productWithImage);
+    const prerenderData = { product: productWithImage };
 
     const headExtras = [
       buildMetaTags({
@@ -1175,18 +1170,20 @@ export async function prerenderProducts(
         ogType: 'product',
         ogImage,
       }),
-      buildRouteCssLinks(`/product/${product.slug}`, manifest),
+      buildRouteCssLinks(`/product/${productWithImage.slug}`, manifest),
       buildJsonLdScripts([breadcrumbLd, productLd], 'product-ld'),
     ].join('\n    ');
 
     const html = injectIntoThinTemplate(template, {
       headExtras,
       bodyShell: renderApp
-        ? await renderApp(`/product/${product.slug}`, { prerenderData })
-        : buildCompactProductBodyShell(product),
+        ? await renderApp(`/product/${productWithImage.slug}`, {
+            prerenderData,
+          })
+        : buildCompactProductBodyShell(productWithImage),
       bodyEndExtras: buildPrerenderDataScript(prerenderData),
     });
-    await writeProductRoute(product.slug, html, { outputDir });
+    await writeProductRoute(productWithImage.slug, html, { outputDir });
     written += 1;
   }
   log?.(

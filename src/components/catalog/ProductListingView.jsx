@@ -83,7 +83,7 @@ export default function ProductListingView({
   const [priceMinInput, setPriceMinInput] = useState(priceMin);
   const [priceMaxInput, setPriceMaxInput] = useState(priceMax);
   const [localPage, setLocalPage] = useState(1);
-  const [isFilterOpen, setIsFilterOpen] = useState(true);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const isServerPaged = Boolean(pagination);
   const filterPanelBodyId = `${useId().replace(/:/g, '')}-catalog-filter-panel-body`;
 
@@ -217,6 +217,17 @@ export default function ProductListingView({
     !!priceMin ||
     !!priceMax ||
     !!search;
+  const activeFilterCount = [
+    search,
+    priceMin || priceMax,
+    selectedMaterials.length,
+    selectedConstructions.length,
+    selectedCores.length,
+    selectedSections.length,
+    selectedVoltages.length,
+    showAppType && selectedAppTypes.length,
+    showSPE && onlySPE,
+  ].filter(Boolean).length;
 
   const hasAnyFilterOption =
     filterOptions.materials.length > 0 ||
@@ -336,7 +347,12 @@ export default function ProductListingView({
             aria-expanded={isFilterOpen}
           >
             <span className="catalog-filter-panel__title">
-              Подбор по параметрам
+              Все параметры
+              {activeFilterCount > 0 && (
+                <span className="catalog-filter-panel__badge">
+                  {activeFilterCount}
+                </span>
+              )}
             </span>
             <span
               className={`catalog-filter-panel__chevron${

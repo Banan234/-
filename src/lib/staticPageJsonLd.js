@@ -1,16 +1,9 @@
 import {
-  SITE_ADDRESS,
-  SITE_DESCRIPTION,
-  SITE_EMAIL,
-  SITE_LEGAL_NAME,
   SITE_NAME,
-  SITE_OPENING_HOURS,
-  SITE_OPENING_HOURS_SPECIFICATION,
   SITE_PHONE,
-  SITE_REGISTRATION_NUMBER,
-  SITE_TAX_ID,
   SITE_URL,
   absoluteUrl,
+  buildOrganizationJsonLd,
 } from './siteConfig.js';
 import { STATIC_PAGE_SEO } from './staticSeo.js';
 
@@ -29,27 +22,7 @@ function buildWebsiteReference() {
 }
 
 function buildOrganizationReference() {
-  return {
-    '@type': 'Organization',
-    '@id': `${SITE_URL}#organization`,
-    name: SITE_NAME,
-    legalName: SITE_LEGAL_NAME,
-    url: SITE_URL,
-    description: SITE_DESCRIPTION,
-    telephone: SITE_PHONE,
-    email: SITE_EMAIL,
-    taxID: SITE_TAX_ID || undefined,
-    identifier: SITE_REGISTRATION_NUMBER || undefined,
-    address: {
-      '@type': 'PostalAddress',
-      ...SITE_ADDRESS,
-    },
-    openingHours: SITE_OPENING_HOURS,
-    openingHoursSpecification: SITE_OPENING_HOURS_SPECIFICATION.map((item) => ({
-      '@type': 'OpeningHoursSpecification',
-      ...item,
-    })),
-  };
+  return buildOrganizationJsonLd();
 }
 
 function buildAboutPageJsonLd() {
@@ -121,14 +94,8 @@ function buildDeliveryPageJsonLd() {
         description: STATIC_PAGE_SEO.delivery.description,
         isPartOf: buildWebsiteReference(),
         provider: {
-          '@type': 'LocalBusiness',
-          name: SITE_NAME,
-          url: SITE_URL,
+          ...buildOrganizationJsonLd({ '@type': 'LocalBusiness' }),
           telephone: SITE_PHONE,
-          address: {
-            '@type': 'PostalAddress',
-            ...SITE_ADDRESS,
-          },
         },
       },
       {

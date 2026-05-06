@@ -9,6 +9,7 @@ import {
   absoluteUrl,
 } from './siteConfig.js';
 import { normalizeMetaDescription } from './metaDescription.js';
+import { getProductImage } from '../../shared/productImages.js';
 
 const PRODUCT_META_DESCRIPTION_MIN_LENGTH = 80;
 
@@ -124,8 +125,9 @@ export function buildProductJsonLd(product) {
     category: product.catalogCategory || product.catalogSection || undefined,
   };
 
-  if (product.image) {
-    data.image = absoluteUrl(product.image);
+  const productImage = getProductImage(product);
+  if (productImage) {
+    data.image = absoluteUrl(productImage);
   }
 
   if (product.mark) {

@@ -1,14 +1,23 @@
 import Container from '../components/ui/Container';
 import HeroLeadForm from '../components/home/HeroLeadForm';
 import { useSEO } from '../hooks/useSEO';
-import { SITE_PHONE_DISPLAY } from '../lib/siteConfig';
+import {
+  SITE_ADDRESS,
+  SITE_ADDRESS_DISPLAY,
+  SITE_CITY_DISPLAY,
+  SITE_EMAIL,
+  SITE_EMAIL_HREF,
+  SITE_PHONE_DISPLAY,
+  SITE_PHONE_HREF,
+  SITE_REQUISITES,
+  SITE_WORKING_HOURS_DISPLAY,
+} from '../lib/siteConfig';
 import '../styles/pages/content.css';
 
 export default function ContactsPage() {
   useSEO({
     title: 'Контакты',
-    description:
-      'Контакты ЮжУралЭлектроКабель: телефон 8 800 555 35 52, email sale@site.ru. Адрес: г. Челябинск, ул. Южная, 9А. Пн–Пт 09:00–18:00.',
+    description: `Контакты ЮжУралЭлектроКабель: телефон ${SITE_PHONE_DISPLAY}, email ${SITE_EMAIL}. Адрес: ${SITE_ADDRESS_DISPLAY}. ${SITE_WORKING_HOURS_DISPLAY}.`,
   });
 
   return (
@@ -26,19 +35,16 @@ export default function ContactsPage() {
 
             <div className="contacts-page__hero-card">
               <div className="contacts-page__hero-label">Основной телефон</div>
-              <a href="tel:+78005553552" className="contacts-page__hero-phone">
+              <a href={SITE_PHONE_HREF} className="contacts-page__hero-phone">
                 {SITE_PHONE_DISPLAY}
               </a>
 
               <div className="contacts-page__hero-meta">
-                <a
-                  href="mailto:sale@site.ru"
-                  className="contacts-page__hero-mail"
-                >
-                  sale@site.ru
+                <a href={SITE_EMAIL_HREF} className="contacts-page__hero-mail">
+                  {SITE_EMAIL}
                 </a>
-                <span>Пн–Пт 09:00–18:00</span>
-                <span>Челябинск</span>
+                <span>{SITE_WORKING_HOURS_DISPLAY}</span>
+                <span>{SITE_ADDRESS.addressLocality}</span>
               </div>
             </div>
           </div>
@@ -59,11 +65,11 @@ export default function ContactsPage() {
               <div className="contact-card__text">
                 Подбор продукции, наличие, цены, коммерческие предложения.
               </div>
-              <a href="tel:+78005553552" className="contact-card__link">
+              <a href={SITE_PHONE_HREF} className="contact-card__link">
                 {SITE_PHONE_DISPLAY}
               </a>
-              <a href="mailto:sale@site.ru" className="contact-card__link">
-                sale@site.ru
+              <a href={SITE_EMAIL_HREF} className="contact-card__link">
+                {SITE_EMAIL}
               </a>
             </article>
 
@@ -72,10 +78,12 @@ export default function ContactsPage() {
               <div className="contact-card__text">
                 Вопросы по работе компании, условиям поставки и документам.
               </div>
-              <a href="mailto:info@site.ru" className="contact-card__link">
-                info@site.ru
+              <a href={SITE_EMAIL_HREF} className="contact-card__link">
+                {SITE_EMAIL}
               </a>
-              <div className="contact-card__meta">Пн–Пт 09:00–18:00</div>
+              <div className="contact-card__meta">
+                {SITE_WORKING_HOURS_DISPLAY}
+              </div>
             </article>
 
             <article className="contact-card">
@@ -83,8 +91,8 @@ export default function ContactsPage() {
               <div className="contact-card__text">
                 Партнерство, оптовые условия, снабжение объектов.
               </div>
-              <a href="mailto:partner@site.ru" className="contact-card__link">
-                partner@site.ru
+              <a href={SITE_EMAIL_HREF} className="contact-card__link">
+                {SITE_EMAIL}
               </a>
               <div className="contact-card__meta">Ответ в рабочее время</div>
             </article>
@@ -102,32 +110,32 @@ export default function ContactsPage() {
                 <div className="contacts-info-list">
                   <div className="contacts-info-row">
                     <span>Город</span>
-                    <strong>Челябинск</strong>
+                    <strong>{SITE_CITY_DISPLAY}</strong>
                   </div>
 
                   <div className="contacts-info-row">
                     <span>Адрес</span>
-                    <strong>г. Челябинск, ул. Примерная, д. 10</strong>
+                    <strong>{SITE_ADDRESS_DISPLAY}</strong>
                   </div>
 
                   <div className="contacts-info-row">
                     <span>Режим работы</span>
-                    <strong>Пн–Пт 09:00–18:00</strong>
+                    <strong>{SITE_WORKING_HOURS_DISPLAY}</strong>
                   </div>
 
                   <div className="contacts-info-row">
-                    <span>ООО</span>
-                    <strong>ЮжУралЭлектроКабель</strong>
+                    <span>Юр. название</span>
+                    <strong>{SITE_REQUISITES.fullLegalName}</strong>
                   </div>
 
                   <div className="contacts-info-row">
                     <span>ИНН</span>
-                    <strong>0000000000</strong>
+                    <strong>{SITE_REQUISITES.taxId}</strong>
                   </div>
 
                   <div className="contacts-info-row">
                     <span>ОГРН</span>
-                    <strong>0000000000000</strong>
+                    <strong>{SITE_REQUISITES.registrationNumber}</strong>
                   </div>
                 </div>
               </div>
@@ -152,10 +160,10 @@ export default function ContactsPage() {
                       <circle cx="12" cy="10" r="3" />
                     </svg>
                     <div className="contacts-map-placeholder__address">
-                      г. Челябинск, ул. Южная, 9А
+                      {SITE_ADDRESS_DISPLAY}
                     </div>
                     <div className="contacts-map-placeholder__hours">
-                      Режим работы: Пн–Пт 09:00–18:00
+                      Режим работы: {SITE_WORKING_HOURS_DISPLAY}
                     </div>
                   </div>
                 </div>

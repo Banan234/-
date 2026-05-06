@@ -16,34 +16,83 @@ function readSiteUrl() {
   return 'https://yuzhuralelectrokabel.ru';
 }
 
+function readPublicConfigValue(nodeName, viteName, fallback) {
+  if (typeof process !== 'undefined' && process.env) {
+    const fromNode = process.env[nodeName] || process.env[viteName];
+    if (fromNode) return fromNode;
+  }
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    const fromVite = import.meta.env[viteName];
+    if (fromVite) return fromVite;
+  }
+  return fallback;
+}
+
 function trimTrailingSlash(value) {
   return String(value || '').replace(/\/+$/, '');
 }
 
 export const SITE_URL = trimTrailingSlash(readSiteUrl());
 export const SITE_NAME = 'ЮжУралЭлектроКабель';
-export const SITE_LEGAL_NAME = 'ООО «ЮжУралЭлектроКабель»';
+export const SITE_LEGAL_NAME = readPublicConfigValue(
+  'SITE_LEGAL_NAME',
+  'VITE_SITE_LEGAL_NAME',
+  'ООО «ЮУЭК»'
+);
+export const SITE_LEGAL_FULL_NAME = readPublicConfigValue(
+  'SITE_LEGAL_FULL_NAME',
+  'VITE_SITE_LEGAL_FULL_NAME',
+  'Общество с ограниченной ответственностью «ЮжУралЭлектроКабель»'
+);
 export const SITE_DESCRIPTION =
   'Оптовая поставка кабельно-проводниковой продукции в Челябинске и по России. Склад, отгрузка от 1 дня, работа с юрлицами по НДС.';
 export const SITE_LOGO_PATH = '/logo.png';
 export const SITE_OG_IMAGE_PATH = '/og-product.png';
 
-export const SITE_PHONE = '+78005553552';
-export const SITE_PHONE_DISPLAY = '8\u00a0800\u00a0555\u00a035\u00a052';
-export const SITE_EMAIL = 'sale@site.ru';
-export const SITE_TAX_ID = '';
-export const SITE_REGISTRATION_NUMBER = '';
+export const SITE_PHONE = readPublicConfigValue(
+  'SITE_PHONE',
+  'VITE_SITE_PHONE',
+  '+79043069494'
+);
+export const SITE_PHONE_DISPLAY = readPublicConfigValue(
+  'SITE_PHONE_DISPLAY',
+  'VITE_SITE_PHONE_DISPLAY',
+  '+7\u00a0904\u00a0306-94-94'
+);
+export const SITE_PHONE_HREF = `tel:${SITE_PHONE}`;
+export const SITE_EMAIL = readPublicConfigValue(
+  'SITE_EMAIL',
+  'VITE_SITE_EMAIL',
+  'kabelh@bk.ru'
+);
+export const SITE_EMAIL_HREF = `mailto:${SITE_EMAIL}`;
+export const SITE_TAX_ID = readPublicConfigValue(
+  'SITE_TAX_ID',
+  'VITE_SITE_TAX_ID',
+  '7453351320'
+);
+export const SITE_REGISTRATION_NUMBER = readPublicConfigValue(
+  'SITE_REGISTRATION_NUMBER',
+  'VITE_SITE_REGISTRATION_NUMBER',
+  '1237400004445'
+);
 
 export const SITE_ADDRESS = {
-  streetAddress: 'ул. Южная, 9А',
+  streetAddress: readPublicConfigValue(
+    'SITE_STREET_ADDRESS',
+    'VITE_SITE_STREET_ADDRESS',
+    'ул. Южная, д. 9А, офис 4'
+  ),
   addressLocality: 'Челябинск',
   addressRegion: 'Челябинская область',
   postalCode: '454000',
   addressCountry: 'RU',
 };
 export const SITE_ADDRESS_DISPLAY = `г. ${SITE_ADDRESS.addressLocality}, ${SITE_ADDRESS.streetAddress}`;
+export const SITE_CITY_DISPLAY = `г. ${SITE_ADDRESS.addressLocality}`;
 
 // Часы работы — формат schema.org openingHours: «Пн–Пт 09:00–18:00».
+export const SITE_WORKING_HOURS_DISPLAY = 'Пн–Пт 09:00–18:00';
 export const SITE_OPENING_HOURS = ['Mo-Fr 09:00-18:00'];
 export const SITE_OPENING_HOURS_SPECIFICATION = [
   {
@@ -54,6 +103,13 @@ export const SITE_OPENING_HOURS_SPECIFICATION = [
 ];
 
 export const SITE_SOCIAL_LINKS = [];
+
+export const SITE_REQUISITES = {
+  legalName: SITE_LEGAL_NAME,
+  fullLegalName: SITE_LEGAL_FULL_NAME,
+  taxId: SITE_TAX_ID,
+  registrationNumber: SITE_REGISTRATION_NUMBER,
+};
 
 export function absoluteUrl(path = '/') {
   if (!path) return SITE_URL;
@@ -70,4 +126,53 @@ export function resolveSocialImageUrl(path = SITE_OG_IMAGE_PATH) {
   return absoluteUrl(
     path && isRasterSocialImage(path) ? path : SITE_OG_IMAGE_PATH
   );
+}
+
+export function buildOrganizationJsonLd(overrides = {}) {
+  const organization = {
+    '@type': 'Organization',
+    '@id': `${SITE_URL}#organization`,
+    name: SITE_NAME,
+    legalName: SITE_LEGAL_FULL_NAME,
+    url: SITE_URL,
+    logo: absoluteUrl(SITE_LOGO_PATH),
+    description: SITE_DESCRIPTION,
+    telephone: SITE_PHONE,
+    email: SITE_EMAIL,
+    taxID: SITE_TAX_ID,
+    identifier: [
+      {
+        '@type': 'PropertyValue',
+        propertyID: 'ИНН',
+        value: SITE_TAX_ID,
+      },
+      {
+        '@type': 'PropertyValue',
+        propertyID: 'ОГРН',
+        value: SITE_REGISTRATION_NUMBER,
+      },
+    ],
+    address: {
+      '@type': 'PostalAddress',
+      ...SITE_ADDRESS,
+    },
+    openingHours: SITE_OPENING_HOURS,
+    openingHoursSpecification: SITE_OPENING_HOURS_SPECIFICATION.map((item) => ({
+      '@type': 'OpeningHoursSpecification',
+      ...item,
+    })),
+    contactPoint: [
+      {
+        '@type': 'ContactPoint',
+        telephone: SITE_PHONE,
+        email: SITE_EMAIL,
+        contactType: 'sales',
+        areaServed: 'RU',
+        availableLanguage: ['ru'],
+      },
+    ],
+    ...(SITE_SOCIAL_LINKS.length > 0 ? { sameAs: SITE_SOCIAL_LINKS } : {}),
+  };
+
+  return { ...organization, ...overrides };
 }

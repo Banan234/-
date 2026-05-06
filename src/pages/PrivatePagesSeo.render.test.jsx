@@ -36,6 +36,18 @@ const noPriceItem = {
   image: '/product-placeholder.svg',
 };
 
+const pricedItem = {
+  id: 778,
+  sku: 'PRICE-ITEM',
+  slug: 'price-item',
+  title: 'Кабель с ценой',
+  category: 'Силовой кабель',
+  price: 600,
+  quantity: 2,
+  unit: 'м',
+  image: '/product-placeholder.svg',
+};
+
 beforeEach(() => {
   useCartStore.setState({ items: [] });
   useFavoritesStore.setState({ items: [] });
@@ -72,6 +84,30 @@ describe('private pages SEO', () => {
 
     expect(screen.getByText('Кабель без цены')).toBeInTheDocument();
     expect(screen.getByText('Цена будет рассчитана в КП')).toBeInTheDocument();
+    expect(screen.getByText('Итог будет рассчитан в КП')).toBeInTheDocument();
+  });
+
+  it('показывает в итогах корзины сумму и позиции по запросу вместе', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          found: [pricedItem, noPriceItem],
+          missing: [],
+        }),
+      })
+    );
+    useCartStore.setState({ items: [pricedItem, noPriceItem] });
+
+    renderPage(<CartPage />, '/cart');
+
+    expect(screen.getByText('Кабель с ценой')).toBeInTheDocument();
+    expect(screen.getByText('Кабель без цены')).toBeInTheDocument();
+    expect(
+      screen.getByText('1 200 ₽ + позиции по запросу')
+    ).toBeInTheDocument();
   });
 
   it('показывает цену по запросу для нулевой цены в избранном', () => {

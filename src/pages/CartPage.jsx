@@ -9,6 +9,10 @@ import { captureException } from '../lib/errorTracking';
 import { formatProductPrice } from '../lib/productPrice';
 import { formatMessage, messages } from '../../shared/messages.js';
 import {
+  getProductImage,
+  getProductImageAlt,
+} from '../../shared/productImages.js';
+import {
   MAX_QUOTE_ITEM_COMMENT_LENGTH,
   MAX_QUOTE_ITEM_TITLE_LENGTH,
 } from '../../shared/quoteValidation.js';
@@ -23,6 +27,22 @@ const initialManualItem = {
 
 function formatNumber(value) {
   return Number(value || 0).toLocaleString('ru-RU');
+}
+
+function formatCartSummaryTotal(totalPrice, hasRequestPriceItems) {
+  if (totalPrice > 0 && hasRequestPriceItems) {
+    return `${formatNumber(totalPrice)} ₽ + позиции по запросу`;
+  }
+
+  if (totalPrice > 0) {
+    return `${formatNumber(totalPrice)} ₽`;
+  }
+
+  if (hasRequestPriceItems) {
+    return 'Итог будет рассчитан в КП';
+  }
+
+  return '0 ₽';
 }
 
 export default function CartPage() {
@@ -127,6 +147,14 @@ export default function CartPage() {
   const totalPrice = items.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
     0
+  );
+  const hasRequestPriceItems = items.some((item) => {
+    const price = Number(item.price);
+    return !Number.isFinite(price) || price <= 0;
+  });
+  const cartSummaryTotal = formatCartSummaryTotal(
+    totalPrice,
+    hasRequestPriceItems
   );
 
   function handleManualChange(event) {
@@ -340,12 +368,14 @@ export default function CartPage() {
                 const itemPrice = formatProductPrice(item.price, unit, {
                   context: 'quote',
                 });
+                const itemImage = getProductImage(item);
+                const itemImageAlt = getProductImageAlt(item);
 
                 return (
                   <article key={item.id} className="cart-item">
                     <img
-                      src={item.image || '/product-placeholder.svg'}
-                      alt={item.title}
+                      src={itemImage}
+                      alt={itemImageAlt}
                       className="cart-item__image"
                       width="560"
                       height="320"
@@ -431,8 +461,7 @@ export default function CartPage() {
                 </span>
                 <span>Общая длина: {formatNumber(totalLength)} м</span>
                 <span className="cart-summary__total">
-                  Предварительная сумма:{' '}
-                  <strong>{totalPrice.toLocaleString('ru-RU')} ₽</strong>
+                  Предварительная сумма: <strong>{cartSummaryTotal}</strong>
                 </span>
               </div>
               <p className="cart-summary__note">

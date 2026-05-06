@@ -11,6 +11,10 @@ import {
   ProductTitle,
 } from './ProductCardParts';
 import { formatProductPrice } from '../../lib/productPrice';
+import {
+  getProductImage,
+  getProductImageAlt,
+} from '../../../shared/productImages.js';
 import '../../styles/sections/product-card.css';
 
 function formatStockLabel(product) {
@@ -46,6 +50,8 @@ export default function ProductCard({ product, variant = 'default' }) {
   });
   const priceValue = productPrice.value;
   const priceUnitLabel = productPrice.unitLabel;
+  const productImage = getProductImage(product);
+  const productImageAlt = getProductImageAlt(product);
   const brand = product.brand || product.manufacturer || product.catalogBrand;
   const displayTitle = (() => {
     if (!brand) return product.title;
@@ -90,8 +96,8 @@ export default function ProductCard({ product, variant = 'default' }) {
       <Link to={productUrl} className="product-card__image-link">
         {!isStockVariant && <ProductBadges badges={badges} />}
         <img
-          src={product.image}
-          alt={product.title}
+          src={productImage}
+          alt={productImageAlt}
           className="product-card__image"
           width="560"
           height="320"

@@ -266,6 +266,17 @@ export function getFormsDiagnostic(env = process.env) {
   };
 }
 
+function withFormsSmtpStatus(diagnostic, { smtpVerified = null } = {}) {
+  return {
+    ...diagnostic,
+    smtpVerified,
+    smtpReady:
+      diagnostic.formsEnabled &&
+      diagnostic.smtpConfigured &&
+      smtpVerified !== false,
+  };
+}
+
 export function validateFormsEnv(env = process.env) {
   const diagnostic = getFormsDiagnostic(env);
   if (!diagnostic.formsEnabled) return diagnostic;
@@ -449,6 +460,64 @@ export function createTransporter(env = process.env) {
   return nodemailer.createTransport(getSmtpTransportOptions(env));
 }
 
+export async function verifySmtpTransporter(transporter) {
+  if (!transporter || typeof transporter.verify !== 'function') {
+    throw new Error('SMTP transporter не поддерживает verify()');
+  }
+
+  await transporter.verify();
+  return true;
+}
+
+export async function initializeFormsForStartup({
+  env = process.env,
+  mailTransporter,
+} = {}) {
+  const diagnostic = validateFormsEnv(env);
+
+  if (!diagnostic.formsEnabled) {
+    return {
+      transporter: null,
+      diagnostic: withFormsSmtpStatus(diagnostic, { smtpVerified: null }),
+    };
+  }
+
+  if (!diagnostic.smtpConfigured) {
+    return {
+      transporter: null,
+      diagnostic: withFormsSmtpStatus(diagnostic, { smtpVerified: false }),
+    };
+  }
+
+  const transporter = mailTransporter || createTransporter(env);
+
+  try {
+    await verifySmtpTransporter(transporter);
+    return {
+      transporter,
+      diagnostic: withFormsSmtpStatus(diagnostic, { smtpVerified: true }),
+    };
+  } catch (error) {
+    const message =
+      'SMTP verify не прошёл: проверьте SMTP_HOST/SMTP_PORT/SMTP_SECURE, логин, app password и доступность SMTP-сервера. ' +
+      'Для временного отключения заявок задайте FORMS_ENABLED=false.';
+
+    if (env.NODE_ENV === 'production') {
+      throw new Error(message, { cause: error });
+    }
+
+    logger.error('startup.smtp_verify_failed', {
+      err: error,
+      hint: message,
+    });
+
+    return {
+      transporter: null,
+      diagnostic: withFormsSmtpStatus(diagnostic, { smtpVerified: false }),
+    };
+  }
+}
+
 function getFormsUnavailableMessage(formsDiagnostic) {
   if (!formsDiagnostic.formsEnabled) {
     return messages.errors.api.formsDisabled;
@@ -619,21 +688,33 @@ export function createApp({
     facetCacheTtlMs: CATALOG_CACHE_TTL_MS,
   }),
   mailTransporter,
+  formsDiagnostic,
   mailSendOptions = getMailSendOptions(env),
   formResponseDelayRange = getDefaultFormResponseDelayRange(),
   warmCatalogOnStart = false,
 } = {}) {
   const app = express();
-  const startupFormsDiagnostic = validateFormsEnv(env);
+  const startupFormsDiagnostic = withFormsSmtpStatus(
+    formsDiagnostic || validateFormsEnv(env),
+    {
+      smtpVerified:
+        formsDiagnostic && Object.hasOwn(formsDiagnostic, 'smtpVerified')
+          ? formsDiagnostic.smtpVerified
+          : null,
+    }
+  );
   const resolvedMailTransporter =
     mailTransporter ||
-    (startupFormsDiagnostic.formsEnabled && startupFormsDiagnostic.smtpConfigured
+    (startupFormsDiagnostic.formsEnabled &&
+    startupFormsDiagnostic.smtpConfigured &&
+    startupFormsDiagnostic.smtpVerified !== false
       ? createTransporter(env)
       : null);
 
   app.set('etag', false);
   app.set('trust proxy', trustProxy);
   app.locals.mailTransporter = resolvedMailTransporter;
+  app.locals.formsDiagnostic = startupFormsDiagnostic;
   app.locals.activeRequests = 0;
   app.locals.catalogWarmupPromise = null;
   let featuredProductsCache = null;
@@ -782,13 +863,15 @@ export function createApp({
   });
 
   app.get('/api/forms/health', (req, res) => {
-    const diagnostic = getFormsDiagnostic(env);
-    const ok = diagnostic.formsEnabled && diagnostic.smtpConfigured;
+    const diagnostic = app.locals.formsDiagnostic;
+    const ok = diagnostic.formsEnabled && diagnostic.smtpReady;
 
     return res.status(ok ? 200 : 503).json({
       ok,
       formsEnabled: diagnostic.formsEnabled,
       smtpConfigured: diagnostic.smtpConfigured,
+      smtpVerified: diagnostic.smtpVerified,
+      smtpReady: diagnostic.smtpReady,
       missingConfig: diagnostic.missing,
     });
   });
@@ -1035,8 +1118,8 @@ export function createApp({
       );
 
       try {
-        const formsDiagnostic = getFormsDiagnostic(env);
-        if (!formsDiagnostic.formsEnabled || !formsDiagnostic.smtpConfigured) {
+        const formsDiagnostic = app.locals.formsDiagnostic;
+        if (!formsDiagnostic.formsEnabled || !formsDiagnostic.smtpReady) {
           return sendFormErrorResponse(
             res,
             formResponseStartedAt,
@@ -1156,8 +1239,8 @@ export function createApp({
       );
 
       try {
-        const formsDiagnostic = getFormsDiagnostic(env);
-        if (!formsDiagnostic.formsEnabled || !formsDiagnostic.smtpConfigured) {
+        const formsDiagnostic = app.locals.formsDiagnostic;
+        if (!formsDiagnostic.formsEnabled || !formsDiagnostic.smtpReady) {
           return sendFormErrorResponse(
             res,
             formResponseStartedAt,
@@ -1250,11 +1333,19 @@ const isMain =
 
 // Проверка обязательных env-переменных на старте.
 function logFormsStartupState(formsDiagnostic) {
-  const diagnostic = formsDiagnostic || validateFormsEnv();
+  const diagnostic = formsDiagnostic || withFormsSmtpStatus(validateFormsEnv());
   if (diagnostic.formsEnabled && diagnostic.missing.length > 0) {
     logger.warn('startup.smtp_misconfigured', {
       missing: diagnostic.missing,
       hint: 'в production процесс завершится; локально формы вернут 503',
+    });
+  } else if (diagnostic.formsEnabled && diagnostic.smtpVerified === false) {
+    logger.error('startup.smtp_unverified', {
+      hint: 'SMTP verify не прошёл: проверьте .env или задайте FORMS_ENABLED=false',
+    });
+  } else if (diagnostic.formsEnabled && diagnostic.smtpVerified === true) {
+    logger.info('startup.smtp_verified', {
+      hint: 'FORMS_ENABLED=true: SMTP настроен, transporter.verify() успешен',
     });
   } else if (!diagnostic.formsEnabled) {
     logger.warn('startup.forms_disabled', {
@@ -1263,17 +1354,39 @@ function logFormsStartupState(formsDiagnostic) {
   }
 }
 
+export async function startServer({
+  env = process.env,
+  port = env.PORT || PORT,
+  warmCatalogOnStart = true,
+  mailTransporter,
+  listen = (app, listenPort, onListening) =>
+    app.listen(listenPort, onListening),
+} = {}) {
+  const startup = validateStartupEnv(env);
+  const formsStartup = await initializeFormsForStartup({
+    env,
+    mailTransporter,
+  });
+  logFormsStartupState(formsStartup.diagnostic || startup.forms);
+
+  const app = createApp({
+    env,
+    warmCatalogOnStart,
+    mailTransporter: formsStartup.transporter,
+    formsDiagnostic: formsStartup.diagnostic,
+  });
+  const server = listen(app, port, () => {
+    logger.info('startup.listening', { port });
+  });
+
+  return { app, server };
+}
+
 if (isMain) {
   try {
-    const startup = validateStartupEnv();
-    logFormsStartupState(startup.forms);
+    await startServer();
   } catch (error) {
     logger.error('startup.env_invalid', { err: error });
     process.exit(1);
   }
-
-  const app = createApp({ warmCatalogOnStart: true });
-  app.listen(PORT, () => {
-    logger.info('startup.listening', { port: PORT });
-  });
 }

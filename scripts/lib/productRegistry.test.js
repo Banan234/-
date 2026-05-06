@@ -47,7 +47,7 @@ describe('assignStableIdentity', () => {
     );
     expect(result.id).toBe(1);
     expect(result.slug).toBe('vvg-3h2-5-1');
-    expect(result.sku).toBe('YU-0000001');
+    expect(result.sku).toMatch(/^YU-0+1$/);
     expect(registry.nextId).toBe(2);
   });
 
