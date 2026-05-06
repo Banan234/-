@@ -7,7 +7,7 @@ export const MESSAGE_DICTIONARIES = Object.freeze({
         expectedJsonContentType: 'Ожидается Content-Type: application/json',
         payloadTooLarge: 'Слишком большой запрос',
         quoteRateLimited:
-          'Слишком много заявок. Попробуйте через час или позвоните нам.',
+          'Слишком много заявок. Попробуйте позже или свяжитесь с нами по телефону или email.',
         catalogLoadFailed: 'Не удалось загрузить каталог',
         productsLoadFailed: 'Не удалось загрузить позиции',
         suggestionsLoadFailed: 'Не удалось загрузить подсказки',

@@ -63,28 +63,18 @@ export default function ProductPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setQuantity(1);
-    setRelatedProducts([]);
 
     if (initialProduct) {
+      setQuantity(1);
+      setRelatedProducts([]);
       setProduct(initialProduct);
       setIsLoading(false);
       setError('');
-
-      fetchRelatedProducts(slug, 6, controller.signal)
-        .then(setRelatedProducts)
-        .catch((requestError) => {
-          if (requestError.name === 'AbortError') return;
-          captureException(requestError, {
-            source: 'ProductPage.loadRelatedProducts',
-            slug: typeof slug === 'string' ? slug : undefined,
-          });
-          setRelatedProducts([]);
-        });
-
       return () => controller.abort();
     }
 
+    setQuantity(1);
+    setRelatedProducts([]);
     setProduct(null);
 
     async function load() {

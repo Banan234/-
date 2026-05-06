@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ProductCard from '../ui/ProductCard';
 import { formatVoltage } from '../../lib/catalogFilters';
 import {
@@ -53,6 +53,7 @@ export default function ProductListingView({
   scopeKey,
   pagination = null,
   filterOptions: serverFilterOptions = null,
+  idPrefix = 'catalog',
 }) {
   const { showAppType = false, showSPE = false } = extraFilters;
   const {
@@ -85,7 +86,7 @@ export default function ProductListingView({
   const [localPage, setLocalPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const isServerPaged = Boolean(pagination);
-  const filterPanelBodyId = `${useId().replace(/:/g, '')}-catalog-filter-panel-body`;
+  const filterPanelBodyId = `${idPrefix}-filter-panel-body`;
 
   useEffect(() => {
     setSearchInput(search);

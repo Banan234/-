@@ -50,6 +50,12 @@ const DEFAULT_SMTP_GREETING_TIMEOUT_MS = 10_000;
 const DEFAULT_SMTP_SOCKET_TIMEOUT_MS = 20_000;
 const DEFAULT_SMTP_SEND_RETRIES = 1;
 const DEFAULT_SMTP_RETRY_DELAY_MS = 750;
+const QUOTE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const LEAD_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const BOT_FORM_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const QUOTE_RATE_LIMIT = 12;
+const LEAD_RATE_LIMIT = 30;
+const BOT_FORM_RATE_LIMIT = 5;
 const MAX_LEAD_NAME_LENGTH = 120;
 const MAX_LEAD_COMMENT_LENGTH = 1000;
 const MAX_LEAD_SOURCE_LENGTH = 160;
@@ -132,6 +138,10 @@ function getBotSubmissionSignal(req) {
   if (!hasBrowserLikeHeaders(req)) return 'missing_headers';
   if (hasSuspiciousSubmitTiming(req.body)) return 'fast_submit';
   return null;
+}
+
+function isBotSubmission(req) {
+  return Boolean(getBotSubmissionSignal(req));
 }
 
 function escapeHtml(value) {
@@ -280,10 +290,7 @@ function withFormsSmtpStatus(diagnostic, { smtpVerified = null } = {}) {
 export function validateFormsEnv(env = process.env) {
   const diagnostic = getFormsDiagnostic(env);
   if (!diagnostic.formsEnabled) return diagnostic;
-  if (
-    env.NODE_ENV === 'production' &&
-    diagnostic.missing.length > 0
-  ) {
+  if (env.NODE_ENV === 'production' && diagnostic.missing.length > 0) {
     throw new Error(
       `SMTP не настроен: задайте ${diagnostic.missing.join(', ')} или FORMS_ENABLED=false`
     );
@@ -680,6 +687,9 @@ function createQuoteItemsHtml(items) {
 // влиять друг на друга. На проде вызывается ровно один раз из main-блока.
 export function createApp({
   rateLimitOptions,
+  quoteRateLimitOptions,
+  leadRateLimitOptions,
+  botRateLimitOptions,
   env = process.env,
   trustProxy = createTrustedProxyFn(),
   catalogStore = createCatalogStore(),
@@ -759,19 +769,41 @@ export function createApp({
       });
   }
 
-  // 3 заявки/час с одного IP. B2B-снабженец редко шлёт КП чаще; для абуза
-  // (массовая рассылка через нашу SMTP, перебор email replyTo) этот лимит уже
-  // дорог. Если реальный клиент упёрся — попросит менеджера по телефону.
-  const quoteRateLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    limit: 3,
+  // Формы имеют разную "цену": короткая заявка часто используется из модалок
+  // и hero-блока, а полноценное КП тяжелее для менеджера. Лимиты раздельные и
+  // достаточно мягкие для офисов за корпоративным NAT.
+  const formRateLimitMessage = {
+    ok: false,
+    message: messages.errors.api.quoteRateLimited,
+  };
+  const sharedFormRateLimitOptions = {
     standardHeaders: 'draft-7',
     legacyHeaders: false,
-    message: {
-      ok: false,
-      message: messages.errors.api.quoteRateLimited,
-    },
     ...rateLimitOptions,
+  };
+  const botFormRateLimiter = rateLimit({
+    windowMs: BOT_FORM_RATE_LIMIT_WINDOW_MS,
+    limit: BOT_FORM_RATE_LIMIT,
+    message: formRateLimitMessage,
+    skip: (req) => !isBotSubmission(req),
+    ...sharedFormRateLimitOptions,
+    ...botRateLimitOptions,
+  });
+  const quoteRateLimiter = rateLimit({
+    windowMs: QUOTE_RATE_LIMIT_WINDOW_MS,
+    limit: QUOTE_RATE_LIMIT,
+    message: formRateLimitMessage,
+    skip: isBotSubmission,
+    ...sharedFormRateLimitOptions,
+    ...quoteRateLimitOptions,
+  });
+  const leadRateLimiter = rateLimit({
+    windowMs: LEAD_RATE_LIMIT_WINDOW_MS,
+    limit: LEAD_RATE_LIMIT,
+    message: formRateLimitMessage,
+    skip: isBotSubmission,
+    ...sharedFormRateLimitOptions,
+    ...leadRateLimitOptions,
   });
 
   // CORS-allowlist. В проде фронт и API на одном домене — CORS не нужен;
@@ -898,7 +930,10 @@ export function createApp({
         search: req.query.search,
         catalogItems: allItems,
       });
-      const filteredItems = applyCatalogFiltersAndSort(searchedItems, req.query);
+      const filteredItems = applyCatalogFiltersAndSort(
+        searchedItems,
+        req.query
+      );
       const total = filteredItems.length;
 
       let responseItems;
@@ -1110,6 +1145,7 @@ export function createApp({
   app.post(
     '/api/quote',
     requireJsonContentType,
+    botFormRateLimiter,
     quoteRateLimiter,
     async (req, res) => {
       const formResponseStartedAt = Date.now();
@@ -1231,7 +1267,8 @@ export function createApp({
   app.post(
     '/api/lead-request',
     requireJsonContentType,
-    quoteRateLimiter,
+    botFormRateLimiter,
+    leadRateLimiter,
     async (req, res) => {
       const formResponseStartedAt = Date.now();
       const formResponseDelayMs = pickFormResponseDelayMs(

@@ -6,6 +6,14 @@ import {
   getStaticPageJsonLdId,
 } from '../lib/staticPageJsonLd';
 import { STATIC_PAGE_SEO } from '../lib/staticSeo';
+import {
+  SITE_ADDRESS_DISPLAY,
+  SITE_MANUFACTURERS,
+  SITE_PUBLIC_DOCUMENTS,
+  SITE_REQUEST_DOCUMENTS,
+  SITE_REQUISITES,
+  SITE_WORKING_HOURS_DISPLAY,
+} from '../lib/siteConfig';
 import '../styles/pages/content.css';
 
 const ABOUT_JSON_LD_ID = getStaticPageJsonLdId('/about');
@@ -25,10 +33,10 @@ export default function AboutPage() {
         <Container>
           <h1 className="page-title">О компании</h1>
           <p className="page-subtitle">
-            ООО «ЮжУралЭлектроКабель» — электротехническая компания с 16-летним
-            опытом работы на рынке кабельно-проводниковой продукции. Мы
-            поставляем кабель для строительных, монтажных и промышленных
-            организаций по Челябинску, Уралу и другим регионам России.
+            ООО «ЮжУралЭлектроКабель» — электротехническая компания для
+            B2B-поставок кабельно-проводниковой продукции. Мы поставляем кабель
+            для строительных, монтажных и промышленных организаций по
+            Челябинску, Уралу и другим регионам России.
           </p>
           <p className="content-lead">
             Основная задача компании — быстро закрывать потребность снабжения в
@@ -39,8 +47,8 @@ export default function AboutPage() {
 
           <div className="about-facts">
             {[
-              { num: '16 лет', label: 'на рынке' },
-              { num: '5 000+', label: 'позиций в наличии' },
+              { num: 'ИНН', label: SITE_REQUISITES.taxId },
+              { num: 'ОГРН', label: SITE_REQUISITES.registrationNumber },
               { num: 'от 1 дня', label: 'срок отгрузки' },
               { num: 'НДС', label: 'работаем по договору' },
             ].map(({ num, label }) => (
@@ -105,12 +113,55 @@ export default function AboutPage() {
           <div className="content-columns">
             <div>
               <h2 className="section-title section-title--left">
+                Юридическая и операционная проверка
+              </h2>
+              <p className="content-lead">
+                До заявки можно проверить реквизиты, адрес, режим работы,
+                типовой договор и прайс. Это базовые данные, которые обычно
+                нужны закупке, бухгалтерии и службе безопасности.
+              </p>
+            </div>
+
+            <div className="proof-panel">
+              <dl className="proof-details">
+                <div>
+                  <dt>Организация</dt>
+                  <dd>{SITE_REQUISITES.fullLegalName}</dd>
+                </div>
+                <div>
+                  <dt>ИНН / ОГРН</dt>
+                  <dd>
+                    {SITE_REQUISITES.taxId} /{' '}
+                    {SITE_REQUISITES.registrationNumber}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Адрес</dt>
+                  <dd>{SITE_ADDRESS_DISPLAY}</dd>
+                </div>
+                <div>
+                  <dt>Режим</dt>
+                  <dd>{SITE_WORKING_HOURS_DISPLAY}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      <section className="section section--soft">
+        <Container>
+          <div className="content-columns">
+            <div>
+              <h2 className="section-title section-title--left">
                 Документы и качество
               </h2>
               <p className="content-lead">
                 По запросу подготавливаем сертификаты соответствия, документы
                 пожарной безопасности и паспортные данные по конкретной марке.
-                Для регулярных поставок фиксируем условия в договоре.
+                Для регулярных поставок фиксируем условия в договоре. В прайсе
+                встречаются позиции производителей{' '}
+                {SITE_MANUFACTURERS.slice(0, 6).join(', ')} и других брендов.
               </p>
             </div>
 
@@ -122,6 +173,23 @@ export default function AboutPage() {
               <li>Сертификаты по маркам кабеля и требованиям объекта.</li>
               <li>Прайс-лист и реквизиты в открытом доступе для проверки.</li>
             </ul>
+          </div>
+
+          <div className="proof-documents">
+            {SITE_PUBLIC_DOCUMENTS.map((doc) => (
+              <a key={doc.href} href={doc.href} className="proof-document">
+                <span className="proof-document__type">{doc.type}</span>
+                <span>
+                  <strong>{doc.title}</strong>
+                  <small>{doc.description}</small>
+                </span>
+              </a>
+            ))}
+          </div>
+
+          <div className="info-note">
+            По запросу предоставляем:{' '}
+            {SITE_REQUEST_DOCUMENTS.slice(0, 4).join('; ')}.
           </div>
         </Container>
       </section>

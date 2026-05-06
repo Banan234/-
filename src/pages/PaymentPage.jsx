@@ -1,7 +1,12 @@
 import Container from '../components/ui/Container';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { useSEO } from '../hooks/useSEO';
-import { SITE_PHONE, SITE_PHONE_DISPLAY } from '../lib/siteConfig';
+import {
+  SITE_PHONE,
+  SITE_PHONE_DISPLAY,
+  SITE_PUBLIC_DOCUMENTS,
+  SITE_REQUISITES,
+} from '../lib/siteConfig';
 import {
   buildStaticPageJsonLd,
   getStaticPageJsonLdId,
@@ -89,6 +94,44 @@ export default function PaymentPage() {
             <li>После согласования выставляем счёт на оплату.</li>
             <li>Комплектуем заказ и готовим документы к отгрузке.</li>
           </ol>
+        </div>
+
+        <div className="content-columns content-columns--spaced">
+          <div>
+            <h2 className="section-title section-title--left">
+              Проверка перед оплатой
+            </h2>
+            <p className="content-lead">
+              Счёт выставляем от {SITE_REQUISITES.fullLegalName}. Реквизиты,
+              типовой договор и прайс доступны до заявки, чтобы бухгалтерия
+              могла проверить данные заранее.
+            </p>
+          </div>
+
+          <div className="proof-panel">
+            <dl className="proof-details">
+              <div>
+                <dt>ИНН</dt>
+                <dd>{SITE_REQUISITES.taxId}</dd>
+              </div>
+              <div>
+                <dt>ОГРН</dt>
+                <dd>{SITE_REQUISITES.registrationNumber}</dd>
+              </div>
+            </dl>
+
+            <div className="proof-documents proof-documents--compact">
+              {SITE_PUBLIC_DOCUMENTS.map((doc) => (
+                <a key={doc.href} href={doc.href} className="proof-document">
+                  <span className="proof-document__type">{doc.type}</span>
+                  <span>
+                    <strong>{doc.title}</strong>
+                    <small>{doc.description}</small>
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="info-note">

@@ -459,6 +459,7 @@ export default function MainLayout() {
           submitLabel={leadModalOptions.submitLabel || 'Отправить заявку'}
           defaultComment={leadModalOptions.comment || ''}
           source={leadModalOptions.source || 'Короткая форма'}
+          idPrefix="modal-lead"
         />
       </Modal>
 
@@ -476,6 +477,7 @@ export default function MainLayout() {
             }
             description={quoteModalOptions.description}
             itemsOverride={quoteModalOptions.items || null}
+            idPrefix="modal-quote"
           />
         </Suspense>
       </Modal>

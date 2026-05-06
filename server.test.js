@@ -1317,6 +1317,141 @@ describe('POST /api/quote', () => {
     expect(sendMailMock).not.toHaveBeenCalled();
   });
 
+  it('429 предлагает телефон или email', async () => {
+    const mailTransporter = { sendMail: vi.fn().mockResolvedValue({}) };
+    const app = createTestApp({
+      mailTransporter,
+      quoteRateLimitOptions: { limit: 1 },
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/quote', validPayload)).status
+      ).toBe(200);
+
+      const res = await postJsonTo(localBaseUrl, '/api/quote', validPayload);
+      const data = await res.json();
+
+      expect(res.status).toBe(429);
+      expect(data).toEqual({
+        ok: false,
+        message:
+          'Слишком много заявок. Попробуйте позже или свяжитесь с нами по телефону или email.',
+      });
+    });
+  });
+
+  it('короткая заявка и полноценное КП используют независимые лимиты', async () => {
+    const mailTransporter = { sendMail: vi.fn().mockResolvedValue({}) };
+    const app = createTestApp({
+      mailTransporter,
+      quoteRateLimitOptions: { limit: 1 },
+      leadRateLimitOptions: { limit: 1 },
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/quote', validPayload)).status
+      ).toBe(200);
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/quote', validPayload)).status
+      ).toBe(429);
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/lead-request', validLeadPayload))
+          .status
+      ).toBe(200);
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/lead-request', validLeadPayload))
+          .status
+      ).toBe(429);
+    });
+  });
+
+  it('офисный NAT-сценарий не режется после трёх КП за час', async () => {
+    const mailTransporter = { sendMail: vi.fn().mockResolvedValue({}) };
+    const app = createTestApp({
+      rateLimitOptions: null,
+      mailTransporter,
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      for (let index = 0; index < 4; index += 1) {
+        const res = await postJsonTo(localBaseUrl, '/api/quote', validPayload);
+        expect(res.status).toBe(200);
+      }
+    });
+
+    expect(mailTransporter.sendMail).toHaveBeenCalledTimes(4);
+  });
+
+  it('honeypot и быстрый submit учитываются отдельно от нормального лимита КП', async () => {
+    const mailTransporter = { sendMail: vi.fn().mockResolvedValue({}) };
+    const app = createTestApp({
+      mailTransporter,
+      quoteRateLimitOptions: { limit: 1 },
+      botRateLimitOptions: { limit: 10 },
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      expect(
+        (
+          await postJsonTo(localBaseUrl, '/api/quote', {
+            ...validPayload,
+            company_website: 'https://spam.example',
+          })
+        ).status
+      ).toBe(200);
+      expect(
+        (
+          await postJsonTo(localBaseUrl, '/api/quote', {
+            ...validPayload,
+            submit_at: validPayload.rendered_at + 500,
+          })
+        ).status
+      ).toBe(200);
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/quote', validPayload)).status
+      ).toBe(200);
+      expect(
+        (await postJsonTo(localBaseUrl, '/api/quote', validPayload)).status
+      ).toBe(429);
+    });
+
+    expect(mailTransporter.sendMail).toHaveBeenCalledTimes(1);
+  });
+
+  it('повторяющиеся bot-сигналы ограничиваются отдельным лимитом', async () => {
+    const mailTransporter = { sendMail: vi.fn().mockResolvedValue({}) };
+    const app = createTestApp({
+      mailTransporter,
+      quoteRateLimitOptions: { limit: 100 },
+      botRateLimitOptions: { limit: 2 },
+      formResponseDelayRange: { min: 0, max: 0 },
+    });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      for (let index = 0; index < 2; index += 1) {
+        const res = await postJsonTo(localBaseUrl, '/api/quote', {
+          ...validPayload,
+          company_website: `https://spam-${index}.example`,
+        });
+        expect(res.status).toBe(200);
+      }
+
+      const res = await postJsonTo(localBaseUrl, '/api/quote', {
+        ...validPayload,
+        company_website: 'https://spam-limit.example',
+      });
+      expect(res.status).toBe(429);
+    });
+
+    expect(mailTransporter.sendMail).not.toHaveBeenCalled();
+  });
+
   it('415 при отсутствии Content-Type: application/json', async () => {
     const res = await fetch(`${baseUrl}/api/quote`, {
       method: 'POST',

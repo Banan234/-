@@ -90,6 +90,8 @@ export const SITE_ADDRESS = {
 };
 export const SITE_ADDRESS_DISPLAY = `г. ${SITE_ADDRESS.addressLocality}, ${SITE_ADDRESS.streetAddress}`;
 export const SITE_CITY_DISPLAY = `г. ${SITE_ADDRESS.addressLocality}`;
+export const SITE_MAP_URL = `https://yandex.ru/maps/?text=${encodeURIComponent(SITE_ADDRESS_DISPLAY)}`;
+export const SITE_MAP_EMBED_URL = `https://yandex.ru/map-widget/v1/?text=${encodeURIComponent(SITE_ADDRESS_DISPLAY)}&z=16`;
 
 // Часы работы — формат schema.org openingHours: «Пн–Пт 09:00–18:00».
 export const SITE_WORKING_HOURS_DISPLAY = 'Пн–Пт 09:00–18:00';
@@ -110,6 +112,51 @@ export const SITE_REQUISITES = {
   taxId: SITE_TAX_ID,
   registrationNumber: SITE_REGISTRATION_NUMBER,
 };
+
+export const SITE_QUOTE_RESPONSE_DISPLAY = 'в течение рабочего дня';
+
+export const SITE_PUBLIC_DOCUMENTS = [
+  {
+    title: 'Прайс-лист',
+    description: 'Excel-файл с номенклатурой и ориентиром по ценам.',
+    href: '/price.xls',
+    type: 'XLS',
+  },
+  {
+    title: 'Типовой договор поставки',
+    description: 'PDF для предварительной проверки условий закупки.',
+    href: '/documents/supply-contract.pdf',
+    type: 'PDF',
+  },
+  {
+    title: 'Реквизиты компании',
+    description: 'PDF с юридическими данными для бухгалтерии и проверки.',
+    href: '/documents/company-details.pdf',
+    type: 'PDF',
+  },
+];
+
+export const SITE_REQUEST_DOCUMENTS = [
+  'сертификаты соответствия на конкретную марку кабеля',
+  'сертификаты пожарной безопасности, если они требуются для позиции',
+  'паспорта качества и протоколы испытаний производителя',
+  'фото склада, офиса или партии перед отгрузкой',
+  'копии закрывающих документов по согласованной поставке',
+];
+
+export const SITE_MANUFACTURERS = [
+  'ККЗ',
+  'КРУИНВЭЛК',
+  'ПИРОКОР',
+  'ГЕРДА',
+  'СОББИТ',
+  'МЕТРОЛАН',
+  'ТРАНСКАБ',
+  'BELDEN',
+  'HOLDCAB',
+  'Prysmian',
+  'SIEMENS',
+];
 
 export function absoluteUrl(path = '/') {
   if (!path) return SITE_URL;

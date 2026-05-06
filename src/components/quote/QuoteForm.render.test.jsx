@@ -27,9 +27,7 @@ describe('QuoteForm render flow', () => {
     render(<QuoteForm itemsOverride={[quoteItem]} />);
 
     expect(
-      screen.getByLabelText(
-        'Даю согласие на обработку персональных данных'
-      )
+      screen.getByLabelText('Даю согласие на обработку персональных данных')
     ).toBeInTheDocument();
   });
 
@@ -297,9 +295,7 @@ describe('QuoteForm render flow', () => {
     const consentInput = screen.getByLabelText(/Даю согласие/);
     const nameError = screen.getByText('Введите имя');
     const phoneError = screen.getByText('Введите телефон');
-    const consentError = screen.getByText(
-      'Нужно согласие на обработку данных'
-    );
+    const consentError = screen.getByText('Нужно согласие на обработку данных');
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(nameInput).toHaveAttribute('aria-invalid', 'true');

@@ -10,7 +10,7 @@ test('home page opens quote modal and traps focus', async ({ page }) => {
 
   const opener = page
     .locator('.home-hero')
-    .getByRole('button', { name: /Получить КП за 15 минут/ });
+    .getByRole('button', { name: /Получить КП за 15 минут|Запросить КП/ });
   await opener.click();
 
   const dialog = page.getByRole('dialog', { name: 'Диалоговое окно' });

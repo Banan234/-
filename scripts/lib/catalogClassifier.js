@@ -93,12 +93,21 @@ categoryKeywords.sort((a, b) => b.keyword.length - a.keyword.length);
 
 const brandPrefixes = [...brandMapRaw]
   .filter((b) => b.brand && b.section && b.category)
-  .map((b) => ({ ...b, normalizedBrand: normalize(b.brand) }))
+  .map((b) => ({
+    ...b,
+    normalizedBrand: normalize(b.brand),
+    compactBrand: compactForPrefix(b.brand),
+  }))
   .sort((a, b) => b.normalizedBrand.length - a.normalizedBrand.length);
 
 // Производители — только для извлечения названия, не влияют на категорию
 const manufacturerPrefixes = [...manufacturersRaw]
-  .map((m) => ({ name: m, normalized: normalize(m) }))
+  .map((m) => ({
+    name: m,
+    normalized: normalize(m),
+    compact: compactForPrefix(m),
+    tokenPattern: createManufacturerTokenPattern(m),
+  }))
   .sort((a, b) => b.normalized.length - a.normalized.length);
 
 // ---------------------------------------------------------------------------
@@ -158,15 +167,10 @@ export function classifyProduct(product) {
   let manufacturer = product.manufacturer ?? null;
   let effectiveMarkFamily = markFamily;
   if (!manufacturer) {
-    const familyNormForMfr = normalize(markFamily);
-    for (const mfr of manufacturerPrefixes) {
-      if (familyNormForMfr.startsWith(mfr.normalized)) {
-        manufacturer = mfr.name;
-        effectiveMarkFamily = markFamily
-          .slice(mfr.name.length)
-          .replace(/^[-\s]+/, '');
-        break;
-      }
+    const detected = detectManufacturer(product);
+    if (detected) {
+      manufacturer = detected.name;
+      effectiveMarkFamily = detected.markFamily;
     }
   }
 
@@ -189,7 +193,7 @@ export function classifyProduct(product) {
           categorySlug: rule.catalogCategorySlug,
           type: rule.type,
           applicationType: rule.applicationType ?? null,
-          brand: manufacturer,
+          brand: rule.manufacturer ?? manufacturer,
           source: 'rule',
           match: pattern.raw,
         });
@@ -227,7 +231,13 @@ export function classifyProduct(product) {
 
     // --- 4. Стриппинг брендового префикса ---
     for (const brandEntry of brandPrefixes) {
-      if (!familyNorm.startsWith(brandEntry.normalizedBrand)) continue;
+      const familyCompact = compactForPrefix(familyNorm);
+      if (
+        !familyNorm.startsWith(brandEntry.normalizedBrand) &&
+        !familyCompact.startsWith(brandEntry.compactBrand)
+      ) {
+        continue;
+      }
 
       const detectedBrand = manufacturer ?? brandEntry.brand;
 
@@ -319,6 +329,53 @@ function findByKeyword(value, predicate, brand = null) {
   return null;
 }
 
+function detectManufacturer(product) {
+  const markFamily = product.markFamily ?? product.mark ?? '';
+  const familyNormForMfr = normalize(markFamily);
+  const familyCompact = compactForPrefix(markFamily);
+
+  for (const mfr of manufacturerPrefixes) {
+    if (
+      familyNormForMfr.startsWith(mfr.normalized) ||
+      familyCompact.startsWith(mfr.compact)
+    ) {
+      return {
+        name: mfr.name,
+        markFamily: stripManufacturerFromStart(markFamily, mfr),
+      };
+    }
+  }
+
+  const searchable = normalize(
+    [product.name, product.fullName, product.mark, product.markFamily]
+      .filter(Boolean)
+      .join(' ')
+  );
+
+  for (const mfr of manufacturerPrefixes) {
+    if (mfr.tokenPattern.test(searchable)) {
+      return {
+        name: mfr.name,
+        markFamily,
+      };
+    }
+  }
+
+  return null;
+}
+
+function stripManufacturerFromStart(value, mfr) {
+  const source = String(value ?? '');
+  if (!source) return source;
+
+  const normalized = normalize(source);
+  if (normalized.startsWith(mfr.normalized)) {
+    return source.slice(mfr.name.length).replace(/^[-\s]+/, '');
+  }
+
+  return source.replace(/^[^-_\s]+[-\s]*/, '');
+}
+
 // Разделы, относящиеся к кабельной продукции. Всё остальное (электрооборудование,
 // кабельная арматура, расходники, прочие товары) схлопывается в единую категорию
 // «Некабельная продукция» — по требованию бизнеса её не разбиваем по типам.
@@ -390,6 +447,19 @@ function normalize(value) {
       .replace(/\s+/g, ' ')
       .trim()
   );
+}
+
+function compactForPrefix(value) {
+  return normalize(value).replace(/[^a-zа-яё0-9]+/giu, '');
+}
+
+function createManufacturerTokenPattern(value) {
+  const escaped = escapeRegExp(normalize(value));
+  return new RegExp(`(^|[^a-zа-яё0-9])${escaped}([^a-zа-яё0-9]|$)`, 'iu');
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function tokenizeMark(mark) {

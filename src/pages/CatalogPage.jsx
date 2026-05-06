@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Container from '../components/ui/Container';
 import ProductListingView from '../components/catalog/ProductListingView';
@@ -39,19 +39,6 @@ for (const section of catalogCategoriesData.sections) {
 function getPositiveQueryNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : fallback;
-}
-
-function scheduleCatalogRevalidate(callback) {
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.requestIdleCallback === 'function'
-  ) {
-    const idleId = window.requestIdleCallback(callback, { timeout: 3000 });
-    return () => window.cancelIdleCallback?.(idleId);
-  }
-
-  const timeoutId = setTimeout(callback, 1200);
-  return () => clearTimeout(timeoutId);
 }
 
 export function doesCatalogPrerenderDataMatchQuery({
@@ -131,6 +118,7 @@ export default function CatalogPage() {
     () => !initialCatalogPrerenderData
   );
   const [error, setError] = useState('');
+  const didUseInitialPrerenderDataRef = useRef(hasMatchingPrerenderData);
 
   useEffect(() => {
     if (isCategoryRoute && !routeCategory) {
@@ -177,21 +165,20 @@ export default function CatalogPage() {
     }
 
     if (hasMatchingPrerenderData) {
+      if (didUseInitialPrerenderDataRef.current) {
+        return () => controller.abort();
+      }
+
       setProducts(catalogPrerenderData.items || []);
       setCatalogSections(catalogPrerenderData.catalogSections || []);
       setProductsMeta(catalogPrerenderData.meta || {});
       setIsLoading(false);
       setError('');
-
-      const cancelRevalidate = scheduleCatalogRevalidate(() =>
-        loadProducts({ showLoading: false, showError: false })
-      );
-      return () => {
-        cancelRevalidate();
-        controller.abort();
-      };
+      didUseInitialPrerenderDataRef.current = true;
+      return () => controller.abort();
     }
 
+    didUseInitialPrerenderDataRef.current = false;
     loadProducts();
 
     return () => controller.abort();

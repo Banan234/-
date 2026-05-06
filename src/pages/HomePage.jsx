@@ -10,16 +10,23 @@ import { useJsonLd } from '../hooks/useJsonLd';
 import { usePrerenderData } from '../lib/prerenderData';
 import { messages } from '../../shared/messages.js';
 import {
+  SITE_ADDRESS_DISPLAY,
+  SITE_MANUFACTURERS,
   SITE_NAME,
+  SITE_PUBLIC_DOCUMENTS,
+  SITE_QUOTE_RESPONSE_DISPLAY,
+  SITE_REQUEST_DOCUMENTS,
+  SITE_REQUISITES,
   SITE_URL,
+  SITE_WORKING_HOURS_DISPLAY,
   buildOrganizationJsonLd,
 } from '../lib/siteConfig';
 import '../styles/sections/home-critical.css';
 
 const heroBenefits = [
-  'Более 5 000 позиций в наличии',
+  'Прайс-лист XLS в открытом доступе',
   'Отгрузка от 1 дня',
-  '16 лет на рынке',
+  'ИНН и ОГРН на сайте',
   'Работаем с НДС и по договору',
 ];
 
@@ -49,35 +56,14 @@ const workflowSteps = [
   },
   {
     number: '02',
-    title: 'КП за 30 мин',
-    text: 'Проверяем наличие, подбираем позиции и отправляем коммерческое предложение.',
+    title: 'КП в рабочий день',
+    text: 'Проверяем наличие, подбираем позиции и отправляем коммерческое предложение без обещаний вслепую.',
   },
   {
     number: '03',
     title: 'Отгружаем со склада',
     text: 'Комплектуем заказ и отгружаем со склада.',
     featured: true,
-  },
-];
-
-const procurementDocuments = [
-  {
-    title: 'Скачать прайс-лист',
-    meta: 'Excel',
-    href: '/price.xls',
-    type: 'XLS',
-  },
-  {
-    title: 'Типовой договор поставки',
-    meta: 'PDF',
-    href: '/documents/supply-contract.pdf',
-    type: 'PDF',
-  },
-  {
-    title: 'Реквизиты',
-    meta: 'PDF',
-    href: '/documents/company-details.pdf',
-    type: 'PDF',
   },
 ];
 
@@ -162,8 +148,7 @@ const WEBSITE_JSON_LD = {
 export default function HomePage() {
   useSEO({
     title: 'Кабель оптом в Челябинске',
-    description:
-      'Работаем с юрлицами. Подберём кабель под ваш объект и подготовим коммерческое предложение в течение 30 минут.',
+    description: `Работаем с юрлицами. Подберём кабель под ваш объект и подготовим коммерческое предложение ${SITE_QUOTE_RESPONSE_DISPLAY}.`,
   });
 
   useJsonLd('home-organization-json-ld', ORGANIZATION_JSON_LD);
@@ -188,11 +173,13 @@ export default function HomePage() {
   useEffect(() => {
     const controller = new AbortController();
 
+    if (hasInitialFeaturedProducts) {
+      return () => controller.abort();
+    }
+
     async function loadProducts() {
       try {
-        if (!hasInitialFeaturedProducts) {
-          setIsLoading(true);
-        }
+        setIsLoading(true);
         setLoadError('');
         const items = await fetchFeaturedProducts(10, controller.signal);
         setProducts(items);
@@ -246,7 +233,7 @@ export default function HomePage() {
               alt=""
               width="1280"
               height="853"
-              fetchPriority="high"
+              fetchpriority="high"
               loading="eager"
               decoding="async"
             />
@@ -261,8 +248,10 @@ export default function HomePage() {
                 <span className="home-hero__subtitle-accent">1 дня</span> ·
                 Поставки по всей России
                 <br />
-                Рассчитаем КП за{' '}
-                <span className="home-hero__subtitle-accent">15–30 минут</span>
+                КП готовим{' '}
+                <span className="home-hero__subtitle-accent">
+                  {SITE_QUOTE_RESPONSE_DISPLAY}
+                </span>
               </p>
               <div className="home-hero__actions">
                 <button
@@ -270,7 +259,7 @@ export default function HomePage() {
                   className="home-hero__btn-primary"
                   onClick={openQuoteModal}
                 >
-                  Получить КП за 15 минут
+                  Запросить КП
                 </button>
               </div>
             </div>
@@ -301,7 +290,11 @@ export default function HomePage() {
         </section>
 
         <div className="home-hero-zone__form">
-          <HeroLeadForm source="Форма в герое главной" />
+          <HeroLeadForm
+            subtitle={`Ответим ${SITE_QUOTE_RESPONSE_DISPLAY}`}
+            source="Форма в герое главной"
+            idPrefix="home-lead"
+          />
         </div>
       </div>
 
@@ -326,13 +319,13 @@ export default function HomePage() {
                 </span>
               </h2>
               <p className="home-documents__lead">
-                Скачать прайс-лист (Excel) · Типовой договор поставки (PDF) ·
-                Реквизиты (PDF)
+                Открытые файлы до заявки: прайс-лист, типовой договор и
+                реквизиты компании.
               </p>
             </div>
 
             <ul className="home-documents__links">
-              {procurementDocuments.map((doc) => (
+              {SITE_PUBLIC_DOCUMENTS.map((doc) => (
                 <li key={doc.href}>
                   <a href={doc.href} download className="home-documents__link">
                     <span
@@ -346,7 +339,7 @@ export default function HomePage() {
                         {doc.title}
                       </span>
                       <span className="home-documents__link-meta">
-                        {doc.meta}
+                        {doc.description}
                       </span>
                     </span>
                     <span
@@ -359,6 +352,66 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
+          </div>
+        </Container>
+      </section>
+
+      <section className="section home-proof">
+        <Container>
+          <div className="home-proof__head">
+            <div>
+              <div className="home-proof__eyebrow">Проверка до заявки</div>
+              <h2 className="section-title section-title--left">
+                Реквизиты, адрес и условия работы открыты на сайте
+              </h2>
+            </div>
+            <p className="home-proof__lead">
+              Чтобы закупке не приходилось выяснять базовые вещи после звонка:
+              юрданные, документы и рабочий порядок можно проверить заранее.
+            </p>
+          </div>
+
+          <div className="home-proof__grid">
+            <article className="home-proof__card">
+              <h3 className="home-proof__title">Юридические данные</h3>
+              <dl className="home-proof__details">
+                <div>
+                  <dt>Организация</dt>
+                  <dd>{SITE_REQUISITES.fullLegalName}</dd>
+                </div>
+                <div>
+                  <dt>ИНН</dt>
+                  <dd>{SITE_REQUISITES.taxId}</dd>
+                </div>
+                <div>
+                  <dt>ОГРН</dt>
+                  <dd>{SITE_REQUISITES.registrationNumber}</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article className="home-proof__card">
+              <h3 className="home-proof__title">Адрес и режим</h3>
+              <dl className="home-proof__details">
+                <div>
+                  <dt>Адрес</dt>
+                  <dd>{SITE_ADDRESS_DISPLAY}</dd>
+                </div>
+                <div>
+                  <dt>Режим</dt>
+                  <dd>{SITE_WORKING_HOURS_DISPLAY}</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article className="home-proof__card">
+              <h3 className="home-proof__title">Производители в прайсе</h3>
+              <p className="home-proof__text">
+                Работаем с номенклатурой российских и зарубежных производителей:
+                {` ${SITE_MANUFACTURERS.slice(0, 7).join(', ')} `}и другими
+                позициями из прайс-листа.
+              </p>
+            </article>
           </div>
         </Container>
       </section>
@@ -377,8 +430,9 @@ export default function HomePage() {
               </h2>
             </div>
             <p className="home-quality-docs__lead">
-              УПД/ТОРГ-12, сертификаты соответствия, сертификат ПБ и протоколы
-              испытаний по запросу для любой марки из поставки.
+              Закрывающие документы передаём по отгрузке. Сертификаты, паспорта
+              качества, протоколы и фото партии предоставляем по запросу для
+              согласованной позиции.
             </p>
           </div>
 
@@ -398,6 +452,32 @@ export default function HomePage() {
         </Container>
       </section>
 
+      <section className="section section--soft home-request-docs">
+        <Container>
+          <div className="content-columns">
+            <div>
+              <div className="home-request-docs__eyebrow">
+                Что предоставляем по запросу
+              </div>
+              <h2 className="section-title section-title--left">
+                Не обещаем “всё есть”: подтверждаем документами
+              </h2>
+              <p className="content-lead">
+                Сертификаты и паспорта зависят от конкретной марки, завода и
+                партии. Поэтому отправляем их после проверки позиции, а не
+                выкладываем универсальные сканы без привязки к поставке.
+              </p>
+            </div>
+
+            <ul className="info-list">
+              {SITE_REQUEST_DOCUMENTS.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </Container>
+      </section>
+
       <section className="section section--soft home-workflow">
         <Container>
           <div className="home-workflow__intro">
@@ -408,8 +488,8 @@ export default function HomePage() {
               </h2>
             </div>
             <p className="home-workflow__lead">
-              3 шага без лишних звонков и долгих согласований: заявка, КП за 30
-              минут и отгрузка со склада.
+              3 шага: заявка, проверка наличия и цены, затем отгрузка со склада
+              после оплаты и согласования комплектации.
             </p>
           </div>
 
@@ -439,7 +519,7 @@ export default function HomePage() {
               className="home-workflow__cta"
               onClick={openQuoteModal}
             >
-              Получить КП за 30 минут
+              Запросить КП
             </button>
           </div>
         </Container>

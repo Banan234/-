@@ -2,8 +2,8 @@
 
 import '../test/renderTestSetup.js';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { act, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchProducts } from '../lib/productsApi.js';
 import { PrerenderDataProvider } from '../lib/prerenderData.jsx';
 import CatalogPage, {
@@ -48,10 +48,6 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 describe('CatalogPage', () => {
   it('оставляет общий h1 на /catalog, даже если API вернул одну секцию', async () => {
     renderCatalogPage();
@@ -66,8 +62,7 @@ describe('CatalogPage', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('не делает стартовый fetch, если prerender data совпадает с /catalog', async () => {
-    vi.useFakeTimers();
+  it('не делает fetch, если prerender data совпадает с /catalog', () => {
     const prerenderData = {
       catalog: {
         path: '/catalog',
@@ -94,12 +89,6 @@ describe('CatalogPage', () => {
 
     expect(fetchProducts).not.toHaveBeenCalled();
     expect(screen.getByText('ВВГ 3х2,5')).toBeInTheDocument();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1200);
-    });
-
-    expect(fetchProducts).toHaveBeenCalledTimes(1);
   });
 
   it('не показывает prerender-товары, если query не совпадает с /catalog', () => {

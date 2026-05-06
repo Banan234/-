@@ -7,6 +7,7 @@ import {
   SITE_NAME,
   SITE_PHONE_DISPLAY,
   SITE_PHONE_HREF,
+  SITE_QUOTE_RESPONSE_DISPLAY,
   SITE_WORKING_HOURS_DISPLAY,
 } from '../../lib/siteConfig';
 import '../../styles/layout/footer.css';
@@ -23,7 +24,7 @@ export default function SiteFooter({ onOpenQuote }) {
             </h2>
             <p className="site-footer__cta-text">
               Отправьте список нужных марок — подготовим КП с актуальными ценами
-              в течение дня.
+              {` ${SITE_QUOTE_RESPONSE_DISPLAY}.`}
             </p>
           </div>
 
@@ -33,7 +34,7 @@ export default function SiteFooter({ onOpenQuote }) {
               className="site-footer__hero-cta"
               onClick={onOpenQuote}
             >
-              Получить КП за 15 минут
+              Запросить КП
             </button>
 
             <div

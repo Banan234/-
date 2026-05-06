@@ -7,8 +7,12 @@ import {
   SITE_CITY_DISPLAY,
   SITE_EMAIL,
   SITE_EMAIL_HREF,
+  SITE_MAP_EMBED_URL,
+  SITE_MAP_URL,
   SITE_PHONE_DISPLAY,
   SITE_PHONE_HREF,
+  SITE_PUBLIC_DOCUMENTS,
+  SITE_REQUEST_DOCUMENTS,
   SITE_REQUISITES,
   SITE_WORKING_HOURS_DISPLAY,
 } from '../lib/siteConfig';
@@ -89,7 +93,7 @@ export default function ContactsPage() {
             <article className="contact-card">
               <div className="contact-card__title">Сотрудничество</div>
               <div className="contact-card__text">
-                Партнерство, оптовые условия, снабжение объектов.
+                Производители, поставщики, оптовые условия, снабжение объектов.
               </div>
               <a href={SITE_EMAIL_HREF} className="contact-card__link">
                 {SITE_EMAIL}
@@ -138,34 +142,36 @@ export default function ContactsPage() {
                     <strong>{SITE_REQUISITES.registrationNumber}</strong>
                   </div>
                 </div>
+
+                <div className="contacts-doc-links">
+                  {SITE_PUBLIC_DOCUMENTS.map((doc) => (
+                    <a
+                      key={doc.href}
+                      href={doc.href}
+                      className="contacts-doc-link"
+                    >
+                      <span>{doc.type}</span>
+                      {doc.title}
+                    </a>
+                  ))}
+                </div>
               </div>
 
               <div className="contacts-map-card">
                 <div className="contacts-map-card__title">Как нас найти</div>
-                <div className="contacts-map-placeholder">
-                  <div>
-                    <svg
-                      width="32"
-                      height="32"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="contacts-map-placeholder__icon"
-                      aria-hidden="true"
-                    >
-                      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                    <div className="contacts-map-placeholder__address">
-                      {SITE_ADDRESS_DISPLAY}
-                    </div>
-                    <div className="contacts-map-placeholder__hours">
-                      Режим работы: {SITE_WORKING_HOURS_DISPLAY}
-                    </div>
-                  </div>
+                <div className="contacts-map-frame">
+                  <iframe
+                    title={`Карта: ${SITE_ADDRESS_DISPLAY}`}
+                    src={SITE_MAP_EMBED_URL}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+                <div className="contacts-map-card__footer">
+                  <span>{SITE_ADDRESS_DISPLAY}</span>
+                  <a href={SITE_MAP_URL} target="_blank" rel="noreferrer">
+                    Открыть маршрут
+                  </a>
                 </div>
               </div>
             </div>
@@ -176,8 +182,31 @@ export default function ContactsPage() {
                 subtitle="Оставьте телефон и вопрос — ответим в рабочее время."
                 submitLabel="Отправить"
                 source="Страница контактов"
+                idPrefix="contacts-lead"
               />
             </div>
+          </div>
+        </Container>
+      </section>
+
+      <section className="section section--soft">
+        <Container>
+          <div className="content-columns">
+            <div>
+              <h2 className="section-title section-title--left">
+                Что подтвердим перед поставкой
+              </h2>
+              <p className="content-lead">
+                Сертификаты и фото не подменяем универсальными картинками:
+                отправляем документы под конкретную марку, партию или условия
+                объекта.
+              </p>
+            </div>
+            <ul className="info-list">
+              {SITE_REQUEST_DOCUMENTS.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           </div>
         </Container>
       </section>

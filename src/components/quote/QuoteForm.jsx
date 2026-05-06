@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCartStore } from '../../store/useCartStore';
 import { trackEvent } from '../../lib/analytics';
 import { expectOkApiJson } from '../../lib/apiResponse';
@@ -31,6 +31,7 @@ export default function QuoteForm({
   title = 'Запрос коммерческого предложения',
   description = 'Заполните форму, и мы подготовим предложение по текущему составу корзины.',
   itemsOverride = null,
+  idPrefix = 'quote',
 }) {
   const { items: cartItems, clearCart } = useCartStore();
   const items = itemsOverride || cartItems;
@@ -42,14 +43,13 @@ export default function QuoteForm({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
-  const fieldIdPrefix = useId().replace(/:/g, '');
   const renderedAtRef = useRef(Date.now());
   const fieldIds = {
-    name: `${fieldIdPrefix}-quote-name`,
-    phone: `${fieldIdPrefix}-quote-phone`,
-    email: `${fieldIdPrefix}-quote-email`,
-    comment: `${fieldIdPrefix}-quote-comment`,
-    consent: `${fieldIdPrefix}-quote-consent`,
+    name: `${idPrefix}-name`,
+    phone: `${idPrefix}-phone`,
+    email: `${idPrefix}-email`,
+    comment: `${idPrefix}-comment`,
+    consent: `${idPrefix}-consent`,
   };
   const errorIds = {
     name: `${fieldIds.name}-error`,
@@ -328,13 +328,9 @@ export default function QuoteForm({
                 checked={form.consent}
                 onChange={handleChange}
                 aria-invalid={errors.consent ? 'true' : undefined}
-                aria-describedby={
-                  errors.consent ? errorIds.consent : undefined
-                }
+                aria-describedby={errors.consent ? errorIds.consent : undefined}
               />
-              <span>
-                Даю согласие на обработку персональных данных
-              </span>
+              <span>Даю согласие на обработку персональных данных</span>
             </label>
             {errors.consent ? (
               <span id={errorIds.consent} className="field-error">

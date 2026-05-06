@@ -15,7 +15,12 @@ import {
 } from './catalogQueryCore.js';
 
 export { compareProductsByPrice, getSortablePrice };
-export { normalizeSearchKey, normalizeSearchText, parseCsvNumbers, parseCsvParam };
+export {
+  normalizeSearchKey,
+  normalizeSearchText,
+  parseCsvNumbers,
+  parseCsvParam,
+};
 
 export function normalizeCatalogFilterQuery(query = {}) {
   return normalizeCatalogFilterQueryCore(query);

@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import HoneypotField from '../forms/HoneypotField';
 import { expectOkApiJson } from '../../lib/apiResponse';
 import { captureException } from '../../lib/errorTracking';
@@ -38,8 +38,8 @@ export default function HeroLeadForm({
   submitLabel = 'Получить КП',
   defaultComment = '',
   source = 'Главная страница',
+  idPrefix = 'lead',
 }) {
-  const fieldIdPrefix = useId().replace(/:/g, '');
   const [form, setForm] = useState(() => buildInitialForm(defaultComment));
   const [honeypot, setHoneypot] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,9 +49,9 @@ export default function HeroLeadForm({
   const commentRef = useRef(null);
   const renderedAtRef = useRef(Date.now());
   const fieldIds = {
-    phone: `${fieldIdPrefix}-lead-phone`,
-    comment: `${fieldIdPrefix}-lead-comment`,
-    consent: `${fieldIdPrefix}-lead-consent`,
+    phone: `${idPrefix}-phone`,
+    comment: `${idPrefix}-comment`,
+    consent: `${idPrefix}-consent`,
   };
   const errorIds = {
     phone: `${fieldIds.phone}-error`,

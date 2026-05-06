@@ -3,8 +3,11 @@ import { useJsonLd } from '../hooks/useJsonLd';
 import { useSEO } from '../hooks/useSEO';
 import {
   SITE_ADDRESS_DISPLAY,
+  SITE_MAP_URL,
   SITE_PHONE,
   SITE_PHONE_DISPLAY,
+  SITE_PUBLIC_DOCUMENTS,
+  SITE_REQUEST_DOCUMENTS,
 } from '../lib/siteConfig';
 import {
   buildStaticPageJsonLd,
@@ -45,7 +48,10 @@ export default function DeliveryPage() {
             <p>
               Со склада в Челябинске по адресу {SITE_ADDRESS_DISPLAY}. После
               подтверждения готовности заказа согласуем время приезда и порядок
-              получения документов.
+              получения документов.{' '}
+              <a href={SITE_MAP_URL} target="_blank" rel="noreferrer">
+                Открыть адрес на карте.
+              </a>
             </p>
           </article>
 
@@ -92,6 +98,35 @@ export default function DeliveryPage() {
             <li>Нужна ли доставка до объекта или достаточно терминала.</li>
             <li>Требования к упаковке, погрузке и разгрузке.</li>
             <li>Контакт получателя и комплект закрывающих документов.</li>
+          </ul>
+        </div>
+
+        <div className="content-columns content-columns--spaced">
+          <div>
+            <h2 className="section-title section-title--left">
+              Документы к отгрузке
+            </h2>
+            <p className="content-lead">
+              Заранее показываем базовые файлы, а документы качества готовим по
+              конкретной позиции и партии.
+            </p>
+            <div className="proof-documents">
+              {SITE_PUBLIC_DOCUMENTS.map((doc) => (
+                <a key={doc.href} href={doc.href} className="proof-document">
+                  <span className="proof-document__type">{doc.type}</span>
+                  <span>
+                    <strong>{doc.title}</strong>
+                    <small>{doc.description}</small>
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <ul className="info-list">
+            {SITE_REQUEST_DOCUMENTS.slice(0, 4).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
           </ul>
         </div>
 

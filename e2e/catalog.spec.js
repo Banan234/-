@@ -6,10 +6,13 @@ function escapeRegExp(value) {
 
 test.beforeEach(async ({ page }) => {
   await expect
-    .poll(async () => {
-      const response = await page.request.get('/api/products?limit=1');
-      return response.status();
-    }, { timeout: 30_000 })
+    .poll(
+      async () => {
+        const response = await page.request.get('/api/products?limit=1');
+        return response.status();
+      },
+      { timeout: 30_000 }
+    )
     .toBe(200);
 });
 

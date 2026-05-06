@@ -37,9 +37,7 @@ function parsePositiveNumber(value) {
 
 function normalizeStringList(value) {
   if (Array.isArray(value)) {
-    return value
-      .map((item) => String(item || '').trim())
-      .filter(Boolean);
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
   }
 
   return parseCsvParam(value);
