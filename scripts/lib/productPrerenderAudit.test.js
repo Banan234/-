@@ -62,6 +62,23 @@ async function writeRuntimeFixture(publicDir, slugs, htmlBySlug = {}) {
   }
 }
 
+async function writeLegacyRuntimeFixture(publicDir, slugs, htmlBySlug = {}) {
+  await mkdir(path.join(publicDir, 'product'), { recursive: true });
+  await writeFile(
+    path.join(publicDir, 'sitemap.xml'),
+    buildProductSitemap(slugs),
+    'utf8'
+  );
+
+  for (const slug of Object.keys(htmlBySlug)) {
+    await writeFile(
+      path.join(publicDir, 'product', `${slug}.html`),
+      htmlBySlug[slug],
+      'utf8'
+    );
+  }
+}
+
 afterEach(async () => {
   await Promise.all(
     tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))
@@ -141,5 +158,42 @@ describe('assertProductPrerenderCoverage', () => {
         buildLimit: 1,
       })
     ).rejects.toBeInstanceOf(ProductPrerenderCoverageError);
+  });
+
+  it('проверяет legacy sitemap.xml, если sitemap-products.xml ещё не сгенерирован', async () => {
+    const publicDir = await makeTempDir();
+    await writeLegacyRuntimeFixture(publicDir, ['legacy-product'], {
+      'legacy-product': buildProductHtml('legacy-product'),
+    });
+
+    await expect(
+      assertProductPrerenderCoverage({
+        publicDir,
+        products: [{ slug: 'legacy-product' }],
+        buildLimit: 720,
+      })
+    ).resolves.toMatchObject({
+      sitemapCount: 1,
+      htmlCount: 1,
+    });
+  });
+
+  it('не проходит молча, если sitemap не содержит product URL', async () => {
+    const publicDir = await makeTempDir();
+    await writeFile(
+      path.join(publicDir, 'sitemap.xml'),
+      '<urlset><url><loc>https://example.test/catalog</loc></url></urlset>',
+      'utf8'
+    );
+
+    await expect(
+      assertProductPrerenderCoverage({
+        publicDir,
+        products: [{ slug: 'known-product' }],
+      })
+    ).rejects.toMatchObject({
+      name: 'ProductPrerenderCoverageError',
+      details: { sitemapCount: 0 },
+    });
   });
 });

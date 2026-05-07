@@ -18,3 +18,4 @@ data/import-report.html
 data/public/
 public/redirects.json
 public/redirects.nginx.conf
+public/product/

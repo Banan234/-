@@ -34,6 +34,10 @@ function trimTrailingSlash(value) {
   return String(value || '').replace(/\/+$/, '');
 }
 
+function normalizePhoneDisplay(value) {
+  return String(value || '').replace(/(?<=\d)-(?=\d)/g, '\u2011');
+}
+
 export const SITE_URL = trimTrailingSlash(readSiteUrl());
 export const SITE_NAME = 'ЮжУралЭлектроКабель';
 export const SITE_LEGAL_NAME = readPublicConfigValue(
@@ -56,11 +60,12 @@ export const SITE_PHONE = readPublicConfigValue(
   'VITE_SITE_PHONE',
   '+79043069494'
 );
-export const SITE_PHONE_DISPLAY = readPublicConfigValue(
+const rawSitePhoneDisplay = readPublicConfigValue(
   'SITE_PHONE_DISPLAY',
   'VITE_SITE_PHONE_DISPLAY',
   '+7\u00a0904\u00a0306-94-94'
 );
+export const SITE_PHONE_DISPLAY = normalizePhoneDisplay(rawSitePhoneDisplay);
 export const SITE_PHONE_HREF = `tel:${SITE_PHONE}`;
 export const SITE_EMAIL = readPublicConfigValue(
   'SITE_EMAIL',

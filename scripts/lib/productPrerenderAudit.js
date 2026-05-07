@@ -47,10 +47,23 @@ export function extractProductSlugsFromSitemapXml(xml) {
 
 async function listProductSitemapPaths(publicDir) {
   const entries = await fs.readdir(publicDir);
-  return entries
+  const productSitemaps = entries
     .filter((entry) => PRODUCT_SITEMAP_FILE_RE.test(entry))
     .sort((a, b) => a.localeCompare(b, 'ru'))
     .map((entry) => path.join(publicDir, entry));
+
+  if (productSitemaps.length > 0) {
+    return productSitemaps;
+  }
+
+  // Older/local imports may still keep product URLs in a single sitemap.xml.
+  // Use it as a fallback so the check cannot pass with "0 URLs" while product
+  // pages are actually present in the published sitemap.
+  if (entries.includes('sitemap.xml')) {
+    return [path.join(publicDir, 'sitemap.xml')];
+  }
+
+  return [];
 }
 
 async function readSitemapProductSlugs({ publicDir, productSitemapPaths }) {
@@ -125,6 +138,17 @@ export async function assertProductPrerenderCoverage({
     publicDir,
     productSitemapPaths,
   });
+  if (
+    sitemapSlugs.length === 0 &&
+    Array.isArray(products) &&
+    products.length > 0
+  ) {
+    throw new ProductPrerenderCoverageError(
+      'Product sitemap не содержит product URL для проверки runtime product-prerender.',
+      { missing: [], bare: [], longTailSlug: null, sitemapCount: 0 }
+    );
+  }
+
   const productDir = path.join(publicDir, 'product');
   const missing = [];
   const bare = [];

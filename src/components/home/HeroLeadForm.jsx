@@ -221,6 +221,7 @@ export default function HeroLeadForm({
           </label>
           <div
             className="hero-lead-form__quick-buttons"
+            role="group"
             aria-label="Быстрые варианты комментария"
           >
             {quickCommentOptions.map((option) => {

@@ -6,6 +6,7 @@ import {
   SITE_EMAIL,
   SITE_LEGAL_FULL_NAME,
   SITE_PHONE,
+  SITE_PHONE_DISPLAY,
   SITE_REGISTRATION_NUMBER,
   SITE_TAX_ID,
   buildOrganizationJsonLd,
@@ -32,5 +33,12 @@ describe('buildOrganizationJsonLd', () => {
         }),
       ])
     );
+  });
+});
+
+describe('SITE_PHONE_DISPLAY', () => {
+  it('использует неразрывные дефисы внутри номера', () => {
+    expect(SITE_PHONE_DISPLAY).toContain('\u2011');
+    expect(SITE_PHONE_DISPLAY).not.toMatch(/(?<=\d)-(?=\d)/);
   });
 });

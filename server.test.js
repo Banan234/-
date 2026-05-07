@@ -1120,7 +1120,7 @@ describe('catalog public API rate limit', () => {
     });
   });
 
-  it('does not apply the catalog API bucket to product detail routes', async () => {
+  it('applies the catalog API bucket to product detail routes too', async () => {
     const { app } = createProductCatalogApp(productFixtures, {
       productApiRateLimitOptions: { limit: 1 },
     });
@@ -1130,7 +1130,7 @@ describe('catalog public API rate limit', () => {
 
       const detail = await fetch(`${localBaseUrl}/api/products/vvgng-ls-3x2-5`);
 
-      expect(detail.status).toBe(200);
+      expect(detail.status).toBe(429);
     });
   });
 

@@ -11,12 +11,22 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 
 const productsPath = path.join(projectRoot, 'data', 'products.json');
-const publicDir = path.resolve(
-  projectRoot,
-  process.env.PUBLIC_ARTIFACTS_DIR || 'public'
-);
+async function resolvePublicArtifactsDir() {
+  if (process.env.PUBLIC_ARTIFACTS_DIR) {
+    return path.resolve(projectRoot, process.env.PUBLIC_ARTIFACTS_DIR);
+  }
+
+  const runtimePublicDir = path.join(projectRoot, 'data', 'public');
+  try {
+    await fs.access(runtimePublicDir);
+    return runtimePublicDir;
+  } catch {
+    return path.join(projectRoot, 'public');
+  }
+}
 
 async function main() {
+  const publicDir = await resolvePublicArtifactsDir();
   const payload = JSON.parse(await fs.readFile(productsPath, 'utf8'));
   const products = extractProductsPayload(payload, { source: productsPath });
   const result = await assertProductPrerenderCoverage({

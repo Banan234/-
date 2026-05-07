@@ -19,6 +19,7 @@ import {
   loadServerRenderer,
   loadTemplate,
   minifyPrerenderHtml,
+  normalizePrerenderHtml,
   parseProductPrerenderInclude,
   parseProductPrerenderLimit,
   prerender,
@@ -205,6 +206,22 @@ describe('prerender HTML helpers', () => {
     expect(minifyPrerenderHtml('<div>\n  <span>Текст</span>\n</div>')).toBe(
       '<div><span>Текст</span></div>'
     );
+  });
+
+  it('нормализует React SSR-атрибуты в валидный HTML', () => {
+    const html = normalizePrerenderHtml(
+      '<!doctype html><form noValidate=""><input autoComplete="off" inputMode="numeric" maxLength="10"/><iframe referrerPolicy="no-referrer"></iframe></form>'
+    );
+
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('<form novalidate>');
+    expect(html).toContain('autocomplete="off"');
+    expect(html).toContain('inputmode="numeric"');
+    expect(html).toContain('maxlength="10"');
+    expect(html).toContain('referrerpolicy="no-referrer"');
+    expect(html).not.toContain('autoComplete');
+    expect(html).not.toContain('maxLength');
+    expect(html).not.toContain('noValidate');
   });
 
   it('экранирует HTML-спецсимволы в meta-тегах', () => {

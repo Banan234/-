@@ -3,6 +3,7 @@
 node_modules
 npm-debug.log
 dist
+public/product
 .git
 .gitignore
 .github

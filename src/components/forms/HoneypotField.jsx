@@ -5,17 +5,7 @@
 // Сервер при заполнении этого поля отдаёт фейковый success и не шлёт письмо.
 export default function HoneypotField({ value, onChange }) {
   return (
-    <div
-      aria-hidden="true"
-      style={{
-        position: 'absolute',
-        left: '-10000px',
-        top: 'auto',
-        width: '1px',
-        height: '1px',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="honeypot-field" aria-hidden="true">
       <label>
         Сайт компании (не заполняйте)
         <input

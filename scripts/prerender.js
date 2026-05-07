@@ -931,15 +931,25 @@ export function minifyPrerenderHtml(html) {
 export function normalizePrerenderHtml(html) {
   return String(html)
     .replace(/^<!doctype html>/i, '<!DOCTYPE html>')
-    .replace(/\s(srcSet|fetchPriority|inputMode)=/g, (_match, attr) => {
-      const normalized = {
-        srcSet: 'srcset',
-        fetchPriority: 'fetchpriority',
-        inputMode: 'inputmode',
-      }[attr];
-      return ` ${normalized}=`;
-    })
-    .replace(/\s(download|hidden|selected|disabled)=""(?=[\s>])/g, ' $1')
+    .replace(
+      /\s(srcSet|fetchPriority|inputMode|autoComplete|maxLength|referrerPolicy|noValidate)=/g,
+      (_match, attr) => {
+        const normalized = {
+          srcSet: 'srcset',
+          fetchPriority: 'fetchpriority',
+          inputMode: 'inputmode',
+          autoComplete: 'autocomplete',
+          maxLength: 'maxlength',
+          referrerPolicy: 'referrerpolicy',
+          noValidate: 'novalidate',
+        }[attr];
+        return ` ${normalized}=`;
+      }
+    )
+    .replace(
+      /\s(download|hidden|selected|disabled|novalidate)=""(?=[\s>])/g,
+      ' $1'
+    )
     .replace(/<(meta|link|img|source|input|br)([^>]*)\/>/gi, '<$1$2>');
 }
 

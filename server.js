@@ -1051,44 +1051,49 @@ export function createApp({
     }
   );
 
-  app.get('/api/products/:slug/related', async (req, res) => {
-    try {
-      applyCatalogCache(res);
+  app.get(
+    '/api/products/:slug/related',
+    productApiRateLimiter,
+    async (req, res) => {
+      try {
+        applyCatalogCache(res);
 
-      const limit = parseLimit(req.query.limit, 6, 24);
-      const product = await catalogStore.findProductBySlug(req.params.slug);
+        const limit = parseLimit(req.query.limit, 6, 24);
+        const product = await catalogStore.findProductBySlug(req.params.slug);
 
-      if (!product) {
-        return res.status(404).json({
-          ok: false,
-          message: messages.errors.api.productNotFound,
+        if (!product) {
+          return res.status(404).json({
+            ok: false,
+            message: messages.errors.api.productNotFound,
+          });
+        }
+
+        const items = await catalogStore.loadCatalogProducts();
+        const related = items
+          .filter(
+            (item) =>
+              item.id !== product.id && item.category === product.category
+          )
+          .slice(0, limit);
+
+        return res.json({
+          ok: true,
+          items: catalogStore.getCatalogProductListItems(related),
         });
+      } catch (error) {
+        logger.error('catalog.related.failed', {
+          err: error,
+          slug: req.params.slug,
+        });
+        return createErrorResponse(
+          res,
+          messages.errors.api.relatedProductsLoadFailed
+        );
       }
-
-      const items = await catalogStore.loadCatalogProducts();
-      const related = items
-        .filter(
-          (item) => item.id !== product.id && item.category === product.category
-        )
-        .slice(0, limit);
-
-      return res.json({
-        ok: true,
-        items: catalogStore.getCatalogProductListItems(related),
-      });
-    } catch (error) {
-      logger.error('catalog.related.failed', {
-        err: error,
-        slug: req.params.slug,
-      });
-      return createErrorResponse(
-        res,
-        messages.errors.api.relatedProductsLoadFailed
-      );
     }
-  });
+  );
 
-  app.get('/api/products/:slug', async (req, res) => {
+  app.get('/api/products/:slug', productApiRateLimiter, async (req, res) => {
     try {
       applyCatalogCache(res);
 

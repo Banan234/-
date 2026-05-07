@@ -75,6 +75,15 @@ select {
   border: 0;
 }
 
+.honeypot-field {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 /* LAYOUT */
 .container {
   width: min(1400px, calc(100% - 90px));
