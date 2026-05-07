@@ -7,6 +7,7 @@
     "dev": "vite",
     "server": "node server.js",
     "start": "concurrently \"npm run dev\" \"npm run server\"",
+    "up": "npm run build:prod && concurrently -k -n api,web -c cyan,green \"npm run server\" \"npm run dev -- --host 127.0.0.1 --port 5173\"",
     "import:price": "node scripts/importPrice.js",
     "import:price:remote": "node scripts/importPrice.js \"$PRICE_URL\"",
     "check:product-prerender": "node scripts/checkProductPrerender.js",
