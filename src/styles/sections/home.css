@@ -467,6 +467,137 @@
 }
 
 /* =====================
+   PROCUREMENT PROOF
+   ===================== */
+.home-proof {
+  position: relative;
+  overflow: hidden;
+  padding-top: 58px;
+  padding-bottom: 64px;
+  background:
+    linear-gradient(135deg, rgba(246, 249, 252, 0.96) 0%, #ffffff 58%),
+    #ffffff;
+  border-top: 1px solid #e3edf6;
+  border-bottom: 1px solid #e3edf6;
+}
+.home-proof::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(53, 85, 109, 0.07) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(53, 85, 109, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(90deg, #000 0%, transparent 70%);
+  opacity: 0.45;
+}
+.home-proof > .container {
+  position: relative;
+  z-index: 1;
+}
+.home-proof__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.72fr);
+  gap: 32px;
+  align-items: end;
+  margin-bottom: 28px;
+}
+.home-proof__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  background: #e8f0f7;
+  border: 1px solid #cad8e5;
+  color: #35556d;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.home-proof__lead {
+  margin: 0;
+  max-width: 560px;
+  color: #4f647b;
+  font-size: 17px;
+  line-height: 1.65;
+}
+.home-proof__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.88fr) minmax(0, 1.04fr);
+  gap: 18px;
+}
+.home-proof__card {
+  position: relative;
+  min-height: 258px;
+  padding: 26px 24px;
+  border: 1px solid #d5e2ee;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 18px 38px rgba(17, 53, 95, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.home-proof__card::after {
+  content: '';
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #eef4f8;
+  border: 1px solid #d1dfeb;
+}
+.home-proof__title {
+  margin: 0 56px 20px 0;
+  color: #0a1628;
+  font-size: 23px;
+  line-height: 1.15;
+  font-weight: 850;
+}
+.home-proof__details {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.home-proof__details div {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 16px;
+  align-items: baseline;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4edf4;
+}
+.home-proof__details div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.home-proof__details dt {
+  color: #64788e;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.home-proof__details dd {
+  margin: 0;
+  color: #102238;
+  font-size: 17px;
+  line-height: 1.45;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.home-proof__text {
+  margin: 0;
+  color: #40566d;
+  font-size: 17px;
+  line-height: 1.68;
+}
+
+/* =====================
    QUALITY DOCUMENTS
    ===================== */
 .home-quality-docs {
@@ -767,6 +898,23 @@
     align-items: start;
   }
 
+  .home-proof__head {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .home-proof__lead {
+    max-width: 760px;
+  }
+
+  .home-proof__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .home-proof__card:first-child {
+    grid-column: 1 / -1;
+  }
+
   .home-quality-docs__head {
     grid-template-columns: 1fr;
     align-items: start;
@@ -853,6 +1001,53 @@
   }
 
   .home-documents__link-title {
+    font-size: 16px;
+  }
+
+  .home-proof {
+    padding-top: 42px;
+    padding-bottom: 46px;
+  }
+
+  .home-proof__lead,
+  .home-proof__text {
+    font-size: 15px;
+  }
+
+  .home-proof__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-proof__card:first-child {
+    grid-column: auto;
+  }
+
+  .home-proof__card {
+    min-height: auto;
+    padding: 22px 18px;
+    border-radius: 18px;
+  }
+
+  .home-proof__card::after {
+    top: 18px;
+    right: 18px;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .home-proof__title {
+    margin-right: 48px;
+    margin-bottom: 18px;
+    font-size: 20px;
+  }
+
+  .home-proof__details div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .home-proof__details dd {
     font-size: 16px;
   }
 
