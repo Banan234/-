@@ -57,7 +57,11 @@ export default function ProductListingView({
   filterOptions: serverFilterOptions = null,
   idPrefix = 'catalog',
 }) {
-  const { showAppType = false, showSPE = false } = extraFilters;
+  const {
+    showAppType = false,
+    showSPE = false,
+    showPowerGroups = false,
+  } = extraFilters;
   const {
     filters,
     filtersKey: catalogFiltersKey,
@@ -65,7 +69,9 @@ export default function ProductListingView({
     updateParams,
     toggleCsvParam,
     resetFilters,
-  } = useCatalogFilters({ includeAdvancedFilters: showAppType || showSPE });
+  } = useCatalogFilters({
+    includeAdvancedFilters: showAppType || showSPE || showPowerGroups,
+  });
   const {
     search,
     priceMin,
@@ -78,6 +84,7 @@ export default function ProductListingView({
     selectedCores,
     selectedSections,
     selectedVoltages,
+    selectedPowerGroups,
     selectedAppTypes,
     onlySPE,
   } = filters;
@@ -170,6 +177,7 @@ export default function ProductListingView({
       selectedCores,
       selectedSections,
       selectedVoltages,
+      selectedPowerGroups: showPowerGroups ? selectedPowerGroups : [],
       selectedAppTypes: showAppType ? selectedAppTypes : [],
       onlySPE: showSPE && onlySPE,
       priceMinNumber,
@@ -182,6 +190,8 @@ export default function ProductListingView({
     selectedCores,
     selectedSections,
     selectedVoltages,
+    selectedPowerGroups,
+    showPowerGroups,
     selectedAppTypes,
     showAppType,
     showSPE,
@@ -197,7 +207,22 @@ export default function ProductListingView({
     return applyCatalogFiltersAndSort(searchedProducts, clientFilterQuery);
   }, [searchedProducts, clientFilterQuery, isServerPaged, products]);
 
-  const filterOptions = serverFilterOptions || localFilterOptions;
+  const filterOptions = useMemo(() => {
+    const source = serverFilterOptions || localFilterOptions;
+    return {
+      ...source,
+      materials: source.materials || [],
+      constructions: source.constructions || [],
+      cores: source.cores || [],
+      sections: source.sections || [],
+      voltages: source.voltages || [],
+      appTypes: source.appTypes || [],
+      powerGroups:
+        source.powerGroups?.length > 0
+          ? source.powerGroups
+          : localFilterOptions.powerGroups || [],
+    };
+  }, [localFilterOptions, serverFilterOptions]);
   const page = pagination?.page || localPage;
   const resultCount = pagination?.total ?? filteredProducts.length;
   const totalPages =
@@ -215,6 +240,7 @@ export default function ProductListingView({
     selectedCores.length > 0 ||
     selectedSections.length > 0 ||
     selectedVoltages.length > 0 ||
+    (showPowerGroups && selectedPowerGroups.length > 0) ||
     (showAppType && selectedAppTypes.length > 0) ||
     (showSPE && onlySPE) ||
     !!priceMin ||
@@ -228,6 +254,7 @@ export default function ProductListingView({
     selectedCores.length,
     selectedSections.length,
     selectedVoltages.length,
+    showPowerGroups && selectedPowerGroups.length,
     showAppType && selectedAppTypes.length,
     showSPE && onlySPE,
   ].filter(Boolean).length;
@@ -238,6 +265,7 @@ export default function ProductListingView({
     filterOptions.cores.length > 0 ||
     filterOptions.sections.length > 0 ||
     filterOptions.voltages.length > 0 ||
+    (showPowerGroups && filterOptions.powerGroups.length > 0) ||
     (showAppType && filterOptions.appTypes.length > 0) ||
     (showSPE && filterOptions.hasSPE);
 
@@ -512,6 +540,31 @@ export default function ProductListingView({
                       onClick={() => toggleCsvParam('appType', t)}
                     >
                       {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showPowerGroups && filterOptions.powerGroups.length > 0 && (
+              <div className="catalog-filter-row">
+                <span className="catalog-filter-row__label">
+                  Группа силового кабеля
+                </span>
+                <div className="catalog-filter-row__tags">
+                  {filterOptions.powerGroups.map((group) => (
+                    <button
+                      key={group}
+                      type="button"
+                      aria-pressed={selectedPowerGroups.includes(group)}
+                      className={`catalog-filter-tag${
+                        selectedPowerGroups.includes(group)
+                          ? ' catalog-filter-tag--active'
+                          : ''
+                      }`}
+                      onClick={() => toggleCsvParam('powerGroup', group)}
+                    >
+                      {group}
                     </button>
                   ))}
                 </div>

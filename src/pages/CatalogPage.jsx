@@ -1,7 +1,12 @@
 // Файл рендерит страницу каталога с фильтрами, поиском, категориями и списком товаров.
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import Container from '../components/ui/Container';
 import ProductListingView from '../components/catalog/ProductListingView';
 import { fetchProducts } from '../lib/productsApi';
@@ -15,6 +20,7 @@ import '../styles/sections/catalog.css';
 
 const CATALOG_PAGE_SIZE = 24;
 const CATEGORY_ROUTE_FILTERS = { showAppType: true, showSPE: true };
+const POWER_CABLE_CATEGORY_SLUG = 'silovoy-kabel';
 const CATALOG_PRERENDER_FILTER_KEYS = [
   'search',
   'priceMin',
@@ -24,6 +30,7 @@ const CATALOG_PRERENDER_FILTER_KEYS = [
   'cores',
   'section',
   'voltage',
+  'powerGroup',
 ];
 
 const categoryBySlug = {};
@@ -78,7 +85,11 @@ export function doesCatalogPrerenderDataMatchQuery({
 export default function CatalogPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const [catalogSearchParams] = useSearchParams();
   const isCategoryRoute = Boolean(slug);
+  const categoryParam = catalogSearchParams.get('category') || '';
+  const shouldIncludeAdvancedFilters =
+    isCategoryRoute || categoryParam === POWER_CABLE_CATEGORY_SLUG;
   const prerenderData = usePrerenderData();
   const catalogPrerenderData =
     !isCategoryRoute && prerenderData.catalog?.path === '/catalog'
@@ -87,7 +98,7 @@ export default function CatalogPage() {
   const { filters, productQueryOptions, searchQuery, updateParam } =
     useCatalogFilters({
       limit: CATALOG_PAGE_SIZE,
-      includeAdvancedFilters: isCategoryRoute,
+      includeAdvancedFilters: shouldIncludeAdvancedFilters,
     });
   const routeCategory = isCategoryRoute ? categoryBySlug[slug] : null;
   const parentCategory = isCategoryRoute
@@ -215,6 +226,16 @@ export default function CatalogPage() {
   const visibleCount =
     productsMeta.pagination?.total ?? productsMeta.total ?? products.length;
   const catalogCount = productsMeta.catalogCount ?? products.length;
+  const isPowerCableCategory =
+    activeCategoryParam === POWER_CABLE_CATEGORY_SLUG ||
+    activeCategory?.slug === POWER_CABLE_CATEGORY_SLUG;
+  const listingExtraFilters =
+    isCategoryRoute || isPowerCableCategory
+      ? {
+          ...CATEGORY_ROUTE_FILTERS,
+          showPowerGroups: isPowerCableCategory,
+        }
+      : undefined;
   const categoryQuickLinks = useMemo(() => {
     if (!isCategoryRoute || !routeCategory) return [];
 
@@ -466,9 +487,7 @@ export default function CatalogPage() {
                   isLoading={isLoading}
                   error={error}
                   scopeKey={activeCategoryParam || 'all'}
-                  extraFilters={
-                    isCategoryRoute ? CATEGORY_ROUTE_FILTERS : undefined
-                  }
+                  extraFilters={listingExtraFilters}
                   pagination={productsMeta.pagination}
                   filterOptions={productsMeta.facets}
                 />

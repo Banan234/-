@@ -5,6 +5,7 @@ import {
   getCoreVariantLabel,
   getWireConstruction,
 } from '../lib/catalogClassifiers.js';
+import { getPowerCableGroup, POWER_CABLE_GROUPS } from './powerCableGroups.js';
 
 export function normalizeSearchText(value) {
   return String(value || '')
@@ -88,6 +89,9 @@ export function normalizeCatalogFilterQueryCore(query = {}) {
     selectedAppTypes: normalizeStringList(
       query.selectedAppTypes ?? query.appType
     ),
+    selectedPowerGroups: normalizeStringList(
+      query.selectedPowerGroups ?? query.powerGroup
+    ),
     onlySPE: query.onlySPE === true || query.spe === '1',
   };
 }
@@ -126,6 +130,7 @@ export function buildCatalogFacetsCore(items) {
   const sectionSet = new Set();
   const voltageSet = new Set();
   const appTypeSet = new Set();
+  const powerGroupSet = new Set();
   let hasSPE = false;
   let minPrice = Infinity;
   let maxPrice = -Infinity;
@@ -140,6 +145,8 @@ export function buildCatalogFacetsCore(items) {
     if (product.voltage != null) voltageSet.add(product.voltage);
     if (product.catalogApplicationType)
       appTypeSet.add(product.catalogApplicationType);
+    const powerGroup = getPowerCableGroup(product);
+    if (powerGroup) powerGroupSet.add(powerGroup);
     if (product.catalogType === 'СПЭ') hasSPE = true;
 
     const price = Number(product.price);
@@ -160,6 +167,7 @@ export function buildCatalogFacetsCore(items) {
     sections: [...sectionSet].sort((a, b) => a - b),
     voltages: [...voltageSet].sort((a, b) => a - b),
     appTypes: [...appTypeSet].sort((a, b) => a.localeCompare(b, 'ru')),
+    powerGroups: POWER_CABLE_GROUPS.filter((group) => powerGroupSet.has(group)),
     hasSPE,
     minPrice: Number.isFinite(minPrice) ? minPrice : 0,
     maxPrice: Number.isFinite(maxPrice) ? maxPrice : 0,
@@ -174,6 +182,7 @@ export function applyProductFiltersCore(items, query) {
   const selectedSections = query.selectedSections || [];
   const selectedVoltages = query.selectedVoltages || [];
   const selectedAppTypes = query.selectedAppTypes || [];
+  const selectedPowerGroups = query.selectedPowerGroups || [];
   const priceMinNumber = query.priceMinNumber;
   const priceMaxNumber = query.priceMaxNumber;
 
@@ -203,6 +212,11 @@ export function applyProductFiltersCore(items, query) {
   if (selectedAppTypes.length > 0) {
     result = result.filter((item) =>
       selectedAppTypes.includes(item.catalogApplicationType)
+    );
+  }
+  if (selectedPowerGroups.length > 0) {
+    result = result.filter((item) =>
+      selectedPowerGroups.includes(getPowerCableGroup(item))
     );
   }
   if (query.onlySPE) {

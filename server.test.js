@@ -1036,6 +1036,7 @@ describe('GET /api/products', () => {
       expect(data.meta.filter).toEqual({ category: 'silovoy-kabel' });
       expect(data.meta.facets).toMatchObject({
         materials: ['алюминий'],
+        powerGroups: ['ВВГ / бронированные'],
         sections: [16],
         voltages: [1000],
         minPrice: 260,
@@ -1047,6 +1048,42 @@ describe('GET /api/products', () => {
       'silovoy-kabel',
       productFixtures
     );
+  });
+
+  it('filters power cable category by dedicated power group', async () => {
+    const xlpeItem = {
+      ...productFixtures[1],
+      id: 105,
+      sku: 'APVV-1-70',
+      slug: 'apvv-ng-ls-1x70',
+      title: 'АПвВ нг(А)LS 1х70',
+      fullName: 'Кабель АПвВ нг(А)LS 1х70 10 кВ',
+      mark: 'АПвВ нг(А)LS',
+      cores: 1,
+      crossSection: 70,
+      voltage: 10,
+      catalogType: 'СПЭ',
+      price: 500,
+      stock: 2,
+    };
+    const { app } = createProductCatalogApp([...productFixtures, xlpeItem]);
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const params = new URLSearchParams({
+        category: 'silovoy-kabel',
+        powerGroup: 'Сшитый полиэтилен (XLPE)',
+      });
+      const res = await fetch(`${localBaseUrl}/api/products?${params}`);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.ok).toBe(true);
+      expect(data.items.map((item) => item.sku)).toEqual(['APVV-1-70']);
+      expect(data.meta.facets.powerGroups).toEqual([
+        'ВВГ / бронированные',
+        'Сшитый полиэтилен (XLPE)',
+      ]);
+    });
   });
 });
 

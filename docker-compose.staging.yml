@@ -17,7 +17,8 @@ services:
     container_name: yuzhural-staging-app
     restart: unless-stopped
     env_file:
-      - .env.staging
+      - path: .env.staging
+        required: false
     environment:
       NODE_ENV: production
       PORT: 3001

@@ -15,7 +15,8 @@ services:
     container_name: yuzhural-app
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       # Прокси-цепочка nginx → app: один прыжок, доверяем X-Forwarded-* от Nginx.
       NODE_ENV: production

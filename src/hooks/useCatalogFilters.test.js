@@ -65,7 +65,7 @@ describe('catalog filter URL parsing', () => {
   it('normalizes CSV, numeric CSV and boolean filter params', () => {
     const filters = parseCatalogFilters(
       new URLSearchParams(
-        'category=kabel&search=ВВГ&priceMin=10&priceMax=nope&material=медь, алюминий&section=2.5,bad,4&voltage=0.66,1&appType=силовой&spe=1&sort=price-asc'
+        'category=kabel&search=ВВГ&priceMin=10&priceMax=nope&material=медь, алюминий&section=2.5,bad,4&voltage=0.66,1&powerGroup=ВВГ / бронированные&appType=силовой&spe=1&sort=price-asc'
       )
     );
 
@@ -80,6 +80,7 @@ describe('catalog filter URL parsing', () => {
       selectedMaterials: ['медь', 'алюминий'],
       selectedSections: [2.5, 4],
       selectedVoltages: [0.66, 1],
+      selectedPowerGroups: ['ВВГ / бронированные'],
       selectedAppTypes: ['силовой'],
       onlySPE: true,
     });
@@ -87,13 +88,14 @@ describe('catalog filter URL parsing', () => {
 
   it('builds API query options with optional advanced filters', () => {
     const params = new URLSearchParams(
-      'search=ВВГ&material=медь&appType=силовой&spe=1&page=2&category=ignored'
+      'search=ВВГ&material=медь&powerGroup=ВВГ / бронированные&appType=силовой&spe=1&page=2&category=ignored'
     );
 
     expect(buildCatalogProductQueryOptions(params, { limit: 24 })).toEqual({
       limit: 24,
       search: 'ВВГ',
       material: 'медь',
+      powerGroup: 'ВВГ / бронированные',
       page: '2',
     });
     expect(
@@ -105,6 +107,7 @@ describe('catalog filter URL parsing', () => {
       limit: 24,
       search: 'ВВГ',
       material: 'медь',
+      powerGroup: 'ВВГ / бронированные',
       appType: 'силовой',
       spe: '1',
       page: '2',

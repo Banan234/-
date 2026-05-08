@@ -16,6 +16,7 @@ const BASE_PRODUCT_QUERY_KEYS = [
   'cores',
   'section',
   'voltage',
+  'powerGroup',
   'sort',
   'page',
 ];
@@ -29,6 +30,7 @@ const RESET_FILTER_KEYS = [
   'cores',
   'section',
   'voltage',
+  'powerGroup',
   'appType',
   'spe',
   'page',
@@ -61,6 +63,7 @@ export function parseCatalogFilters(searchParams) {
     cores: searchParams.get('cores') || '',
     section: searchParams.get('section') || '',
     voltage: searchParams.get('voltage') || '',
+    powerGroup: searchParams.get('powerGroup') || '',
     appType: searchParams.get('appType') || '',
     spe: searchParams.get('spe') || '',
   });
@@ -78,6 +81,7 @@ export function parseCatalogFilters(searchParams) {
     selectedCores: normalized.selectedCores,
     selectedSections: normalized.selectedSections,
     selectedVoltages: normalized.selectedVoltages,
+    selectedPowerGroups: normalized.selectedPowerGroups,
     selectedAppTypes: normalized.selectedAppTypes,
     onlySPE: normalized.onlySPE,
   };
@@ -117,6 +121,7 @@ function createCatalogFiltersKey(filters) {
     filters.selectedCores.join(','),
     filters.selectedSections.join(','),
     filters.selectedVoltages.join(','),
+    filters.selectedPowerGroups.join(','),
     filters.selectedAppTypes.join(','),
     filters.onlySPE ? '1' : '',
   ].join('|');

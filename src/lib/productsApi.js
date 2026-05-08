@@ -20,6 +20,7 @@ export function fetchProducts(signal, options = {}) {
     'cores',
     'section',
     'voltage',
+    'powerGroup',
     'appType',
     'spe',
     'sort',

@@ -69,6 +69,34 @@ describe('classifyProduct', () => {
         catalogClassificationSource: 'rule',
       },
     ],
+    [
+      'СЭК 2х0.75',
+      {},
+      {
+        catalogCategory: 'Соединительный кабель',
+        catalogCategorySlug: 'soedinitelnyy-kabel',
+        catalogClassificationSource: 'rule',
+      },
+    ],
+    [
+      'КПЛМ 4х0.75',
+      {},
+      {
+        catalogSection: 'Специальные кабели',
+        catalogCategory: 'Бортовые провода',
+        catalogCategorySlug: 'bortovye-provoda',
+        catalogClassificationSource: 'rule',
+      },
+    ],
+    [
+      'КПВЛ 12х0.75',
+      {},
+      {
+        catalogCategory: 'Контрольный кабель',
+        catalogCategorySlug: 'kontrolnyy-kabel',
+        catalogClassificationSource: 'rule',
+      },
+    ],
   ])('фиксирует rule-классификацию для %s', (name, overrides, expected) => {
     expect(classifyName(name, overrides)).toMatchObject(expected);
   });

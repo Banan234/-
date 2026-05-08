@@ -155,4 +155,19 @@ describe('CatalogPage', () => {
       })
     ).toBe(false);
   });
+
+  it('передает расширенные фильтры для категории силового кабеля из общего каталога', async () => {
+    renderCatalogPage(
+      '/catalog?category=silovoy-kabel&powerGroup=Сшитый+полиэтилен+%28XLPE%29&appType=силовой&spe=1'
+    );
+
+    await waitFor(() => expect(fetchProducts).toHaveBeenCalled());
+
+    expect(fetchProducts.mock.calls[0][1]).toMatchObject({
+      category: 'silovoy-kabel',
+      powerGroup: 'Сшитый полиэтилен (XLPE)',
+      appType: 'силовой',
+      spe: '1',
+    });
+  });
 });

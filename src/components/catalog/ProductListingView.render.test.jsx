@@ -152,6 +152,40 @@ describe('ProductListingView render flow', () => {
     expect(screen.queryByText('ВВГнг-LS 3x2.5')).not.toBeInTheDocument();
   });
 
+  it('показывает группы силового кабеля только при включенном фильтре', async () => {
+    const user = userEvent.setup();
+    const { getSearchParam } = renderListing({
+      viewProps: {
+        extraFilters: { showPowerGroups: true },
+        products: [
+          makeProduct({
+            id: 1,
+            slug: 'vvgng-ls-3x25',
+            title: 'ВВГнг-LS 3x2.5',
+            mark: 'ВВГнг-LS',
+          }),
+          makeProduct({
+            id: 3,
+            slug: 'apvv-ng-ls-3x25',
+            title: 'АПвВ нг(А)LS 3x2.5',
+            mark: 'АПвВ нг(А)LS',
+          }),
+        ],
+      },
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Все параметры' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Сшитый полиэтилен (XLPE)' })
+    );
+
+    await waitFor(() =>
+      expect(getSearchParam('powerGroup')).toBe('Сшитый полиэтилен (XLPE)')
+    );
+    expect(screen.getByText('АПвВ нг(А)LS 3x2.5')).toBeInTheDocument();
+    expect(screen.queryByText('ВВГнг-LS 3x2.5')).not.toBeInTheDocument();
+  });
+
   it('коммитит диапазон цены в URL', async () => {
     const user = userEvent.setup();
     const { getSearchParam } = renderListing();

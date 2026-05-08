@@ -1310,9 +1310,42 @@
   },
 
   {
-    "_comment": "=== ЛИФТОВЫЕ: КПВЛ/КПВП/КПЛМ/КПГ2У → Силовой ===",
+    "_comment": "=== СЭК → Соединительный кабель ===",
+    "type": "Соединительный кабель",
+    "patterns": ["сэк"],
+    "catalogSection": "Кабель и провод",
+    "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Соединительный кабель",
+    "catalogCategorySlug": "soedinitelnyy-kabel",
+    "priority": 140
+  },
+
+  {
+    "_comment": "=== КПВЛ → Контрольный кабель ===",
+    "type": "Кабель управления",
+    "patterns": ["кпвл"],
+    "catalogSection": "Кабель и провод",
+    "catalogSectionSlug": "kabel-i-provod",
+    "catalogCategory": "Контрольный кабель",
+    "catalogCategorySlug": "kontrolnyy-kabel",
+    "priority": 140
+  },
+
+  {
+    "_comment": "=== КПЛМ → Бортовые провода ===",
+    "type": "Бортовые провода",
+    "patterns": ["кплм"],
+    "catalogSection": "Специальные кабели",
+    "catalogSectionSlug": "specialnye-kabeli",
+    "catalogCategory": "Бортовые провода",
+    "catalogCategorySlug": "bortovye-provoda",
+    "priority": 140
+  },
+
+  {
+    "_comment": "=== ЛИФТОВЫЕ: КПВП/КПГ2У → Силовой ===",
     "type": "Лифтовые силовые",
-    "patterns": ["кпвл", "кпвп ", "кпвп-", "кплм", "кпг2у", "кпг-"],
+    "patterns": ["кпвп ", "кпвп-", "кпг2у", "кпг-"],
     "catalogSection": "Кабель и провод",
     "catalogSectionSlug": "kabel-i-provod",
     "catalogCategory": "Силовой кабель",

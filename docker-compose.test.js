@@ -46,6 +46,8 @@ describe('docker-compose.yml', () => {
     const appBlock = extractTopLevelBlock(source, 'app');
     const webBlock = extractTopLevelBlock(source, 'web');
 
+    expect(appBlock).toContain('path: .env');
+    expect(appBlock).toContain('required: false');
     expect(appBlock).toContain('volumes:');
     expect(appBlock).toContain('- ./data:/app/data');
     expect(appBlock).toContain('PUBLIC_ARTIFACTS_DIR: /app/data/public');
@@ -80,7 +82,8 @@ describe('docker-compose.staging.yml', () => {
     const webBlock = extractTopLevelBlock(source, 'web');
 
     expect(appBlock).toContain('container_name: yuzhural-staging-app');
-    expect(appBlock).toContain('- .env.staging');
+    expect(appBlock).toContain('path: .env.staging');
+    expect(appBlock).toContain('required: false');
     expect(appBlock).toContain('- ./data-staging:/app/data');
     expect(appBlock).toContain('PUBLIC_ARTIFACTS_DIR: /app/data/public');
     expect(appBlock).toContain(
