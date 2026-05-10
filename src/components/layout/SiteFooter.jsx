@@ -3,10 +3,10 @@
 import { Link } from 'react-router-dom';
 import Container from '../ui/Container';
 import {
-  SITE_ADDRESS_DISPLAY,
   SITE_EMAIL,
   SITE_EMAIL_HREF,
   SITE_NAME,
+  SITE_OFFICE_ADDRESS_DISPLAY,
   SITE_PHONE_DISPLAY,
   SITE_PHONE_HREF,
   SITE_QUOTE_RESPONSE_DISPLAY,
@@ -129,7 +129,7 @@ export default function SiteFooter({ onOpenQuote }) {
               {SITE_EMAIL}
             </a>
             <div className="site-footer__text">
-              {SITE_ADDRESS_DISPLAY}
+              Офис: {SITE_OFFICE_ADDRESS_DISPLAY}
               <br />
               {SITE_WORKING_HOURS_DISPLAY}
             </div>

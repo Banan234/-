@@ -2,8 +2,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  SITE_ADDRESS,
   SITE_EMAIL,
+  SITE_OFFICE_ADDRESS,
   SITE_LEGAL_FULL_NAME,
   SITE_PHONE,
   SITE_PHONE_DISPLAY,
@@ -20,7 +20,7 @@ describe('buildOrganizationJsonLd', () => {
     expect(jsonLd.telephone).toBe(SITE_PHONE);
     expect(jsonLd.email).toBe(SITE_EMAIL);
     expect(jsonLd.taxID).toBe(SITE_TAX_ID);
-    expect(jsonLd.address.streetAddress).toBe(SITE_ADDRESS.streetAddress);
+    expect(jsonLd.address.streetAddress).toBe(SITE_OFFICE_ADDRESS.streetAddress);
     expect(jsonLd.identifier).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

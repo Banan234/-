@@ -84,7 +84,7 @@ export const SITE_REGISTRATION_NUMBER = readPublicConfigValue(
   '1237400004445'
 );
 
-export const SITE_ADDRESS = {
+export const SITE_OFFICE_ADDRESS = {
   streetAddress: readPublicConfigValue(
     'SITE_STREET_ADDRESS',
     'VITE_SITE_STREET_ADDRESS',
@@ -95,10 +95,28 @@ export const SITE_ADDRESS = {
   postalCode: '454000',
   addressCountry: 'RU',
 };
-export const SITE_ADDRESS_DISPLAY = `г. ${SITE_ADDRESS.addressLocality}, ${SITE_ADDRESS.streetAddress}`;
-export const SITE_CITY_DISPLAY = `г. ${SITE_ADDRESS.addressLocality}`;
-export const SITE_MAP_URL = `https://yandex.ru/maps/?text=${encodeURIComponent(SITE_ADDRESS_DISPLAY)}`;
-export const SITE_MAP_EMBED_URL = `https://yandex.ru/map-widget/v1/?text=${encodeURIComponent(SITE_ADDRESS_DISPLAY)}&z=16`;
+export const SITE_WAREHOUSE_ADDRESS = {
+  streetAddress: readPublicConfigValue(
+    'SITE_WAREHOUSE_STREET_ADDRESS',
+    'VITE_SITE_WAREHOUSE_STREET_ADDRESS',
+    'просп. Победы, 290В'
+  ),
+  addressLocality: SITE_OFFICE_ADDRESS.addressLocality,
+  addressRegion: SITE_OFFICE_ADDRESS.addressRegion,
+  postalCode: SITE_OFFICE_ADDRESS.postalCode,
+  addressCountry: SITE_OFFICE_ADDRESS.addressCountry,
+};
+export const SITE_ADDRESS = SITE_OFFICE_ADDRESS;
+export const SITE_OFFICE_ADDRESS_DISPLAY = `г. ${SITE_OFFICE_ADDRESS.addressLocality}, ${SITE_OFFICE_ADDRESS.streetAddress}`;
+export const SITE_WAREHOUSE_ADDRESS_DISPLAY = `г. ${SITE_WAREHOUSE_ADDRESS.addressLocality}, ${SITE_WAREHOUSE_ADDRESS.streetAddress}`;
+export const SITE_ADDRESS_DISPLAY = SITE_OFFICE_ADDRESS_DISPLAY;
+export const SITE_CITY_DISPLAY = `г. ${SITE_OFFICE_ADDRESS.addressLocality}`;
+export const SITE_OFFICE_MAP_URL = `https://yandex.ru/maps/?text=${encodeURIComponent(SITE_OFFICE_ADDRESS_DISPLAY)}`;
+export const SITE_OFFICE_MAP_EMBED_URL = `https://yandex.ru/map-widget/v1/?text=${encodeURIComponent(SITE_OFFICE_ADDRESS_DISPLAY)}&z=16`;
+export const SITE_WAREHOUSE_MAP_URL = `https://yandex.ru/maps/?text=${encodeURIComponent(SITE_WAREHOUSE_ADDRESS_DISPLAY)}`;
+export const SITE_WAREHOUSE_MAP_EMBED_URL = `https://yandex.ru/map-widget/v1/?text=${encodeURIComponent(SITE_WAREHOUSE_ADDRESS_DISPLAY)}&z=16`;
+export const SITE_MAP_URL = SITE_OFFICE_MAP_URL;
+export const SITE_MAP_EMBED_URL = SITE_OFFICE_MAP_EMBED_URL;
 
 // Часы работы — формат schema.org openingHours: «Пн–Пт 09:00–18:00».
 export const SITE_WORKING_HOURS_DISPLAY = 'Пн–Пт 09:00–18:00';
@@ -208,7 +226,7 @@ export function buildOrganizationJsonLd(overrides = {}) {
     ],
     address: {
       '@type': 'PostalAddress',
-      ...SITE_ADDRESS,
+      ...SITE_OFFICE_ADDRESS,
     },
     openingHours: SITE_OPENING_HOURS,
     openingHoursSpecification: SITE_OPENING_HOURS_SPECIFICATION.map((item) => ({

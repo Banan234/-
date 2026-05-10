@@ -9,9 +9,14 @@ import {
 } from '../lib/staticPageJsonLd';
 import { STATIC_PAGE_SEO } from '../lib/staticSeo';
 import {
-  SITE_ADDRESS_DISPLAY,
   SITE_MANUFACTURERS,
+  SITE_EMAIL,
+  SITE_EMAIL_HREF,
+  SITE_OFFICE_ADDRESS_DISPLAY,
+  SITE_PHONE_DISPLAY,
+  SITE_PHONE_HREF,
   SITE_PUBLIC_DOCUMENTS,
+  SITE_QUOTE_RESPONSE_DISPLAY,
   SITE_REQUEST_DOCUMENTS,
   SITE_REQUISITES,
   SITE_WORKING_HOURS_DISPLAY,
@@ -21,7 +26,80 @@ import '../styles/pages/content.css';
 const ABOUT_JSON_LD_ID = getStaticPageJsonLdId('/about');
 const ABOUT_JSON_LD = buildStaticPageJsonLd('/about');
 
+const ABOUT_BADGES = [
+  `Коммерческое предложение ${SITE_QUOTE_RESPONSE_DISPLAY}`,
+  'Работа с юрлицами, НДС и договором',
+  'Подбор по марке, проекту и назначению',
+  'Поставка по Челябинску и по России',
+];
+
+const ABOUT_FACTS = [
+  { value: 'B2B', label: 'основной формат работы' },
+  { value: 'от 1 дня', label: 'отгрузка складских позиций' },
+  { value: 'НДС', label: 'счёт, договор и закрывающие документы' },
+  { value: 'XLS / PDF', label: 'прайс и реквизиты в открытом доступе' },
+];
+
+const ABOUT_DIRECTIONS = [
+  {
+    label: 'Оптовые поставки',
+    title: 'Комплектуем заявки под объект и регулярное снабжение',
+    text: 'Работаем со списками марок, проектными спецификациями и закупочными заявками. Проверяем остатки, кратность и реальный срок отгрузки до выставления счёта.',
+  },
+  {
+    label: 'Подбор и замены',
+    title: 'Разбираем задачу, а не просто пересылаем прайс',
+    text: 'Если позиция отсутствует или требует уточнения, подбираем близкие аналоги по назначению и отдельно согласуем замену, чтобы объект не вставал на согласовании.',
+  },
+  {
+    label: 'Документы и сопровождение',
+    title: 'Закрываем вопросы закупки, бухгалтерии и службы безопасности',
+    text: 'Передаём реквизиты, типовой договор, сертификаты и закрывающие документы. Для постоянных клиентов фиксируем условия в договоре поставки.',
+  },
+];
+
+const ABOUT_ADVANTAGES = [
+  {
+    title: 'Не обещаем наличие вслепую',
+    text: 'Сначала подтверждаем остаток, срок и условия отгрузки, потом отправляем счёт или КП. Это снижает риск пересчётов и сдвигов по срокам.',
+  },
+  {
+    title: 'Подбираем кабель под прикладную задачу',
+    text: 'Работаем с маркой, сечением, количеством жил, напряжением и требованиями объекта. При необходимости предлагаем согласуемую замену, а не случайную похожую позицию.',
+  },
+  {
+    title: 'Документы готовы до оплаты',
+    text: 'Реквизиты, типовой договор и открытые файлы доступны заранее. Снабжение и бухгалтерия могут проверить контрагента до запуска оплаты.',
+  },
+  {
+    title: 'Логистика под ваш сценарий получения',
+    text: 'Согласуем самовывоз, сдачу в транспортную компанию или поставку на объект. Отдельно проговариваем, что входит в срок отгрузки, а что зависит от перевозчика.',
+  },
+  {
+    title: 'Работаем в деловом режиме',
+    text: 'Для юридических лиц выставляем счёт, отгружаем с НДС и передаём закрывающие документы. Для повторных закупок можем закрепить условия поставки договором.',
+  },
+  {
+    title: 'Позиции производителей под разные задачи',
+    text: `В прайсе встречаются марки производителей ${SITE_MANUFACTURERS.slice(0, 6).join(', ')} и других брендов, если они подходят под требования проекта.`,
+  },
+];
+
 export default function AboutPage() {
+  function handleOpenAboutLead() {
+    window.dispatchEvent(
+      new CustomEvent('open-lead-modal', {
+        detail: {
+          title: 'Обсудить поставку кабеля',
+          subtitle:
+            'Оставьте телефон и список позиций — проверим наличие, предложим вариант поставки и подготовим КП.',
+          submitLabel: 'Отправить заявку',
+          source: 'CTA на странице о компании',
+        },
+      })
+    );
+  }
+
   useSEO({
     title: STATIC_PAGE_SEO.about.title,
     description: STATIC_PAGE_SEO.about.description,
@@ -33,30 +111,72 @@ export default function AboutPage() {
     <>
       <section className="section">
         <Container>
-          <h1 className="page-title">О компании</h1>
-          <p className="page-subtitle">
-            ООО «ЮжУралЭлектроКабель» — электротехническая компания для
-            B2B-поставок кабельно-проводниковой продукции. Мы поставляем кабель
-            для строительных, монтажных и промышленных организаций по
-            Челябинску, Уралу и другим регионам России.
-          </p>
-          <p className="content-lead">
-            Основная задача компании — быстро закрывать потребность снабжения в
-            кабеле, проводе и сопутствующей электротехнической продукции:
-            проверяем наличие, подбираем аналоги по проектной марке, готовим КП
-            и комплектуем заказ под отгрузку со склада.
-          </p>
+          <div className="about-page__hero">
+            <div className="about-page__intro">
+              <h1 className="page-title">О компании</h1>
+              <p className="page-subtitle">
+                ООО «ЮжУралЭлектроКабель» — компания для B2B-поставок
+                кабельно-проводниковой продукции. Работаем с заявками
+                строительных, монтажных и промышленных организаций из Челябинска
+                и других регионов России.
+              </p>
+              <p className="content-lead">
+                Основная задача компании — быстро и предметно закрывать
+                потребность снабжения в кабеле, проводе и сопутствующей
+                электротехнической продукции: проверять наличие, подбирать
+                аналоги по проектной марке, готовить КП и комплектовать заказ
+                под отгрузку.
+              </p>
 
-          <div className="about-facts">
-            {[
-              { num: 'ИНН', label: SITE_REQUISITES.taxId },
-              { num: 'ОГРН', label: SITE_REQUISITES.registrationNumber },
-              { num: 'от 1 дня', label: 'срок отгрузки' },
-              { num: 'НДС', label: 'работаем по договору' },
-            ].map(({ num, label }) => (
-              <div key={label} className="about-facts__item">
-                <div className="about-facts__num">{num}</div>
-                <div className="about-facts__label">{label}</div>
+              <div
+                className="about-page__badges"
+                aria-label="Ключевые условия работы"
+              >
+                {ABOUT_BADGES.map((badge) => (
+                  <span key={badge}>{badge}</span>
+                ))}
+              </div>
+            </div>
+
+            <aside className="about-page__summary">
+              <span className="about-page__summary-eyebrow">Как работаем</span>
+              <h2 className="about-page__summary-title">
+                Закрываем заявку так, чтобы снабжение не тратило время на
+                догадки
+              </h2>
+              <p className="about-page__summary-text">
+                Для закупочного отдела важны не абстрактные обещания, а понятный
+                сценарий работы: можно ли заранее проверить контрагента, как
+                быстро получить КП и какой пакет документов будет сопровождать
+                поставку.
+              </p>
+              <ul className="about-page__summary-list">
+                <li>подтверждаем наличие и срок до счёта</li>
+                <li>подбираем аналоги по задаче, если позиция спорная</li>
+                <li>собираем документы под согласование и оплату</li>
+              </ul>
+              <div className="about-page__summary-contacts">
+                <a
+                  href={SITE_PHONE_HREF}
+                  className="about-page__summary-contact"
+                >
+                  {SITE_PHONE_DISPLAY}
+                </a>
+                <a
+                  href={SITE_EMAIL_HREF}
+                  className="about-page__summary-contact about-page__summary-contact--muted"
+                >
+                  {SITE_EMAIL}
+                </a>
+              </div>
+            </aside>
+          </div>
+
+          <div className="about-page__facts" aria-label="Ключевые факты">
+            {ABOUT_FACTS.map(({ value, label }) => (
+              <div key={label} className="about-page__fact">
+                <div className="about-page__fact-value">{value}</div>
+                <div className="about-page__fact-label">{label}</div>
               </div>
             ))}
           </div>
@@ -67,45 +187,18 @@ export default function AboutPage() {
         <Container>
           <div className="section-head">
             <h2 className="section-title section-title--left">
-              Чем полезны для закупки
+              Три рабочих направления
             </h2>
           </div>
 
-          <div className="info-cards">
-            <article className="info-card">
-              <h3 className="info-card__title">Подбор по проекту</h3>
-              <p>
-                Работаем с заявками по марке, сечению, количеству жил,
-                напряжению и требованиям объекта. Если нужной позиции нет,
-                предложим близкий аналог и отдельно согласуем замену.
-              </p>
-            </article>
-
-            <article className="info-card">
-              <h3 className="info-card__title">Поставка под объект</h3>
-              <p>
-                Комплектуем кабельные позиции партиями, учитываем кратность бухт
-                и барабанов, готовим документы для бухгалтерии и отдела
-                снабжения.
-              </p>
-            </article>
-
-            <article className="info-card">
-              <h3 className="info-card__title">Работа с юрлицами</h3>
-              <p>
-                Выставляем счёт, заключаем договор поставки, отгружаем с НДС и
-                передаём закрывающие документы. Реквизиты доступны в разделе
-                контактов и в PDF-файле.
-              </p>
-            </article>
-
-            <article className="info-card">
-              <h3 className="info-card__title">Региональная логистика</h3>
-              <p>
-                Отправляем грузы по России транспортными компаниями и согласуем
-                условия доставки до терминала, склада или объекта.
-              </p>
-            </article>
+          <div className="about-directions">
+            {ABOUT_DIRECTIONS.map((item) => (
+              <article key={item.title} className="about-direction">
+                <span className="about-direction__label">{item.label}</span>
+                <h3 className="about-direction__title">{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            ))}
           </div>
         </Container>
       </section>
@@ -115,13 +208,46 @@ export default function AboutPage() {
           <div className="content-columns">
             <div>
               <h2 className="section-title section-title--left">
-                Юридическая и операционная проверка
+                Почему с нами удобно работать
+              </h2>
+              <p className="content-lead">
+                Помогаем закупке быстрее принимать решение: заранее показываем
+                формат работы, открытые документы, реальные сроки и подход к
+                подбору кабеля под задачу, а не ограничиваемся общими словами о
+                надёжности.
+              </p>
+            </div>
+
+            <div className="about-advantages">
+              {ABOUT_ADVANTAGES.map((item) => (
+                <article key={item.title} className="about-advantage">
+                  <h3 className="about-advantage__title">{item.title}</h3>
+                  <p>{item.text}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      <section className="section section--soft">
+        <Container>
+          <div className="content-columns">
+            <div>
+              <h2 className="section-title section-title--left">
+                Документы и проверка до оплаты
               </h2>
               <p className="content-lead">
                 До заявки можно проверить реквизиты, адрес, режим работы,
-                типовой договор и прайс. Это базовые данные, которые обычно
-                нужны закупке, бухгалтерии и службе безопасности.
+                открытые документы и юридические данные компании. Это тот набор,
+                который обычно нужен закупке, бухгалтерии и службе безопасности
+                до запуска платежа.
               </p>
+
+              <div className="info-note">
+                По запросу предоставляем:{' '}
+                {SITE_REQUEST_DOCUMENTS.slice(0, 4).join('; ')}.
+              </div>
             </div>
 
             <div className="proof-panel">
@@ -138,60 +264,57 @@ export default function AboutPage() {
                   </dd>
                 </div>
                 <div>
-                  <dt>Адрес</dt>
-                  <dd>{SITE_ADDRESS_DISPLAY}</dd>
+                  <dt>Адрес офиса</dt>
+                  <dd>{SITE_OFFICE_ADDRESS_DISPLAY}</dd>
                 </div>
                 <div>
                   <dt>Режим</dt>
                   <dd>{SITE_WORKING_HOURS_DISPLAY}</dd>
                 </div>
               </dl>
+
+              <div className="proof-documents proof-documents--compact">
+                {SITE_PUBLIC_DOCUMENTS.map((doc) => (
+                  <a key={doc.href} href={doc.href} className="proof-document">
+                    <span className="proof-document__type">{doc.type}</span>
+                    <span>
+                      <strong>{doc.title}</strong>
+                      <small>{doc.description}</small>
+                    </span>
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
         </Container>
       </section>
 
-      <section className="section section--soft">
+      <section className="section">
         <Container>
-          <div className="content-columns">
+          <div className="about-cta">
             <div>
-              <h2 className="section-title section-title--left">
-                Документы и качество
+              <h2 className="about-cta__title">
+                Будем полезны, если нужно быстро закрыть заявку по кабелю
               </h2>
-              <p className="content-lead">
-                По запросу подготавливаем сертификаты соответствия, документы
-                пожарной безопасности и паспортные данные по конкретной марке.
-                Для регулярных поставок фиксируем условия в договоре. В прайсе
-                встречаются позиции производителей{' '}
-                {SITE_MANUFACTURERS.slice(0, 6).join(', ')} и других брендов.
+              <p className="about-cta__text">
+                Присылайте перечень марок или проектную спецификацию. Проверим
+                наличие, предложим замену, подготовим коммерческое предложение и
+                соберём пакет документов под согласование.
               </p>
             </div>
 
-            <ul className="info-list">
-              <li>Счёт, УПД или товарная накладная для каждой отгрузки.</li>
-              <li>
-                Договор поставки для постоянных клиентов и крупных партий.
-              </li>
-              <li>Сертификаты по маркам кабеля и требованиям объекта.</li>
-              <li>Прайс-лист и реквизиты в открытом доступе для проверки.</li>
-            </ul>
-          </div>
-
-          <div className="proof-documents">
-            {SITE_PUBLIC_DOCUMENTS.map((doc) => (
-              <a key={doc.href} href={doc.href} className="proof-document">
-                <span className="proof-document__type">{doc.type}</span>
-                <span>
-                  <strong>{doc.title}</strong>
-                  <small>{doc.description}</small>
-                </span>
+            <div className="content-actions about-cta__actions">
+              <button
+                type="button"
+                className="button-primary"
+                onClick={handleOpenAboutLead}
+              >
+                Отправить заявку
+              </button>
+              <a href={SITE_PHONE_HREF} className="button-secondary">
+                Позвонить менеджеру
               </a>
-            ))}
-          </div>
-
-          <div className="info-note">
-            По запросу предоставляем:{' '}
-            {SITE_REQUEST_DOCUMENTS.slice(0, 4).join('; ')}.
+            </div>
           </div>
         </Container>
       </section>

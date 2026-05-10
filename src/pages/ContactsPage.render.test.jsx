@@ -6,12 +6,13 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import {
-  SITE_ADDRESS_DISPLAY,
   SITE_EMAIL,
   SITE_EMAIL_HREF,
+  SITE_OFFICE_ADDRESS_DISPLAY,
   SITE_PHONE_DISPLAY,
   SITE_PHONE_HREF,
   SITE_REQUISITES,
+  SITE_WAREHOUSE_ADDRESS_DISPLAY,
 } from '../lib/siteConfig.js';
 import ContactsPage from './ContactsPage.jsx';
 
@@ -30,7 +31,11 @@ describe('ContactsPage', () => {
   it('берет NAP и реквизиты из siteConfig', () => {
     renderContactsPage();
 
-    expect(screen.getAllByText(SITE_ADDRESS_DISPLAY)).toHaveLength(2);
+    expect(screen.getByText(SITE_OFFICE_ADDRESS_DISPLAY)).toBeInTheDocument();
+    expect(
+      screen.getByText(`Офис: ${SITE_OFFICE_ADDRESS_DISPLAY}`)
+    ).toBeInTheDocument();
+    expect(screen.getByText(SITE_WAREHOUSE_ADDRESS_DISPLAY)).toBeInTheDocument();
     expect(screen.getAllByText(SITE_EMAIL)).toHaveLength(4);
     expect(
       document.querySelectorAll(`a[href="${SITE_PHONE_HREF}"]`)

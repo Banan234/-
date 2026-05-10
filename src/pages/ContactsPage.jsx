@@ -4,18 +4,19 @@ import Container from '../components/ui/Container';
 import HeroLeadForm from '../components/home/HeroLeadForm';
 import { useSEO } from '../hooks/useSEO';
 import {
-  SITE_ADDRESS,
-  SITE_ADDRESS_DISPLAY,
   SITE_CITY_DISPLAY,
   SITE_EMAIL,
   SITE_EMAIL_HREF,
-  SITE_MAP_EMBED_URL,
-  SITE_MAP_URL,
+  SITE_OFFICE_ADDRESS,
+  SITE_OFFICE_ADDRESS_DISPLAY,
+  SITE_OFFICE_MAP_EMBED_URL,
+  SITE_OFFICE_MAP_URL,
   SITE_PHONE_DISPLAY,
   SITE_PHONE_HREF,
   SITE_PUBLIC_DOCUMENTS,
   SITE_REQUEST_DOCUMENTS,
   SITE_REQUISITES,
+  SITE_WAREHOUSE_ADDRESS_DISPLAY,
   SITE_WORKING_HOURS_DISPLAY,
 } from '../lib/siteConfig';
 import '../styles/pages/content.css';
@@ -23,7 +24,7 @@ import '../styles/pages/content.css';
 export default function ContactsPage() {
   useSEO({
     title: 'Контакты',
-    description: `Контакты ЮжУралЭлектроКабель: телефон ${SITE_PHONE_DISPLAY}, email ${SITE_EMAIL}. Адрес: ${SITE_ADDRESS_DISPLAY}. ${SITE_WORKING_HOURS_DISPLAY}.`,
+    description: `Контакты ЮжУралЭлектроКабель: телефон ${SITE_PHONE_DISPLAY}, email ${SITE_EMAIL}. Офис: ${SITE_OFFICE_ADDRESS_DISPLAY}. Склад самовывоза: ${SITE_WAREHOUSE_ADDRESS_DISPLAY}. ${SITE_WORKING_HOURS_DISPLAY}.`,
   });
 
   return (
@@ -50,7 +51,7 @@ export default function ContactsPage() {
                   {SITE_EMAIL}
                 </a>
                 <span>{SITE_WORKING_HOURS_DISPLAY}</span>
-                <span>{SITE_ADDRESS.addressLocality}</span>
+                <span>{SITE_OFFICE_ADDRESS.addressLocality}</span>
               </div>
             </div>
           </div>
@@ -111,7 +112,9 @@ export default function ContactsPage() {
           <div className="contacts-layout">
             <div className="contacts-layout__main">
               <div className="contacts-info-card">
-                <h2 className="contacts-info-card__title">Адрес и реквизиты</h2>
+                <h2 className="contacts-info-card__title">
+                  Офис, склад и реквизиты
+                </h2>
 
                 <div className="contacts-info-list">
                   <div className="contacts-info-row">
@@ -120,8 +123,13 @@ export default function ContactsPage() {
                   </div>
 
                   <div className="contacts-info-row">
-                    <span>Адрес</span>
-                    <strong>{SITE_ADDRESS_DISPLAY}</strong>
+                    <span>Офис</span>
+                    <strong>{SITE_OFFICE_ADDRESS_DISPLAY}</strong>
+                  </div>
+
+                  <div className="contacts-info-row">
+                    <span>Склад самовывоза</span>
+                    <strong>{SITE_WAREHOUSE_ADDRESS_DISPLAY}</strong>
                   </div>
 
                   <div className="contacts-info-row">
@@ -145,6 +153,11 @@ export default function ContactsPage() {
                   </div>
                 </div>
 
+                <p className="contact-card__text">
+                  В офисе оформляем оплату и договоры. Самовывоз и отгрузка
+                  выполняются со склада.
+                </p>
+
                 <div className="contacts-doc-links">
                   {SITE_PUBLIC_DOCUMENTS.map((doc) => (
                     <a
@@ -160,19 +173,19 @@ export default function ContactsPage() {
               </div>
 
               <div className="contacts-map-card">
-                <div className="contacts-map-card__title">Как нас найти</div>
+                <div className="contacts-map-card__title">Офис</div>
                 <div className="contacts-map-frame">
                   <iframe
-                    title={`Карта: ${SITE_ADDRESS_DISPLAY}`}
-                    src={SITE_MAP_EMBED_URL}
+                    title={`Карта: ${SITE_OFFICE_ADDRESS_DISPLAY}`}
+                    src={SITE_OFFICE_MAP_EMBED_URL}
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                   />
                 </div>
                 <div className="contacts-map-card__footer">
-                  <span>{SITE_ADDRESS_DISPLAY}</span>
-                  <a href={SITE_MAP_URL} target="_blank" rel="noreferrer">
-                    Открыть маршрут
+                  <span>Офис: {SITE_OFFICE_ADDRESS_DISPLAY}</span>
+                  <a href={SITE_OFFICE_MAP_URL} target="_blank" rel="noreferrer">
+                    Открыть маршрут в офис
                   </a>
                 </div>
               </div>

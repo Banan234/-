@@ -12,9 +12,9 @@ import { useJsonLd } from '../hooks/useJsonLd';
 import { usePrerenderData } from '../lib/prerenderData';
 import { messages } from '../../shared/messages.js';
 import {
-  SITE_ADDRESS_DISPLAY,
   SITE_MANUFACTURERS,
   SITE_NAME,
+  SITE_OFFICE_ADDRESS_DISPLAY,
   SITE_PUBLIC_DOCUMENTS,
   SITE_QUOTE_RESPONSE_DISPLAY,
   SITE_REQUEST_DOCUMENTS,
@@ -396,8 +396,8 @@ export default function HomePage() {
               <h3 className="home-proof__title">Адрес и режим</h3>
               <dl className="home-proof__details">
                 <div>
-                  <dt>Адрес</dt>
-                  <dd>{SITE_ADDRESS_DISPLAY}</dd>
+                  <dt>Офис</dt>
+                  <dd>{SITE_OFFICE_ADDRESS_DISPLAY}</dd>
                 </div>
                 <div>
                   <dt>Режим</dt>

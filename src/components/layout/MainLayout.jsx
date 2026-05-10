@@ -14,9 +14,9 @@ import { trackEvent } from '../../lib/analytics';
 import { usePageviewTracking } from '../../hooks/usePageviewTracking';
 import { STORAGE_WRITE_FAILED_EVENT } from '../../lib/browserStorage';
 import {
-  SITE_ADDRESS_DISPLAY,
   SITE_EMAIL,
   SITE_EMAIL_HREF,
+  SITE_OFFICE_ADDRESS_DISPLAY,
   SITE_PHONE_DISPLAY,
   SITE_PHONE_HREF,
   SITE_WORKING_HOURS_DISPLAY,
@@ -169,7 +169,7 @@ export default function MainLayout() {
                     <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
                     <circle cx="12" cy="10" r="3" />
                   </svg>
-                  {SITE_ADDRESS_DISPLAY}
+                  Офис: {SITE_OFFICE_ADDRESS_DISPLAY}
                 </span>
                 <span className="topbar-item">
                   <svg
@@ -287,6 +287,14 @@ export default function MainLayout() {
               >
                 <HeaderCatalogMenu />
 
+                <NavLink
+                  to="/payment"
+                  className={({ isActive }) =>
+                    `nav-link${isActive ? ' nav-link--active' : ''}`
+                  }
+                >
+                  Оплата
+                </NavLink>
                 <NavLink
                   to="/delivery"
                   className={({ isActive }) =>

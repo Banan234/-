@@ -4,12 +4,10 @@ import Container from '../components/ui/Container';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { useSEO } from '../hooks/useSEO';
 import {
-  SITE_ADDRESS_DISPLAY,
-  SITE_MAP_URL,
   SITE_PHONE,
   SITE_PHONE_DISPLAY,
-  SITE_PUBLIC_DOCUMENTS,
-  SITE_REQUEST_DOCUMENTS,
+  SITE_WAREHOUSE_ADDRESS_DISPLAY,
+  SITE_WAREHOUSE_MAP_URL,
 } from '../lib/siteConfig';
 import {
   buildStaticPageJsonLd,
@@ -22,6 +20,19 @@ const DELIVERY_JSON_LD_ID = getStaticPageJsonLdId('/delivery');
 const DELIVERY_JSON_LD = buildStaticPageJsonLd('/delivery');
 
 export default function DeliveryPage() {
+  function handleOpenDeliveryLead() {
+    window.dispatchEvent(
+      new CustomEvent('open-lead-modal', {
+        detail: {
+          title: 'Задать вопрос менеджеру',
+          subtitle: 'Коротко опишите задачу — мы свяжемся с вами.',
+          submitLabel: 'Задать вопрос',
+          source: 'CTA на странице доставки',
+        },
+      })
+    );
+  }
+
   useSEO({
     title: STATIC_PAGE_SEO.delivery.title,
     description: STATIC_PAGE_SEO.delivery.description,
@@ -32,113 +43,147 @@ export default function DeliveryPage() {
   return (
     <section className="section">
       <Container>
-        <h1 className="page-title">Доставка</h1>
-        <p className="page-subtitle">
-          Доставляем кабельно-проводниковую продукцию по Челябинску и России.
-          Отгружаем со склада, передаём заказы в транспортные компании и
-          согласуем доставку под требования объекта.
-        </p>
-        <p className="content-lead">
-          Перед отгрузкой менеджер уточняет вес, объём, формат упаковки, адрес
-          терминала или объекта и комплект документов. Бухты, барабаны и крупные
-          партии подбираем под безопасную перевозку.
-        </p>
-
-        <div className="info-cards">
-          <article className="info-card">
-            <h2 className="info-card__title">Самовывоз</h2>
-            <p>
-              Со склада в Челябинске по адресу {SITE_ADDRESS_DISPLAY}. После
-              подтверждения готовности заказа согласуем время приезда и порядок
-              получения документов.{' '}
-              <a href={SITE_MAP_URL} target="_blank" rel="noreferrer">
-                Открыть адрес на карте.
-              </a>
+        <div className="delivery-page__hero">
+          <div className="delivery-page__intro">
+            <h1 className="page-title">Доставка</h1>
+            <p className="page-subtitle">
+              Отгружаем кабельно-проводниковую продукцию самовывозом со склада
+              или передаём заказ в транспортную компанию по выбору покупателя.
             </p>
-          </article>
-
-          <article className="info-card">
-            <h2 className="info-card__title">Доставка по Челябинску</h2>
-            <p>
-              Организуем городскую доставку до склада, монтажной площадки или
-              объекта. Стоимость зависит от объёма партии, адреса и требований к
-              разгрузке.
-            </p>
-          </article>
-
-          <article className="info-card">
-            <h2 className="info-card__title">Доставка по России</h2>
-            <p>
-              Отправляем транспортными компаниями: СДЭК, ПЭК, Деловые Линии и
-              другими перевозчиками по согласованию. Стоимость рассчитывается по
-              тарифам ТК.
-            </p>
-          </article>
-
-          <article className="info-card">
-            <h2 className="info-card__title">Крупногабаритные грузы</h2>
-            <p>
-              Бухты кабеля, барабаны и крупные партии отправляем автотранспортом
-              или через перевозчика, который принимает такой тип груза.
-            </p>
-          </article>
-        </div>
-
-        <div className="content-columns content-columns--spaced">
-          <div>
-            <h2 className="section-title section-title--left">
-              Что уточняем перед отгрузкой
-            </h2>
-            <p className="content-lead">
-              Эти данные помогают точно рассчитать логистику и избежать задержек
-              на терминале или объекте.
-            </p>
-          </div>
-
-          <ul className="info-list">
-            <li>Адрес доставки или терминал транспортной компании.</li>
-            <li>Нужна ли доставка до объекта или достаточно терминала.</li>
-            <li>Требования к упаковке, погрузке и разгрузке.</li>
-            <li>Контакт получателя и комплект закрывающих документов.</li>
-          </ul>
-        </div>
-
-        <div className="content-columns content-columns--spaced">
-          <div>
-            <h2 className="section-title section-title--left">
-              Документы к отгрузке
-            </h2>
-            <p className="content-lead">
-              Заранее показываем базовые файлы, а документы качества готовим по
-              конкретной позиции и партии.
-            </p>
-            <div className="proof-documents">
-              {SITE_PUBLIC_DOCUMENTS.map((doc) => (
-                <a key={doc.href} href={doc.href} className="proof-document">
-                  <span className="proof-document__type">{doc.type}</span>
-                  <span>
-                    <strong>{doc.title}</strong>
-                    <small>{doc.description}</small>
-                  </span>
-                </a>
-              ))}
+            <div
+              className="delivery-page__badges"
+              aria-label="Условия доставки"
+            >
+              <span>Самовывоз со склада</span>
+              <span>Любая транспортная компания</span>
+              <span>Перевозка за счёт покупателя</span>
             </div>
           </div>
 
+          <aside className="info-note delivery-page__hero-note">
+            <strong className="delivery-page__hero-note-title">
+              Согласование отгрузки
+            </strong>
+            Для согласования самовывоза или отправки транспортной компанией
+            свяжитесь с менеджером по телефону{' '}
+            <a href={`tel:${SITE_PHONE}`} className="info-note__link">
+              {SITE_PHONE_DISPLAY}
+            </a>{' '}
+            или отправьте заявку с перечнем позиций, выбранным способом
+            получения и желаемой датой отгрузки.
+          </aside>
+        </div>
+
+        <div className="delivery-options" aria-label="Способы получения">
+          <article className="delivery-option">
+            <div>
+              <h2 className="delivery-option__title">Самовывоз со склада</h2>
+            </div>
+            <p>
+              Забрать заказ можно после подтверждения готовности. Склад
+              самовывоза находится по адресу: {SITE_WAREHOUSE_ADDRESS_DISPLAY}.
+              На карте отмечены точка проезда и входы на склад.
+            </p>
+            <div className="content-actions">
+              <a
+                href={SITE_WAREHOUSE_MAP_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="button-secondary"
+              >
+                Посмотреть адрес и входы на склад
+              </a>
+            </div>
+          </article>
+
+          <article className="delivery-option delivery-option--filled">
+            <div>
+              <h2 className="delivery-option__title">
+                Отправка транспортной компанией
+              </h2>
+            </div>
+            <p>
+              Организуем передачу груза в любую транспортную компанию: оформляем
+              отгрузку по согласованным данным и передаём документы. Услуги
+              перевозчика оплачивает покупатель по тарифам выбранной ТК.
+            </p>
+          </article>
+        </div>
+
+        <div className="content-columns content-columns--spaced">
+          <div>
+            <h2 className="delivery-section-title">Как проходит отгрузка</h2>
+            <p className="content-lead">
+              Сначала фиксируем способ получения, затем готовим заказ к выдаче
+              или передаче перевозчику.
+            </p>
+          </div>
+
+          <ol className="delivery-steps">
+            <li>
+              <strong>Согласование заказа</strong>
+              <span>Проверяем наличие, объём партии и дату готовности.</span>
+            </li>
+            <li>
+              <strong>Выбор способа получения</strong>
+              <span>Фиксируем самовывоз или транспортную компанию.</span>
+            </li>
+            <li>
+              <strong>Подготовка груза</strong>
+              <span>Комплектуем заказ и готовим документы к отгрузке.</span>
+            </li>
+            <li>
+              <strong>Передача заказа</strong>
+              <span>Выдаём груз на складе или передаём его перевозчику.</span>
+            </li>
+          </ol>
+        </div>
+
+        <div className="content-columns content-columns--spaced">
+          <div>
+            <h2 className="delivery-section-title">
+              Что нужно указать в заявке
+            </h2>
+            <p className="content-lead">
+              Достаточно заранее передать несколько деталей. Это помогает без
+              задержек подготовить передачу груза.
+            </p>
+          </div>
+
           <ul className="info-list">
-            {SITE_REQUEST_DOCUMENTS.slice(0, 4).map((item) => (
-              <li key={item}>{item}</li>
-            ))}
+            <li>ФИО и телефон водителя или экспедитора для самовывоза.</li>
+            <li>Название транспортной компании и нужный терминал отправки.</li>
+            <li>Реквизиты получателя груза и контакт для связи.</li>
+            <li>Требования к упаковке, маркировке или комплекту документов.</li>
           </ul>
         </div>
 
-        <div className="info-note">
-          Для уточнения стоимости и сроков доставки свяжитесь с нами по телефону{' '}
-          <a href={`tel:${SITE_PHONE}`} className="info-note__link">
-            {SITE_PHONE_DISPLAY}
-          </a>{' '}
-          или оставьте заявку с перечнем позиций, городом доставки и желаемой
-          датой отгрузки.
+        <div className="delivery-manager-card">
+          <h2 className="delivery-manager-card__title">
+            Дополнительная информация
+          </h2>
+          <p className="delivery-manager-card__text">
+            Для получения более подробной информации о наших условиях доставки,
+            пожалуйста, свяжитесь с нашими сотрудниками. Мы готовы ответить на
+            все ваши вопросы и предоставить консультацию по всем аспектам
+            доставки вашего заказа.
+          </p>
+          <div className="content-actions delivery-manager-card__actions">
+            <button
+              type="button"
+              className="button-primary"
+              onClick={handleOpenDeliveryLead}
+            >
+              Связаться с менеджером
+            </button>
+          </div>
+          <p className="delivery-manager-card__text delivery-manager-card__text--after-action">
+            Мы ценим ваше время и стремимся сделать процесс получения продукции
+            максимально простым и удобным для вас. Наша цель - обеспечить
+            качественную и своевременную доставку, чтобы вы могли
+            сосредоточиться на развитии своего бизнеса, не беспокоясь о
+            логистике. Спасибо, что выбрали нашу компанию для сотрудничества!
+          </p>
         </div>
       </Container>
     </section>
