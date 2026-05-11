@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Файл проверяет ключевой контент страницы оплаты, документы и CTA на запрос счёта.
+// Файл проверяет ключевой контент страницы оплаты, единый сценарий сделки, документы и CTA.
 
 import '../test/renderTestSetup.js';
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -28,19 +28,37 @@ describe('PaymentPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('показывает ключевые сценарии оплаты и реквизиты', () => {
+  it('показывает единый сценарий сделки, отдельные блоки для клиентов и реквизиты', () => {
     renderPaymentPage();
 
     expect(
-      screen.getByRole('heading', { name: 'Как можно оплатить' })
+      screen.getByRole('heading', { name: 'Оплата и оформление поставки' })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: 'Для юридических лиц' })
+      screen.getByRole('heading', {
+        name: 'Условия оплаты для компаний и физических лиц',
+      })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: 'Для ИП и физических лиц' })
+      screen.getByRole('heading', { name: 'Для юридических лиц и ИП' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Для физических лиц' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Что фиксируем до оплаты' })
     ).toBeInTheDocument();
     expect(screen.getByText(SITE_REQUISITES.fullLegalName)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Сайт носит информационный характер. Окончательные условия поставки, стоимость, сроки отгрузки, способ доставки и комплект документов согласуются менеджером после получения заявки.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Продажа физическим лицам осуществляется после подтверждения наличия, цены, способа получения и иных условий поставки. Сайт не оформляет покупку автоматически: менеджер сначала согласует условия, затем направляет счёт или договор.'
+      )
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'Скачать реквизиты' })
     ).toHaveAttribute('href', '/documents/company-details.pdf');

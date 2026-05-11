@@ -28,9 +28,11 @@ import {
   formatThresholdSource,
   summarizeSkips,
   summarizeByCategory,
+  extractSpreadsheetUrlFromHtml,
   fetchPriceWithTimeout,
   parsePriceDownloadMaxBytes,
   DEFAULT_PRICE_DOWNLOAD_MAX_BYTES,
+  resolveRemotePriceUrl,
 } from './importPrice.js';
 
 describe('mergeImportConfig', () => {
@@ -136,6 +138,57 @@ describe('download price limits', () => {
       })
     ).rejects.toThrow(/скачано.*лимит/);
     expect(signal.aborted).toBe(true);
+  });
+});
+
+describe('remote price source resolution', () => {
+  it('оставляет прямой xls URL без изменений', async () => {
+    await expect(
+      resolveRemotePriceUrl('https://example.test/upload/price.xls', 1000)
+    ).resolves.toBe('https://example.test/upload/price.xls');
+  });
+
+  it('извлекает xlsx-ссылку со страницы прайса', () => {
+    const html = `
+      <html>
+        <body>
+          <a href="/upload/archive.xls">Архив</a>
+          <section>
+            <a class="download" href="/upload/today-price.xlsx">Скачать прайс-лист</a>
+          </section>
+        </body>
+      </html>
+    `;
+
+    expect(
+      extractSpreadsheetUrlFromHtml(html, 'https://example.test/price/')
+    ).toBe('https://example.test/upload/today-price.xlsx');
+  });
+
+  it('разрешает относительные ссылки и HTML entities', async () => {
+    const html = `
+      <a href="/upload/price.xlsx?token=abc&amp;download=1">Прайс</a>
+    `;
+
+    await expect(
+      resolveRemotePriceUrl('https://example.test/price/', 1000, {
+        fetchImpl: async () =>
+          new Response(html, {
+            headers: { 'content-type': 'text/html; charset=utf-8' },
+          }),
+      })
+    ).resolves.toBe(
+      'https://example.test/upload/price.xlsx?token=abc&download=1'
+    );
+  });
+
+  it('падает с понятной ошибкой, если на странице нет Excel-ссылки', async () => {
+    await expect(
+      resolveRemotePriceUrl('https://example.test/price/', 1000, {
+        fetchImpl: async () =>
+          new Response('<html><a href="/docs/file.pdf">PDF</a></html>'),
+      })
+    ).rejects.toThrow(/не найдена ссылка на \.xls\/\.xlsx/i);
   });
 });
 

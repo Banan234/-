@@ -117,6 +117,7 @@ export default function SiteFooter({ onOpenQuote }) {
               <Link to="/delivery">Доставка</Link>
               <Link to="/payment">Оплата</Link>
               <Link to="/contacts">Контакты</Link>
+              <Link to="/privacy">Политика конфиденциальности</Link>
             </div>
           </div>
 
@@ -138,7 +139,7 @@ export default function SiteFooter({ onOpenQuote }) {
 
         <div className="site-footer__legal">
           © 2026 {SITE_NAME}. Информация на сайте носит справочный характер и не
-          является публичной офертой.
+          является публичной офертой. <Link to="/privacy">Политика конфиденциальности</Link>
         </div>
       </Container>
     </footer>

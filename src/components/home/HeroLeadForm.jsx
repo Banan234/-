@@ -266,6 +266,10 @@ export default function HeroLeadForm({
           />
           <span>Даю согласие на обработку персональных данных</span>
         </label>
+        <div className="contact-card__meta">
+          Продолжая, вы соглашаетесь с{' '}
+          <a href="/privacy">политикой конфиденциальности</a>.
+        </div>
         {errors.consent ? (
           <span id={errorIds.consent} className="field-error">
             {errors.consent}

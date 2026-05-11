@@ -30,6 +30,9 @@ describe('QuoteForm render flow', () => {
     expect(
       screen.getByLabelText('Даю согласие на обработку персональных данных')
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'политикой конфиденциальности' })
+    ).toHaveAttribute('href', '/privacy');
   });
 
   it('не сохраняет контактные данные в localStorage и удаляет старый черновик', async () => {

@@ -11,6 +11,7 @@ export function createRouteObjects({
   FavoritesPage,
   DeliveryPage,
   PaymentPage,
+  PrivacyPage,
   AboutPage,
   NotFoundPage,
 }) {
@@ -27,6 +28,7 @@ export function createRouteObjects({
         { path: 'contacts', element: <ContactsPage /> },
         { path: 'delivery', element: <DeliveryPage /> },
         { path: 'payment', element: <PaymentPage /> },
+        { path: 'privacy', element: <PrivacyPage /> },
         { path: 'about', element: <AboutPage /> },
         { path: '*', element: <NotFoundPage /> },
       ],

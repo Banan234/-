@@ -238,8 +238,12 @@ node scripts/importPrice.js path.xls
 node scripts/importPrice.js --dry-run    # только отчёт, без записи
 
 # Скачать свежий прайс с сайта поставщика и сразу пересобрать каталог:
-PRICE_URL=https://kabelhome.ru/upload/price.xls npm run import:price:remote
-node scripts/importPrice.js https://kabelhome.ru/upload/price.xls   # альтернатива
+PRICE_URL=https://supplier.example/upload/price.xls npm run import:price:remote
+node scripts/importPrice.js https://supplier.example/upload/price.xls
+
+# Если поставщик меняет имя Excel-файла, но ссылка на страницу прайса стабильна:
+PRICE_PAGE_URL=https://www.cablehome.ru/price/ npm run import:price:remote
+node scripts/importPrice.js https://www.cablehome.ru/price/
 ```
 
 После успешного запуска перезаписываются:
@@ -286,12 +290,13 @@ build-time prerender.
 каждый день в 04:30 утра по Москве:
 
 ```cron
-30 4 * * * cd /var/www/yuzhural-site && /usr/bin/env PRICE_URL=https://kabelhome.ru/upload/price.xls /usr/bin/node scripts/importPrice.js >> /var/log/yuzhural-import.log 2>&1
+30 4 * * * cd /var/www/yuzhural-site && /usr/bin/env PRICE_PAGE_URL=https://www.cablehome.ru/price/ /usr/bin/node scripts/importPrice.js >> /var/log/yuzhural-import.log 2>&1
 ```
 
-Точный URL Excel-файла нужно подсмотреть на странице «Прайс / Скачать» сайта
-поставщика (`kabelhome.ru`) и прописать в `PRICE_URL` (через `.env` либо
-прямо в crontab).
+Если Excel лежит по неизменному прямому URL, вместо `PRICE_PAGE_URL` можно
+использовать `PRICE_URL`. Если же поставщик меняет имя файла, удобнее
+оставить стабильную страницу прайса, а ссылку на `.xls/.xlsx` импортёр
+найдёт сам.
 
 **Если cron недоступен (shared hosting).** Скрипт `import:price:remote` можно
 вызывать по расписанию из панели хостинга, systemd-таймера или
@@ -317,6 +322,12 @@ jobs:
 
 В случае ошибки импортёр завершается с ненулевым кодом — и cron, и Actions
 пришлют письмо/уведомление, ничего не теряется молча.
+
+**Примечание про Codex automation.** Если запускать импорт через локальную
+automation в Codex app, это удобно для личной машины, но не стоит считать такой
+вариант полностью надёжным при закрытом приложении или спящем компьютере. Для
+гарантированного ежедневного обновления прайса используйте системный `cron`,
+`systemd` timer или другой always-on scheduler на сервере.
 
 ## Docker deploy, staging и rollback
 

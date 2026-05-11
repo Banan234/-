@@ -15,6 +15,7 @@ const ContactsPage = lazy(() => import('../pages/ContactsPage'));
 const FavoritesPage = lazy(() => import('../pages/FavoritesPage'));
 const DeliveryPage = lazy(() => import('../pages/DeliveryPage'));
 const PaymentPage = lazy(() => import('../pages/PaymentPage'));
+const PrivacyPage = lazy(() => import('../pages/PrivacyPage'));
 const AboutPage = lazy(() => import('../pages/AboutPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
@@ -28,6 +29,7 @@ export const router = createBrowserRouter(
     FavoritesPage,
     DeliveryPage,
     PaymentPage,
+    PrivacyPage,
     AboutPage,
     NotFoundPage,
   }),

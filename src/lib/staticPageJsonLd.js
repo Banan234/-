@@ -13,6 +13,7 @@ const STATIC_PAGE_JSON_LD_IDS = {
   '/about': 'about-page-json-ld',
   '/payment': 'payment-page-json-ld',
   '/delivery': 'delivery-page-json-ld',
+  '/privacy': 'privacy-page-json-ld',
 };
 
 function buildWebsiteReference() {
@@ -134,6 +135,25 @@ function buildDeliveryPageJsonLd() {
   };
 }
 
+function buildPrivacyPageJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebPage',
+        '@id': `${absoluteUrl('/privacy')}#webpage`,
+        url: absoluteUrl('/privacy'),
+        name: STATIC_PAGE_SEO.privacy.fullTitle,
+        description: STATIC_PAGE_SEO.privacy.description,
+        isPartOf: buildWebsiteReference(),
+        about: { '@id': `${SITE_URL}#organization` },
+        provider: buildOrganizationReference(),
+      },
+      buildOrganizationReference(),
+    ],
+  };
+}
+
 export function getStaticPageJsonLdId(path) {
   return STATIC_PAGE_JSON_LD_IDS[path] || '';
 }
@@ -142,5 +162,6 @@ export function buildStaticPageJsonLd(path) {
   if (path === '/about') return buildAboutPageJsonLd();
   if (path === '/payment') return buildPaymentPageJsonLd();
   if (path === '/delivery') return buildDeliveryPageJsonLd();
+  if (path === '/privacy') return buildPrivacyPageJsonLd();
   return null;
 }

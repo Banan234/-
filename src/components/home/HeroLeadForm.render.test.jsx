@@ -32,4 +32,12 @@ describe('HeroLeadForm render flow', () => {
     expect(consentInput).toHaveAttribute('aria-describedby', consentError.id);
     expect(consentInput).toHaveAccessibleDescription(consentError.textContent);
   });
+
+  it('показывает ссылку на политику конфиденциальности рядом с согласием', () => {
+    render(<HeroLeadForm />);
+
+    expect(
+      screen.getByRole('link', { name: 'политикой конфиденциальности' })
+    ).toHaveAttribute('href', '/privacy');
+  });
 });

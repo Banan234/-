@@ -2,6 +2,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import dotenv from 'dotenv';
 import { fileURLToPath, pathToFileURL } from 'url';
 import {
   buildCategoryMap,
@@ -30,6 +31,7 @@ import { writeSeoArtifacts } from './lib/siteSeo.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
+dotenv.config({ path: path.join(projectRoot, '.env') });
 
 const cliArgs = process.argv.slice(2);
 const cliFlags = new Set(cliArgs.filter((arg) => arg.startsWith('--')));
@@ -37,14 +39,16 @@ const positionalArgs = cliArgs.filter((arg) => !arg.startsWith('--'));
 const isDryRun = cliFlags.has('--dry-run');
 
 const URL_RE = /^https?:\/\//i;
+const SPREADSHEET_URL_RE = /\.(xls|xlsx)(?:[?#].*)?$/i;
 const positionalSource = positionalArgs[0] || '';
-// Источник прайса: явный URL/путь в argv → переменная окружения PRICE_URL → дефолтный data/price.xls.
-// URL автоматически скачивается перед парсингом.
-const priceUrl = URL_RE.test(positionalSource)
+// Источник прайса: явный URL/путь в argv → переменные окружения PRICE_URL /
+// PRICE_PAGE_URL → дефолтный data/price.xls. Если передана HTML-страница
+// прайса, импортёр сам ищет на ней ссылку на .xls/.xlsx и скачивает файл.
+const remoteSourceUrl = URL_RE.test(positionalSource)
   ? positionalSource
-  : process.env.PRICE_URL || '';
+  : process.env.PRICE_URL || process.env.PRICE_PAGE_URL || '';
 const inputFile =
-  (priceUrl ? '' : positionalSource) ||
+  (remoteSourceUrl ? '' : positionalSource) ||
   path.join(projectRoot, 'data', 'price.xls');
 const outputFile = path.join(projectRoot, 'data', 'products.json');
 const reportFile = path.join(projectRoot, 'data', 'import-report.json');
@@ -1833,6 +1837,73 @@ function createPriceDownloadLimitError(url, actualBytes, maxBytes, source) {
   );
 }
 
+function isSpreadsheetUrl(url) {
+  if (!url) return false;
+  try {
+    return SPREADSHEET_URL_RE.test(new URL(url).pathname || '');
+  } catch {
+    return SPREADSHEET_URL_RE.test(String(url));
+  }
+}
+
+function decodeHtmlAttribute(value) {
+  return String(value || '')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>');
+}
+
+export function extractSpreadsheetUrlFromHtml(html, baseUrl) {
+  const hrefRe = /href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+  const candidates = [];
+  let match;
+
+  while ((match = hrefRe.exec(html))) {
+    const rawHref = decodeHtmlAttribute(match[1] || match[2] || match[3] || '');
+    if (!rawHref) continue;
+    if (
+      rawHref.startsWith('#') ||
+      rawHref.startsWith('javascript:') ||
+      rawHref.startsWith('mailto:') ||
+      rawHref.startsWith('tel:')
+    ) {
+      continue;
+    }
+
+    let resolvedUrl;
+    try {
+      resolvedUrl = new URL(rawHref, baseUrl).toString();
+    } catch {
+      continue;
+    }
+
+    if (!isSpreadsheetUrl(resolvedUrl)) {
+      continue;
+    }
+
+    const snippet = html
+      .slice(
+        Math.max(0, match.index - 160),
+        match.index + match[0].length + 160
+      )
+      .toLowerCase();
+    const hrefLower = rawHref.toLowerCase();
+    let score = 100;
+
+    if (snippet.includes('скач')) score += 25;
+    if (snippet.includes('прайс')) score += 20;
+    if (snippet.includes('price')) score += 15;
+    if (hrefLower.includes('price') || hrefLower.includes('pric')) score += 10;
+
+    candidates.push({ url: resolvedUrl, score });
+  }
+
+  candidates.sort((left, right) => right.score - left.score);
+  return candidates[0]?.url || '';
+}
+
 async function readResponseBodyWithLimit(response, url, maxBytes, controller) {
   if (!response.body) {
     return Buffer.alloc(0);
@@ -1867,6 +1938,37 @@ async function readResponseBodyWithLimit(response, url, maxBytes, controller) {
   }
 
   return Buffer.concat(chunks, totalBytes);
+}
+
+async function fetchRemoteTextWithTimeout(
+  url,
+  timeoutMs,
+  { fetchImpl = fetch } = {}
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new Error(`timeout ${timeoutMs}ms`)),
+    timeoutMs
+  );
+  try {
+    const response = await fetchImpl(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(
+        `Не удалось открыть страницу ${url}: HTTP ${response.status}`
+      );
+    }
+
+    const text = await response.text();
+    if (!text.trim()) {
+      throw new PriceDownloadError(`Страница прайса пустая: ${url}`, {
+        retryable: false,
+      });
+    }
+
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function fetchPriceWithTimeout(
@@ -1929,9 +2031,42 @@ function isRetryableHttpError(error) {
   return status >= 500 || status === 429;
 }
 
+export async function resolveRemotePriceUrl(
+  sourceUrl,
+  timeoutMs,
+  { fetchImpl = fetch } = {}
+) {
+  if (!sourceUrl) {
+    throw new PriceDownloadError('Не задан URL удалённого прайса', {
+      retryable: false,
+    });
+  }
+
+  if (isSpreadsheetUrl(sourceUrl)) {
+    return sourceUrl;
+  }
+
+  const html = await fetchRemoteTextWithTimeout(sourceUrl, timeoutMs, {
+    fetchImpl,
+  });
+  const spreadsheetUrl = extractSpreadsheetUrlFromHtml(html, sourceUrl);
+  if (!spreadsheetUrl) {
+    throw new PriceDownloadError(
+      `На странице ${sourceUrl} не найдена ссылка на .xls/.xlsx прайс`,
+      { retryable: false }
+    );
+  }
+
+  return spreadsheetUrl;
+}
+
 async function downloadPriceFile() {
+  const downloadUrl = await resolveRemotePriceUrl(
+    remoteSourceUrl,
+    PRICE_DOWNLOAD_TIMEOUT_MS
+  );
   console.log(
-    `Скачивание прайса: ${priceUrl} (лимит ${formatBytes(
+    `Скачивание прайса: ${downloadUrl} (источник ${remoteSourceUrl}, лимит ${formatBytes(
       PRICE_DOWNLOAD_MAX_BYTES
     )})`
   );
@@ -1939,7 +2074,10 @@ async function downloadPriceFile() {
   let lastError;
   for (let attempt = 1; attempt <= PRICE_DOWNLOAD_RETRIES; attempt += 1) {
     try {
-      buffer = await fetchPriceWithTimeout(priceUrl, PRICE_DOWNLOAD_TIMEOUT_MS);
+      buffer = await fetchPriceWithTimeout(
+        downloadUrl,
+        PRICE_DOWNLOAD_TIMEOUT_MS
+      );
       break;
     } catch (error) {
       lastError = error;
@@ -1964,7 +2102,7 @@ async function downloadPriceFile() {
 }
 
 async function main() {
-  if (priceUrl) {
+  if (remoteSourceUrl) {
     await downloadPriceFile();
   }
   console.log(`Чтение прайса: ${inputFile}`);
