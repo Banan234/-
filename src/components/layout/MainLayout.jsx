@@ -9,7 +9,6 @@ import HeaderCatalogMenu from './HeaderCatalogMenu';
 import HeaderSearch from './HeaderSearch';
 import SiteFooter from './SiteFooter';
 import { useCartStore } from '../../store/useCartStore';
-import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { trackEvent } from '../../lib/analytics';
 import { usePageviewTracking } from '../../hooks/usePageviewTracking';
 import { STORAGE_WRITE_FAILED_EVENT } from '../../lib/browserStorage';
@@ -41,17 +40,12 @@ function buildStorageWarningMessage(key) {
     return 'Список для КП изменён только на этом экране: браузер не дал сохранить корзину. Уменьшите список или очистите место в браузере.';
   }
 
-  if (key === 'yuzhural-favorites') {
-    return 'Избранное изменено только на этом экране: браузер не дал сохранить список. Освободите место в браузере, чтобы изменения не пропали после перезагрузки.';
-  }
-
   return 'Браузер не дал сохранить изменения локально. Они видны сейчас, но могут пропасть после перезагрузки страницы.';
 }
 
 export default function MainLayout() {
   const items = useCartStore((state) => state.items);
   const totalCount = items.length;
-  const favoritesCount = useFavoritesStore((state) => state.items.length);
 
   const location = useLocation();
   usePageviewTracking();
@@ -325,28 +319,6 @@ export default function MainLayout() {
 
               <div className="site-header__actions">
                 <Link
-                  to="/favorites"
-                  className="site-header__cart"
-                  aria-label="Открыть избранное"
-                >
-                  <svg
-                    className="site-header__cart-icon site-header__cart-icon--svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
-                  {favoritesCount > 0 && (
-                    <span className="cart-badge">{favoritesCount}</span>
-                  )}
-                </Link>
-
-                <Link
                   to="/cart"
                   className="site-header__cart"
                   aria-label="Открыть корзину"
@@ -399,7 +371,6 @@ export default function MainLayout() {
           <LazyMobileNav
             id={MOBILE_NAV_ID}
             isOpen={isMobileNavOpen}
-            favoritesCount={favoritesCount}
             totalCount={totalCount}
             onClose={() => setIsMobileNavOpen(false)}
             onOpenCall={() =>

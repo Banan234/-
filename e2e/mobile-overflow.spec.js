@@ -9,7 +9,6 @@ const ROUTES = [
   '/catalog/silovoy-kabel',
   '/contacts',
   '/cart',
-  '/favorites',
   '/delivery',
   '/payment',
   '/about',

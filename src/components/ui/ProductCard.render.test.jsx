@@ -7,7 +7,6 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import ProductCard from './ProductCard.jsx';
 import { useCartStore } from '../../store/useCartStore.js';
-import { useFavoritesStore } from '../../store/useFavoritesStore.js';
 
 const baseProduct = {
   id: 10,
@@ -36,7 +35,6 @@ function renderCard(product = baseProduct) {
 
 beforeEach(() => {
   useCartStore.setState({ items: [] });
-  useFavoritesStore.setState({ items: [] });
 });
 
 describe('ProductCard', () => {

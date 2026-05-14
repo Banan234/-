@@ -13,6 +13,7 @@ import {
   SITE_PHONE_HREF,
   SITE_REQUISITES,
   SITE_WAREHOUSE_ADDRESS_DISPLAY,
+  SITE_WAREHOUSE_MAP_URL,
 } from '../lib/siteConfig.js';
 import ContactsPage from './ContactsPage.jsx';
 
@@ -35,7 +36,9 @@ describe('ContactsPage', () => {
     expect(
       screen.getByText(`Офис: ${SITE_OFFICE_ADDRESS_DISPLAY}`)
     ).toBeInTheDocument();
-    expect(screen.getByText(SITE_WAREHOUSE_ADDRESS_DISPLAY)).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: SITE_WAREHOUSE_ADDRESS_DISPLAY })
+    ).toHaveAttribute('href', SITE_WAREHOUSE_MAP_URL);
     expect(screen.getAllByText(SITE_EMAIL)).toHaveLength(4);
     expect(
       document.querySelectorAll(`a[href="${SITE_PHONE_HREF}"]`)

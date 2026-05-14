@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Файл проверяет работу layout с localStorage, избранным, корзиной и пользовательскими состояниями.
+// Файл проверяет работу layout с localStorage, корзиной и пользовательскими состояниями.
 
 import '../../test/renderTestSetup.js';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';

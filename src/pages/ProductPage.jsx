@@ -6,7 +6,6 @@ import Container from '../components/ui/Container';
 import ProductCard from '../components/ui/ProductCard';
 import { fetchProductBySlug, fetchRelatedProducts } from '../lib/productsApi';
 import { useCartStore } from '../store/useCartStore';
-import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useSEO } from '../hooks/useSEO';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { trackEvent } from '../lib/analytics';
@@ -45,15 +44,11 @@ export default function ProductPage() {
       ? prerenderData.product
       : null;
   const addItem = useCartStore((state) => state.addItem);
-  const toggleFavorite = useFavoritesStore((state) => state.toggleItem);
   const [quantity, setQuantity] = useState(1);
   const [product, setProduct] = useState(() => initialProduct);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(() => !initialProduct);
   const [error, setError] = useState('');
-  const isFavorite = useFavoritesStore((state) =>
-    state.isFavorite(product?.id)
-  );
 
   useSEO({
     title: product ? buildProductMetaTitle(product) : undefined,
@@ -323,14 +318,6 @@ export default function ProductPage() {
                 onClick={() => addItem({ ...product, quantity })}
               >
                 Добавить в корзину
-              </button>
-
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={() => toggleFavorite(product)}
-              >
-                {isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}
               </button>
 
               <Link to="/cart" className="button-secondary">

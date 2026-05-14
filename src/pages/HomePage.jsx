@@ -15,9 +15,7 @@ import {
   SITE_MANUFACTURERS,
   SITE_NAME,
   SITE_OFFICE_ADDRESS_DISPLAY,
-  SITE_PUBLIC_DOCUMENTS,
   SITE_QUOTE_RESPONSE_DISPLAY,
-  SITE_REQUEST_DOCUMENTS,
   SITE_REQUISITES,
   SITE_URL,
   SITE_WORKING_HOURS_DISPLAY,
@@ -66,67 +64,6 @@ const workflowSteps = [
     title: 'Отгружаем со склада',
     text: 'Комплектуем заказ и отгружаем со склада.',
     featured: true,
-  },
-];
-
-const qualityDocuments = [
-  {
-    title: 'УПД / ТОРГ-12',
-    text: 'Передаём закрывающие документы для бухгалтерии и закупочного отдела.',
-    icon: 'УПД',
-  },
-  {
-    title: 'Сертификаты соответствия',
-    text: 'По запросу пришлём сертификаты соответствия по нужной марке кабеля.',
-    icon: 'СТ',
-  },
-  {
-    title: 'Сертификат ПБ',
-    text: 'Подготовим документы пожарной безопасности для кабеля с такими требованиями.',
-    icon: 'ПБ',
-  },
-  {
-    title: 'Протоколы испытаний',
-    text: 'Предоставим протоколы испытаний и паспорта качества производителя.',
-    icon: 'ИП',
-  },
-];
-
-const objectionsFaq = [
-  {
-    question: 'Что, если нужной позиции не будет в прайсе или на складе?',
-    answer:
-      'Проверим аналоги по марке, сечению и назначению, предложим замену или срок поставки под заказ.',
-  },
-  {
-    question: 'Цена в прайсе — окончательная?',
-    answer:
-      'Прайс показывает ориентир. Итоговую цену фиксируем в КП или счёте после проверки остатка, объёма и условий доставки.',
-  },
-  {
-    question: 'Есть ли отсрочка?',
-    answer:
-      'Для постоянных клиентов и поставок по договору обсуждаем отсрочку индивидуально после согласования лимита.',
-  },
-  {
-    question: 'Как быстро отгружаете?',
-    answer:
-      'Позиции из наличия обычно отгружаем от 1 дня. Срочные заявки выделяем отдельно и сразу называем реальный срок.',
-  },
-  {
-    question: 'Работаете ли с НДС и без?',
-    answer:
-      'Основной формат для юрлиц — с НДС и закрывающими документами. Другие варианты оплаты уточняем при подготовке КП.',
-  },
-  {
-    question: 'Доставка по России — чем?',
-    answer:
-      'Отправляем транспортными компаниями, отдельной машиной или через самовывоз со склада в Челябинске.',
-  },
-  {
-    question: 'Минимальная партия?',
-    answer:
-      'Зависит от марки, сечения и текущего остатка. По складским позициям часто можем отгрузить от одной бухты или нужного метража.',
   },
 ];
 
@@ -308,56 +245,6 @@ export default function HomePage() {
         loadError={loadError}
       />
 
-      <section className="section home-documents">
-        <Container>
-          <div className="home-documents__layout">
-            <div className="home-documents__copy">
-              <div className="home-documents__eyebrow">
-                Документы для закупки
-              </div>
-              <h2 className="section-title section-title--left">
-                <span id="procurement-documents-title">
-                  Скачать прайс и типовой договор
-                </span>
-              </h2>
-              <p className="home-documents__lead">
-                Открытые файлы до заявки: прайс-лист, типовой договор и
-                реквизиты компании.
-              </p>
-            </div>
-
-            <ul className="home-documents__links">
-              {SITE_PUBLIC_DOCUMENTS.map((doc) => (
-                <li key={doc.href}>
-                  <a href={doc.href} download className="home-documents__link">
-                    <span
-                      className="home-documents__filetype"
-                      aria-hidden="true"
-                    >
-                      {doc.type}
-                    </span>
-                    <span className="home-documents__link-copy">
-                      <span className="home-documents__link-title">
-                        {doc.title}
-                      </span>
-                      <span className="home-documents__link-meta">
-                        {doc.description}
-                      </span>
-                    </span>
-                    <span
-                      className="home-documents__download"
-                      aria-hidden="true"
-                    >
-                      ↓
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Container>
-      </section>
-
       <section className="section home-proof">
         <Container>
           <div className="home-proof__head">
@@ -414,68 +301,6 @@ export default function HomePage() {
                 позициями из прайс-листа.
               </p>
             </article>
-          </div>
-        </Container>
-      </section>
-
-      <section className="section home-quality-docs">
-        <Container>
-          <div className="home-quality-docs__head">
-            <div>
-              <div className="home-quality-docs__eyebrow">
-                Гарантии качества
-              </div>
-              <h2 className="section-title section-title--left">
-                <span id="quality-documents-title">
-                  Каждая отгрузка — с пакетом документов
-                </span>
-              </h2>
-            </div>
-            <p className="home-quality-docs__lead">
-              Закрывающие документы передаём по отгрузке. Сертификаты, паспорта
-              качества, протоколы и фото партии предоставляем по запросу для
-              согласованной позиции.
-            </p>
-          </div>
-
-          <ul className="home-quality-docs__grid">
-            {qualityDocuments.map((doc) => (
-              <li key={doc.title} className="home-quality-docs__item">
-                <span className="home-quality-docs__icon" aria-hidden="true">
-                  {doc.icon}
-                </span>
-                <div>
-                  <h3 className="home-quality-docs__title">{doc.title}</h3>
-                  <p className="home-quality-docs__text">{doc.text}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Container>
-      </section>
-
-      <section className="section section--soft home-request-docs">
-        <Container>
-          <div className="content-columns">
-            <div>
-              <div className="home-request-docs__eyebrow">
-                Что предоставляем по запросу
-              </div>
-              <h2 className="section-title section-title--left">
-                Не обещаем “всё есть”: подтверждаем документами
-              </h2>
-              <p className="content-lead">
-                Сертификаты и паспорта зависят от конкретной марки, завода и
-                партии. Поэтому отправляем их после проверки позиции, а не
-                выкладываем универсальные сканы без привязки к поставке.
-              </p>
-            </div>
-
-            <ul className="info-list">
-              {SITE_REQUEST_DOCUMENTS.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
           </div>
         </Container>
       </section>
@@ -554,33 +379,6 @@ export default function HomePage() {
         </Container>
       </section>
 
-      <section className="section home-objections">
-        <Container>
-          <div className="home-objections__head">
-            <div>
-              <div className="home-objections__eyebrow">Вопросы снабжения</div>
-              <h2 className="section-title section-title--left">
-                Ответы на частые возражения
-              </h2>
-            </div>
-            <p className="home-objections__lead">
-              Коротко о ценах, наличии, оплате, доставке и минимальной партии до
-              того, как заявка уйдёт в закупки.
-            </p>
-          </div>
-
-          <div className="home-objections__list">
-            {objectionsFaq.map((item) => (
-              <details key={item.question} className="home-objections__item">
-                <summary className="home-objections__question">
-                  {item.question}
-                </summary>
-                <p className="home-objections__answer">{item.answer}</p>
-              </details>
-            ))}
-          </div>
-        </Container>
-      </section>
     </>
   );
 }

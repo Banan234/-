@@ -1,4 +1,4 @@
-// Файл рендерит мобильную навигацию, поиск, корзину, избранное и раскрытие каталога.
+// Файл рендерит мобильную навигацию, поиск, корзину и раскрытие каталога.
 
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -8,7 +8,6 @@ import { SITE_PHONE_DISPLAY, SITE_PHONE_HREF } from '../../lib/siteConfig';
 export default function MobileNav({
   id,
   isOpen,
-  favoritesCount,
   totalCount,
   onClose,
   onOpenCall,
@@ -131,14 +130,6 @@ export default function MobileNav({
           </nav>
 
           <div className="mobile-nav__quick">
-            <Link
-              to="/favorites"
-              className="mobile-nav__quick-link"
-              onClick={onClose}
-            >
-              Избранное
-              {favoritesCount > 0 ? <span>{favoritesCount}</span> : null}
-            </Link>
             <Link
               to="/cart"
               className="mobile-nav__quick-link"

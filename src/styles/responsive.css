@@ -37,9 +37,6 @@
   .products-grid {
     grid-template-columns: 1fr 1fr;
   }
-  .favorites-grid {
-    grid-template-columns: 1fr 1fr;
-  }
   .catalog-dropdown {
     width: 820px;
     grid-template-columns: 240px 1fr;
@@ -83,17 +80,6 @@
   }
   .hero-lead-card__title {
     font-size: 22px;
-  }
-  .favorites-grid {
-    grid-template-columns: 1fr;
-  }
-  .favorites-head,
-  .favorite-card__controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .favorite-card__actions {
-    justify-content: space-between;
   }
   .quote-field--full {
     grid-column: auto;

@@ -273,7 +273,6 @@ export function buildRobotsTxt({ siteUrl = DEFAULT_SITE_URL } = {}) {
     // SPA-служебные каталоги — на всякий случай прячем от ботов.
     'Disallow: /api/',
     'Disallow: /cart',
-    'Disallow: /favorites',
     '',
     // Один Sitemap-указатель — на индекс. Поисковик сам разберёт ссылки
     // на sitemap-pages/categories/products.

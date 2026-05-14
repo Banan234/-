@@ -1,9 +1,8 @@
-// Файл рендерит товарную карточку каталога с ценой, статусом, действиями и ссылкой на товар.
+// Файл рендерит товарную карточку каталога с ценой, статусом, действиями корзины и ссылкой на товар.
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCartStore } from '../../store/useCartStore';
-import { useFavoritesStore } from '../../store/useFavoritesStore';
 import {
   CardActions,
   CardPrice,
@@ -26,8 +25,6 @@ function formatStockLabel(product) {
 
 export default function ProductCard({ product, variant = 'default' }) {
   const addItem = useCartStore((state) => state.addItem);
-  const toggleFavorite = useFavoritesStore((state) => state.toggleItem);
-  const isFavorite = useFavoritesStore((state) => state.isFavorite(product.id));
   const [addedToCart, setAddedToCart] = useState(false);
   const isStockVariant = variant === 'stock';
   const productUrl = `/product/${product.slug}`;
@@ -87,10 +84,6 @@ export default function ProductCard({ product, variant = 'default' }) {
     setTimeout(() => setAddedToCart(false), 1500);
   }
 
-  function handleToggleFavorite() {
-    toggleFavorite(product);
-  }
-
   return (
     <article
       className={`product-card${isStockVariant ? ' product-card--stock' : ''}`}
@@ -134,10 +127,8 @@ export default function ProductCard({ product, variant = 'default' }) {
         <CardActions
           isStockVariant={isStockVariant}
           addedToCart={addedToCart}
-          isFavorite={isFavorite}
           onAddToCart={handleAddToCart}
           onOpenQuote={handleOpenQuote}
-          onToggleFavorite={handleToggleFavorite}
         />
       </div>
     </article>

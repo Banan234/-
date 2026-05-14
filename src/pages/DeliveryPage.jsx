@@ -7,6 +7,7 @@ import {
   SITE_PHONE,
   SITE_PHONE_DISPLAY,
   SITE_WAREHOUSE_ADDRESS_DISPLAY,
+  SITE_WAREHOUSE_MAP_EMBED_URL,
   SITE_WAREHOUSE_MAP_URL,
 } from '../lib/siteConfig';
 import {
@@ -81,8 +82,11 @@ export default function DeliveryPage() {
             </div>
             <p>
               Забрать заказ можно после подтверждения готовности. Склад
-              самовывоза находится по адресу: {SITE_WAREHOUSE_ADDRESS_DISPLAY}.
-              На карте отмечены точка проезда и входы на склад.
+              самовывоза находится по адресу:{' '}
+              <a href={SITE_WAREHOUSE_MAP_URL} target="_blank" rel="noreferrer">
+                {SITE_WAREHOUSE_ADDRESS_DISPLAY}
+              </a>
+              . На карте отмечены точка проезда и входы на склад.
             </p>
             <div className="content-actions">
               <a
@@ -108,6 +112,24 @@ export default function DeliveryPage() {
               перевозчика оплачивает покупатель по тарифам выбранной ТК.
             </p>
           </article>
+        </div>
+
+        <div className="contacts-map-card delivery-route-map">
+          <div className="contacts-map-card__title">Схема проезда к складу</div>
+          <div className="contacts-map-frame">
+            <iframe
+              title="Схема проезда к складу самовывоза"
+              src={SITE_WAREHOUSE_MAP_EMBED_URL}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+          <div className="contacts-map-card__footer">
+            <span>Маршрут до входа на склад: {SITE_WAREHOUSE_ADDRESS_DISPLAY}</span>
+            <a href={SITE_WAREHOUSE_MAP_URL} target="_blank" rel="noreferrer">
+              Открыть в Яндекс Картах
+            </a>
+          </div>
         </div>
 
         <div className="content-columns content-columns--spaced">

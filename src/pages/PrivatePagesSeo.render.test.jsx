@@ -6,9 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CartPage from './CartPage.jsx';
-import FavoritesPage from './FavoritesPage.jsx';
 import { useCartStore } from '../store/useCartStore.js';
-import { useFavoritesStore } from '../store/useFavoritesStore.js';
 
 function renderPage(page, path) {
   render(
@@ -51,20 +49,11 @@ const pricedItem = {
 
 beforeEach(() => {
   useCartStore.setState({ items: [] });
-  useFavoritesStore.setState({ items: [] });
 });
 
 describe('private pages SEO', () => {
   it('ставит noindex на страницу корзины', async () => {
     renderPage(<CartPage />, '/cart');
-
-    await waitFor(() => {
-      expect(getRobotsMetaContent()).toBe('noindex,follow');
-    });
-  });
-
-  it('ставит noindex на страницу избранного', async () => {
-    renderPage(<FavoritesPage />, '/favorites');
 
     await waitFor(() => {
       expect(getRobotsMetaContent()).toBe('noindex,follow');
@@ -111,12 +100,4 @@ describe('private pages SEO', () => {
     ).toBeInTheDocument();
   });
 
-  it('показывает цену по запросу для нулевой цены в избранном', () => {
-    useFavoritesStore.setState({ items: [noPriceItem] });
-
-    renderPage(<FavoritesPage />, '/favorites');
-
-    expect(screen.getByText('Кабель без цены')).toBeInTheDocument();
-    expect(screen.getByText('Цена по запросу')).toBeInTheDocument();
-  });
 });

@@ -1,4 +1,4 @@
-// Файл создаёт общую zustand-логику persisted store для корзины и избранного.
+// Файл создаёт общую zustand-логику persisted store для коллекций товаров.
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';

@@ -11,7 +11,6 @@ import CatalogPage from './pages/CatalogPage';
 import ProductPage from './pages/ProductPage';
 import CartPage from './pages/CartPage';
 import ContactsPage from './pages/ContactsPage';
-import FavoritesPage from './pages/FavoritesPage';
 import DeliveryPage from './pages/DeliveryPage';
 import PaymentPage from './pages/PaymentPage';
 import AboutPage from './pages/AboutPage';
@@ -24,7 +23,6 @@ const routes = createRouteObjects({
   ProductPage,
   CartPage,
   ContactsPage,
-  FavoritesPage,
   DeliveryPage,
   PaymentPage,
   AboutPage,

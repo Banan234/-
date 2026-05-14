@@ -30,6 +30,7 @@ npm run up             # build/prerender + API на 3001 + фронт на 5173
 | `npm run load:test`                               | Короткий нагрузочный прогон API; настраивается `API_BASE`, `LOAD_CONCURRENCY`                                                             |
 | `npm run load:soak`                               | Длинный soak-прогон API на 30 минут для контроля RSS/event loop                                                                           |
 | `node scripts/importPrice.js [path/to/price.xls]` | Импорт прайса → `data/products.json`, отчёты, `public/sitemap.xml`, `public/robots.txt`, runtime HTML карточек при `PUBLIC_ARTIFACTS_DIR` |
+| `npm run import:price:scheduled`                  | Guard-запуск для планировщика: импортирует прайс только если сегодняшний запуск после 04:30 ещё не выполнялся                            |
 | `npm run check:product-prerender`                 | Проверка, что все product URL из sitemap имеют HTML с meta/JSON-LD, включая long-tail за `PRODUCT_PRERENDER_LIMIT`                        |
 | `node scripts/importPrice.js --dry-run`           | То же, но без записи файлов                                                                                                               |
 
@@ -188,6 +189,27 @@ STATIC_BASE=http://127.0.0.1:4173 npm run load:test
 Если счётчик включён, `tag.js` вставляется асинхронно после `load`/`idle`;
 clickmap, accurate bounce и webvisor по умолчанию выключены.
 
+#### Подключение Яндекс Метрики
+
+1. Войдите в [Яндекс Метрику](https://metrika.yandex.ru/) и создайте новый счётчик.
+2. В поле «Адрес сайта» укажите будущий продакшен-домен без `http`, `https` и `www`, например `yuzhural.ru`. Если сайт ещё не опубликован, счётчик всё равно можно создать заранее.
+3. Скопируйте номер счётчика и пропишите его в локальный `.env`:
+
+   ```env
+   VITE_YANDEX_METRIKA_ID=12345678
+   ```
+
+4. Если для staging нужен отдельный счётчик, задайте `STAGING_YANDEX_METRIKA_ID`.
+5. После изменения переменной пересоберите фронтенд и заново задеплойте сайт:
+
+   ```bash
+   npm run build
+   ```
+
+   Если деплой идёт через Docker Compose, передайте переменную окружения и пересоздайте контейнеры.
+
+Проверка: после деплоя откройте сайт и убедитесь в интерфейсе Метрики, что появился хотя бы один визит. Пока сайт не опубликован и код счётчика не попал в собранный фронтенд, данные собираться не будут.
+
 `VITE_SENTRY_DSN` включает Sentry/GlitchTip. SDK грузится отдельным lazy-чанком
 после `load`/`idle`; ранние ошибки буферизуются и могут форсировать загрузку.
 Performance tracing включается только через `VITE_SENTRY_TRACES_SAMPLE_RATE`,
@@ -213,10 +235,11 @@ src/
   lib/analytics.js         # Yandex.Metrika (no-op если id не задан)
   lib/quotePdf.js          # генератор КП в PDF (lazy + Roboto Cyrillic)
   pages/                   # все страницы (lazy через router.jsx)
-  store/                   # zustand-сторы корзины и избранного (persist)
+  store/                   # zustand-сторы сайта (persist)
   styles/                  # глобальные + посекционные стили
 scripts/
   importPrice.js           # чтение Excel → products.json + отчёты + SEO
+  runScheduledPriceImport.js # guard для launchd/cron: пропускает импорт до 04:30 и после успешного запуска за день
   lib/siteSeo.js           # генератор sitemap.xml/robots.txt
 shared/
   messages.js              # общие тексты ошибок/успеха для фронта и API
@@ -322,6 +345,21 @@ jobs:
 
 В случае ошибки импортёр завершается с ненулевым кодом — и cron, и Actions
 пришлют письмо/уведомление, ничего не теряется молча.
+
+**macOS `launchd` (для личной машины).** Если импорт должен переживать сон,
+выключение ноутбука и поздний вход в систему, используйте
+`scripts/runScheduledPriceImport.js` вместе с user LaunchAgent. Этот guard:
+
+- ничего не делает до сегодняшних `04:30`;
+- не запускает повторный импорт, если он уже успешно прошёл сегодня после `04:30`;
+- при `RunAtLoad` догоняет пропущенный запуск сразу после входа в систему или
+  старта пользовательской сессии, если к этому моменту `04:30` уже прошли.
+
+Локальная установленная конфигурация:
+
+- plist: `~/Library/LaunchAgents/ru.yuzhural.price-import.plist`
+- логи: `~/Library/Logs/yuzhural-price-import.log` и
+  `~/Library/Logs/yuzhural-price-import.error.log`
 
 **Примечание про Codex automation.** Если запускать импорт через локальную
 automation в Codex app, это удобно для личной машины, но не стоит считать такой

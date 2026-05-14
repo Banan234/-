@@ -2,6 +2,5 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /cart
-Disallow: /favorites
 
 Sitemap: http://localhost:5173/sitemap.xml

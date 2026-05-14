@@ -17,6 +17,7 @@ import {
   SITE_REQUEST_DOCUMENTS,
   SITE_REQUISITES,
   SITE_WAREHOUSE_ADDRESS_DISPLAY,
+  SITE_WAREHOUSE_MAP_URL,
   SITE_WORKING_HOURS_DISPLAY,
 } from '../lib/siteConfig';
 import '../styles/pages/content.css';
@@ -129,7 +130,15 @@ export default function ContactsPage() {
 
                   <div className="contacts-info-row">
                     <span>Склад самовывоза</span>
-                    <strong>{SITE_WAREHOUSE_ADDRESS_DISPLAY}</strong>
+                    <strong>
+                      <a
+                        href={SITE_WAREHOUSE_MAP_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {SITE_WAREHOUSE_ADDRESS_DISPLAY}
+                      </a>
+                    </strong>
                   </div>
 
                   <div className="contacts-info-row">

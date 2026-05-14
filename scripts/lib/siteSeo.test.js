@@ -183,7 +183,6 @@ describe('buildRobotsTxt', () => {
     expect(txt).toContain('Allow: /');
     expect(txt).toContain('Disallow: /api/');
     expect(txt).toContain('Disallow: /cart');
-    expect(txt).toContain('Disallow: /favorites');
     expect(txt).toContain(`Sitemap: ${SITE}/${SITEMAP_FILES.index}`);
   });
 });
