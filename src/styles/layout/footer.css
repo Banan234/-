@@ -280,6 +280,23 @@
     min-height: 62px;
     font-size: 16px;
   }
+  .site-footer__quick-actions {
+    align-items: stretch;
+  }
+  .site-footer__quick-actions-label {
+    text-align: left;
+  }
+  .site-footer__quick-links {
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 10px 14px;
+  }
+  .site-footer__quick-link:first-child {
+    flex-basis: 100%;
+  }
+  .site-footer__quick-divider:first-of-type {
+    display: none;
+  }
 }
 
 @media (max-width: 700px) {

@@ -21,7 +21,7 @@ import path from 'path';
 const DEFAULT_SITE_URL =
   process.env.SITE_URL ||
   process.env.VITE_SITE_URL ||
-  'https://yuzhuralelectrokabel.ru';
+  'https://yu-uek.ru';
 
 export const SITEMAP_FILES = {
   index: 'sitemap.xml',

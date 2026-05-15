@@ -15,7 +15,7 @@ function readSiteUrl() {
     const fromVite = import.meta.env.VITE_SITE_URL;
     if (fromVite) return fromVite;
   }
-  return 'https://yuzhuralelectrokabel.ru';
+  return 'https://yu-uek.ru';
 }
 
 function readPublicConfigValue(nodeName, viteName, fallback) {

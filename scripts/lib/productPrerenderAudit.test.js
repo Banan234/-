@@ -24,7 +24,7 @@ function buildProductSitemap(slugs) {
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...slugs.map(
       (slug) =>
-        `  <url><loc>https://yuzhuralelectrokabel.ru/product/${slug}</loc></url>`
+        `  <url><loc>https://yu-uek.ru/product/${slug}</loc></url>`
     ),
     '</urlset>',
     '',
@@ -36,7 +36,7 @@ function buildProductHtml(slug) {
     '<!doctype html>',
     '<html lang="ru">',
     '<head>',
-    `  <link rel="canonical" href="https://yuzhuralelectrokabel.ru/product/${slug}">`,
+    `  <link rel="canonical" href="https://yu-uek.ru/product/${slug}">`,
     '  <script type="application/ld+json" id="prerender-product">{"@type":"Product","name":"Товар"}</script>',
     '  <script type="application/json" id="yuzhural-prerender-data">{"product":{"slug":"x"}}</script>',
     '</head>',

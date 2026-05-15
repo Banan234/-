@@ -16,11 +16,24 @@
   .home-hero__content {
     max-width: 100%;
   }
+  .home-hero {
+    order: 1;
+  }
+  .home-hero-zone__form {
+    order: 2;
+  }
+  .home-benefits {
+    order: 3;
+  }
   .home-hero-zone__form {
     position: static;
+    top: auto;
+    right: auto;
+    transform: none;
     width: 100%;
     max-width: 460px;
-    padding: 0 20px 40px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
   }
   .home-hero-zone__form::before {
     inset: auto 24px -16px 24px;
@@ -159,6 +172,10 @@
   }
   .home-hero__btn-primary {
     width: 100%;
+  }
+  .home-hero-zone__form {
+    max-width: none;
+    padding: 20px 16px 32px;
   }
   .home-benefits__list {
     grid-template-columns: repeat(2, minmax(0, 1fr));

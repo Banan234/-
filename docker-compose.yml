@@ -47,8 +47,8 @@ services:
       dockerfile: Dockerfile
       target: web
       args:
-        SITE_URL: ${SITE_URL:-https://yuzhuralelectrokabel.ru}
-        VITE_SITE_URL: ${VITE_SITE_URL:-https://yuzhuralelectrokabel.ru}
+        SITE_URL: ${SITE_URL:-https://yu-uek.ru}
+        VITE_SITE_URL: ${VITE_SITE_URL:-https://yu-uek.ru}
         VITE_YANDEX_METRIKA_ID: ${VITE_YANDEX_METRIKA_ID:-}
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
         VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}

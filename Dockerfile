@@ -22,8 +22,8 @@ USER node
 WORKDIR /home/node
 RUN mkdir -p app
 WORKDIR /home/node/app
-ARG SITE_URL=https://yuzhuralelectrokabel.ru
-ARG VITE_SITE_URL=https://yuzhuralelectrokabel.ru
+ARG SITE_URL=https://yu-uek.ru
+ARG VITE_SITE_URL=https://yu-uek.ru
 ARG VITE_YANDEX_METRIKA_ID=
 ARG VITE_SENTRY_DSN=
 ARG VITE_SENTRY_ENVIRONMENT=production

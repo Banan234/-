@@ -11,11 +11,11 @@ describe('errorTracking Sentry sanitizers', () => {
   it('отрезает query-string у request.url', () => {
     const event = sanitizeSentryEvent({
       request: {
-        url: 'https://yuzhuralelectrokabel.ru/cart?email=ivan@example.com&phone=%2B79001234567',
+        url: 'https://yu-uek.ru/cart?email=ivan@example.com&phone=%2B79001234567',
       },
     });
 
-    expect(event.request.url).toBe('https://yuzhuralelectrokabel.ru/cart');
+    expect(event.request.url).toBe('https://yu-uek.ru/cart');
   });
 
   it('редактирует email и телефон в breadcrumbs data', () => {
@@ -31,7 +31,7 @@ describe('errorTracking Sentry sanitizers', () => {
               phoneNumber: '89001234567',
               comment:
                 'Перезвонить +7 900 123-45-67 или написать ivan@example.com',
-              url: 'https://yuzhuralelectrokabel.ru/api/quote?phone=79001234567',
+              url: 'https://yu-uek.ru/api/quote?phone=79001234567',
             },
           },
         },
@@ -46,7 +46,7 @@ describe('errorTracking Sentry sanitizers', () => {
       'Перезвонить [redacted] или написать [redacted]'
     );
     expect(data.nested.url).toBe(
-      'https://yuzhuralelectrokabel.ru/api/quote?phone=[redacted]'
+      'https://yu-uek.ru/api/quote?phone=[redacted]'
     );
   });
 
