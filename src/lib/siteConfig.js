@@ -38,6 +38,14 @@ function normalizePhoneDisplay(value) {
   return String(value || '').replace(/(?<=\d)-(?=\d)/g, '\u2011');
 }
 
+function normalizePhoneDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function normalizeTelegramUsername(value) {
+  return String(value || '').trim().replace(/^@+/, '');
+}
+
 export const SITE_URL = trimTrailingSlash(readSiteUrl());
 export const SITE_NAME = 'ЮжУралЭлектроКабель';
 export const SITE_LEGAL_NAME = readPublicConfigValue(
@@ -73,6 +81,34 @@ export const SITE_EMAIL = readPublicConfigValue(
   'kabelh@bk.ru'
 );
 export const SITE_EMAIL_HREF = `mailto:${SITE_EMAIL}`;
+export const SITE_WHATSAPP_PHONE = normalizePhoneDigits(
+  readPublicConfigValue(
+    'SITE_WHATSAPP_PHONE',
+    'VITE_SITE_WHATSAPP_PHONE',
+    '79227230010'
+  )
+);
+export const SITE_TELEGRAM_USERNAME = normalizeTelegramUsername(
+  readPublicConfigValue(
+    'SITE_TELEGRAM_USERNAME',
+    'VITE_SITE_TELEGRAM_USERNAME',
+    'ocnuz'
+  )
+);
+export const SITE_TELEGRAM_BUSINESS_CHAT_SLUG = String(
+  readPublicConfigValue(
+    'SITE_TELEGRAM_BUSINESS_CHAT_SLUG',
+    'VITE_SITE_TELEGRAM_BUSINESS_CHAT_SLUG',
+    ''
+  )
+).trim();
+export const SITE_MESSENGER_PROMPT = readPublicConfigValue(
+  'SITE_MESSENGER_PROMPT',
+  'VITE_SITE_MESSENGER_PROMPT',
+  'Здравствуйте! Интересует кабельная продукция. Нужна консультация.'
+);
+export const SITE_WHATSAPP_URL = `https://wa.me/${SITE_WHATSAPP_PHONE}`;
+export const SITE_TELEGRAM_URL = `https://t.me/${SITE_TELEGRAM_USERNAME}`;
 export const SITE_TAX_ID = readPublicConfigValue(
   'SITE_TAX_ID',
   'VITE_SITE_TAX_ID',
@@ -119,18 +155,35 @@ export const SITE_WAREHOUSE_MAP_EMBED_URL =
 export const SITE_MAP_URL = SITE_OFFICE_MAP_URL;
 export const SITE_MAP_EMBED_URL = SITE_OFFICE_MAP_EMBED_URL;
 
-// Часы работы — формат schema.org openingHours: «Пн–Пт 09:00–18:00».
-export const SITE_WORKING_HOURS_DISPLAY = 'Пн–Пт 09:00–18:00';
-export const SITE_OPENING_HOURS = ['Mo-Fr 09:00-18:00'];
+// Часы работы — формат schema.org openingHours: «Пн–Пт 09:00–17:00».
+export const SITE_WORKING_HOURS_DISPLAY = 'Пн–Пт 09:00–17:00';
+export const SITE_OPENING_HOURS = ['Mo-Fr 09:00-17:00'];
 export const SITE_OPENING_HOURS_SPECIFICATION = [
   {
     dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
     opens: '09:00',
-    closes: '18:00',
+    closes: '17:00',
   },
 ];
 
 export const SITE_SOCIAL_LINKS = [];
+
+export function buildWhatsAppLink(message = SITE_MESSENGER_PROMPT) {
+  const params = new URLSearchParams({ text: message });
+  return `${SITE_WHATSAPP_URL}?${params.toString()}`;
+}
+
+export function buildTelegramLink(message = SITE_MESSENGER_PROMPT) {
+  if (SITE_TELEGRAM_BUSINESS_CHAT_SLUG) {
+    return `https://t.me/m/${encodeURIComponent(SITE_TELEGRAM_BUSINESS_CHAT_SLUG)}`;
+  }
+
+  const params = new URLSearchParams({
+    url: SITE_URL,
+    text: message,
+  });
+  return `https://t.me/share/url?${params.toString()}`;
+}
 
 export const SITE_REQUISITES = {
   legalName: SITE_LEGAL_NAME,

@@ -31,15 +31,6 @@ const categoryCards = [
 ];
 
 export default function CategoryShowcase() {
-  function handleBridgeClick(event) {
-    const target = document.getElementById('stock-now');
-
-    if (target) {
-      event.preventDefault();
-      target.scrollIntoView({ behavior: 'smooth' });
-    }
-  }
-
   return (
     <section className="section home-category-showcase">
       <Container>
@@ -47,9 +38,6 @@ export default function CategoryShowcase() {
           <h2 className="section-title section-title--left">
             <span id="popular-categories-title">Популярные категории</span>
           </h2>
-          <p className="home-category-showcase__sub">
-            Выберите нужный тип кабеля под вашу задачу
-          </p>
         </div>
 
         <ul className="home-category-showcase__grid">
@@ -84,15 +72,6 @@ export default function CategoryShowcase() {
             </li>
           ))}
         </ul>
-
-        <a
-          href="#stock-now"
-          className="home-category-showcase__bridge"
-          onClick={handleBridgeClick}
-        >
-          Или смотрите товары, доступные прямо сейчас
-          <span aria-hidden="true">↓</span>
-        </a>
       </Container>
     </section>
   );

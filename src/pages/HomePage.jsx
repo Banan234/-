@@ -24,10 +24,10 @@ import {
 import '../styles/sections/home-critical.css';
 
 const heroBenefits = [
-  'Прайс-лист XLS в открытом доступе',
+  'Более 6 000 позиций в каталоге',
+  'Сертификаты и паспорта на продукцию',
+  'Счёт и КП в день обращения',
   'Отгрузка от 1 дня',
-  'ИНН и ОГРН на сайте',
-  'Работаем с НДС и по договору',
 ];
 
 const audienceSegments = [
@@ -52,12 +52,12 @@ const workflowSteps = [
   {
     number: '01',
     title: 'Заявка',
-    text: 'Отправляете задачу или список кабеля.',
+    text: 'Отправляете список необходимого кабеля.',
   },
   {
     number: '02',
     title: 'КП в рабочий день',
-    text: 'Проверяем наличие, подбираем позиции и отправляем коммерческое предложение без обещаний вслепую.',
+    text: 'Проверяем наличие, подбираем позиции и отправляем коммерческое предложение.',
   },
   {
     number: '03',
@@ -237,73 +237,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      <CategoryShowcase />
-
       <StockProductsGrid
         products={products}
         isLoading={isLoading}
         loadError={loadError}
       />
 
-      <section className="section home-proof">
-        <Container>
-          <div className="home-proof__head">
-            <div>
-              <div className="home-proof__eyebrow">Проверка до заявки</div>
-              <h2 className="section-title section-title--left">
-                Реквизиты, адрес и условия работы открыты на сайте
-              </h2>
-            </div>
-            <p className="home-proof__lead">
-              Чтобы закупке не приходилось выяснять базовые вещи после звонка:
-              юрданные, документы и рабочий порядок можно проверить заранее.
-            </p>
-          </div>
-
-          <div className="home-proof__grid">
-            <article className="home-proof__card">
-              <h3 className="home-proof__title">Юридические данные</h3>
-              <dl className="home-proof__details">
-                <div>
-                  <dt>Организация</dt>
-                  <dd>{SITE_REQUISITES.fullLegalName}</dd>
-                </div>
-                <div>
-                  <dt>ИНН</dt>
-                  <dd>{SITE_REQUISITES.taxId}</dd>
-                </div>
-                <div>
-                  <dt>ОГРН</dt>
-                  <dd>{SITE_REQUISITES.registrationNumber}</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article className="home-proof__card">
-              <h3 className="home-proof__title">Адрес и режим</h3>
-              <dl className="home-proof__details">
-                <div>
-                  <dt>Офис</dt>
-                  <dd>{SITE_OFFICE_ADDRESS_DISPLAY}</dd>
-                </div>
-                <div>
-                  <dt>Режим</dt>
-                  <dd>{SITE_WORKING_HOURS_DISPLAY}</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article className="home-proof__card">
-              <h3 className="home-proof__title">Производители в прайсе</h3>
-              <p className="home-proof__text">
-                Работаем с номенклатурой российских и зарубежных производителей:
-                {` ${SITE_MANUFACTURERS.slice(0, 7).join(', ')} `}и другими
-                позициями из прайс-листа.
-              </p>
-            </article>
-          </div>
-        </Container>
-      </section>
+      <CategoryShowcase />
 
       <section className="section section--soft home-workflow">
         <Container>
@@ -337,8 +277,7 @@ export default function HomePage() {
             <div className="home-workflow__summary-copy">
               <div className="home-workflow__summary-label">Результат</div>
               <p className="home-workflow__summary-text">
-                Вы получаете готовое коммерческое предложение и нужный кабель
-                без лишних согласований.
+                Получаете готовое коммерческое предложение и необходимый кабель.
               </p>
             </div>
             <button
@@ -376,6 +315,62 @@ export default function HomePage() {
               </li>
             ))}
           </ul>
+        </Container>
+      </section>
+
+      <section className="section home-proof">
+        <Container>
+          <div className="home-proof__head">
+            <div>
+              <div className="home-proof__eyebrow">Проверка до заявки</div>
+              <h2 className="section-title section-title--left">
+                Реквизиты, адрес и условия работы открыты на сайте
+              </h2>
+            </div>
+          </div>
+
+          <div className="home-proof__grid">
+            <article className="home-proof__card">
+              <h3 className="home-proof__title">Юридические данные</h3>
+              <dl className="home-proof__details">
+                <div>
+                  <dt>Организация</dt>
+                  <dd>{SITE_REQUISITES.fullLegalName}</dd>
+                </div>
+                <div>
+                  <dt>ИНН</dt>
+                  <dd>{SITE_REQUISITES.taxId}</dd>
+                </div>
+                <div>
+                  <dt>ОГРН</dt>
+                  <dd>{SITE_REQUISITES.registrationNumber}</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article className="home-proof__card">
+              <h3 className="home-proof__title">Адрес и режим работы</h3>
+              <dl className="home-proof__details">
+                <div>
+                  <dt>Офис</dt>
+                  <dd>{SITE_OFFICE_ADDRESS_DISPLAY}</dd>
+                </div>
+                <div>
+                  <dt>Режим</dt>
+                  <dd>{SITE_WORKING_HOURS_DISPLAY}</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article className="home-proof__card">
+              <h3 className="home-proof__title">Производители в прайсе</h3>
+              <p className="home-proof__text">
+                Работаем с номенклатурой российских и зарубежных производителей:
+                {` ${SITE_MANUFACTURERS.slice(0, 7).join(', ')} `}и другими
+                позициями из прайс-листа.
+              </p>
+            </article>
+          </div>
         </Container>
       </section>
 

@@ -10,6 +10,8 @@ import {
   SITE_PHONE_DISPLAY,
   SITE_PHONE_HREF,
   SITE_QUOTE_RESPONSE_DISPLAY,
+  SITE_TELEGRAM_URL,
+  SITE_WHATSAPP_URL,
   SITE_WORKING_HOURS_DISPLAY,
 } from '../../lib/siteConfig';
 import '../../styles/layout/footer.css';
@@ -25,7 +27,7 @@ export default function SiteFooter({ onOpenQuote }) {
               Нужно коммерческое предложение?
             </h2>
             <p className="site-footer__cta-text">
-              Отправьте список нужных марок — подготовим КП с актуальными ценами
+              Отправьте список нужных позиций — подготовим КП с актуальными ценами
               {` ${SITE_QUOTE_RESPONSE_DISPLAY}.`}
             </p>
           </div>
@@ -55,7 +57,7 @@ export default function SiteFooter({ onOpenQuote }) {
                   ·
                 </span>
                 <a
-                  href="https://t.me/ocnuz"
+                  href={SITE_TELEGRAM_URL}
                   className="site-footer__quick-link"
                   target="_blank"
                   rel="noreferrer"
@@ -66,7 +68,7 @@ export default function SiteFooter({ onOpenQuote }) {
                   ·
                 </span>
                 <a
-                  href="https://wa.me/79227230010"
+                  href={SITE_WHATSAPP_URL}
                   className="site-footer__quick-link"
                   target="_blank"
                   rel="noreferrer"

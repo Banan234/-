@@ -55,6 +55,14 @@ afterEach(() => {
 });
 
 describe('MainLayout', () => {
+  it('показывает плавающий виджет не только на главной, но и на внутренних страницах', () => {
+    renderLayout('/catalog');
+
+    expect(
+      screen.getByRole('button', { name: 'Отправьте нам сообщение' })
+    ).toBeInTheDocument();
+  });
+
   it('показывает UX-фидбек при ошибке сохранения корзины и даёт закрыть предупреждение', async () => {
     const user = userEvent.setup();
     renderLayout();

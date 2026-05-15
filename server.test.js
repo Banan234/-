@@ -51,6 +51,7 @@ const {
   validateSiteUrlEnv,
 } = await import('./server.js');
 const { createCatalogQueryStore } = await import('./lib/catalogQuery.js');
+const { createInMemoryChatStore } = await import('./lib/chatStore.js');
 const { MAX_QUOTE_ITEM_COMMENT_LENGTH, MAX_QUOTE_PAYLOAD_BYTES } =
   await import('./shared/quoteValidation.js');
 
@@ -76,14 +77,30 @@ function createTestEnv(overrides = {}) {
   };
 }
 
+function createMockTelegramBridge(overrides = {}) {
+  return {
+    isConfigured: vi.fn(() => true),
+    notifyConversationCreated: vi.fn(async () => null),
+    notifyCustomerMessage: vi.fn(async () => null),
+    handleWebhookUpdate: vi.fn(async () => ({ ok: true, handled: false })),
+    configureWebhook: vi.fn(async () => false),
+    webhookSecret: 'telegram-secret',
+    ...overrides,
+  };
+}
+
 function createTestApp({
   env = createTestEnv(),
   rateLimitOptions = { limit: 1000 },
+  chatStore = createInMemoryChatStore(),
+  telegramBridge = createMockTelegramBridge(),
   ...options
 } = {}) {
   return createApp({
     env,
     rateLimitOptions,
+    chatStore,
+    telegramBridge,
     ...options,
   });
 }
@@ -145,6 +162,15 @@ const validLeadPayload = {
   comment: 'ВВГ 3х2.5',
   source: 'Тест',
   createdAt: '2026-04-26 10:00',
+  rendered_at: renderedAt,
+  submit_at: renderedAt + 3_000,
+  company_website: '',
+};
+
+const validChatPayload = {
+  phone: '+7 (900) 123-45-67',
+  message: 'Нужен ВВГнг-LS 3х2.5, 400 метров',
+  source: 'Виджет',
   rendered_at: renderedAt,
   submit_at: renderedAt + 3_000,
   company_website: '',
@@ -1820,5 +1846,186 @@ describe('POST /api/lead-request', () => {
     expect(res.status).toBe(200);
     expect(data.ok).toBe(true);
     expect(sendMailMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('chat conversations API', () => {
+  it('создаёт диалог и отправляет уведомление менеджеру в Telegram', async () => {
+    const chatStore = createInMemoryChatStore();
+    const telegramBridge = createMockTelegramBridge({
+      notifyConversationCreated: vi.fn(async () => ({
+        chatId: '321',
+        messageId: 77,
+      })),
+    });
+    const app = createTestApp({ chatStore, telegramBridge });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const res = await postJsonTo(
+        localBaseUrl,
+        '/api/chat/conversations',
+        validChatPayload
+      );
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.ok).toBe(true);
+      expect(data.message).toBe(
+        'Диалог начат. Менеджер ответит здесь в рабочее время.'
+      );
+      expect(data.conversationId).toEqual(expect.any(String));
+      expect(data.customerToken).toEqual(expect.any(String));
+      expect(data.conversation.messages).toHaveLength(2);
+      expect(data.conversation.messages[1]).toMatchObject({
+        role: 'customer',
+        text: validChatPayload.message,
+      });
+
+      expect(telegramBridge.notifyConversationCreated).toHaveBeenCalledTimes(1);
+
+      const storedConversation = await chatStore.getConversation(
+        data.conversationId
+      );
+      expect(storedConversation.telegramNotifications).toContainEqual(
+        expect.objectContaining({
+          chatId: '321',
+          messageId: 77,
+        })
+      );
+    });
+  });
+
+  it('отдаёт историю клиенту и шлёт новое Telegram-уведомление на сообщение', async () => {
+    const chatStore = createInMemoryChatStore();
+    const telegramBridge = createMockTelegramBridge({
+      notifyCustomerMessage: vi.fn(async () => ({
+        chatId: '321',
+        messageId: 88,
+      })),
+    });
+    const app = createTestApp({ chatStore, telegramBridge });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const createRes = await postJsonTo(
+        localBaseUrl,
+        '/api/chat/conversations',
+        validChatPayload
+      );
+      const created = await createRes.json();
+
+      const customerRes = await fetch(
+        `${localBaseUrl}/api/chat/conversations/${created.conversationId}?token=${created.customerToken}`
+      );
+      const customerData = await customerRes.json();
+
+      expect(customerRes.status).toBe(200);
+      expect(customerData.role).toBe('customer');
+      expect(customerData.conversation.customerPhone).toBeUndefined();
+
+      const messageRes = await postJsonTo(
+        localBaseUrl,
+        `/api/chat/conversations/${created.conversationId}/messages`,
+        {
+          token: created.customerToken,
+          message: 'Есть ли в наличии 400 метров?',
+        }
+      );
+      const messageData = await messageRes.json();
+
+      expect(messageRes.status).toBe(200);
+      expect(messageData.message).toBe('Сообщение отправлено');
+      expect(telegramBridge.notifyCustomerMessage).toHaveBeenCalledTimes(1);
+
+      const storedConversation = await chatStore.getConversation(
+        created.conversationId
+      );
+      expect(storedConversation.telegramNotifications).toContainEqual(
+        expect.objectContaining({
+          chatId: '321',
+          messageId: 88,
+        })
+      );
+    });
+  });
+
+  it('принимает ответ менеджера из Telegram webhook и показывает его клиенту', async () => {
+    const { createTelegramChatBridge } = await import('./lib/telegramChat.js');
+    const chatStore = createInMemoryChatStore();
+    const outboundCalls = [];
+    const telegramBridge = createTelegramChatBridge({
+      env: createTestEnv({
+        TELEGRAM_BOT_TOKEN: 'bot-token',
+        TELEGRAM_MANAGER_CHAT_ID: '321',
+        TELEGRAM_WEBHOOK_SECRET: 'telegram-secret',
+      }),
+      fetchImpl: vi.fn(async (url, init) => {
+        outboundCalls.push({ url, init });
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            result: {
+              message_id: 900,
+              chat: { id: 321 },
+            },
+          }),
+        };
+      }),
+    });
+    const app = createTestApp({ chatStore, telegramBridge });
+
+    await withTestServer(app, async (localBaseUrl) => {
+      const createRes = await postJsonTo(
+        localBaseUrl,
+        '/api/chat/conversations',
+        validChatPayload
+      );
+      const created = await createRes.json();
+
+      await chatStore.registerTelegramNotification(created.conversationId, {
+        chatId: '321',
+        messageId: 500,
+      });
+
+      const webhookRes = await postJsonTo(
+        localBaseUrl,
+        '/api/telegram/webhook/telegram-secret',
+        {
+          update_id: 101,
+          message: {
+            message_id: 777,
+            chat: { id: 321, type: 'private' },
+            from: {
+              id: 42,
+              first_name: 'Анна',
+              username: 'manager',
+            },
+            text: 'Подтверждаю, 400 метров есть на складе.',
+            reply_to_message: {
+              message_id: 500,
+            },
+          },
+        }
+      );
+      const webhookData = await webhookRes.json();
+
+      expect(webhookRes.status).toBe(200);
+      expect(webhookData.ok).toBe(true);
+
+      const customerRes = await fetch(
+        `${localBaseUrl}/api/chat/conversations/${created.conversationId}?token=${created.customerToken}`
+      );
+      const customerData = await customerRes.json();
+      const lastMessage =
+        customerData.conversation.messages[
+          customerData.conversation.messages.length - 1
+        ];
+
+      expect(lastMessage).toMatchObject({
+        role: 'manager',
+        text: 'Подтверждаю, 400 метров есть на складе.',
+      });
+      expect(outboundCalls).toHaveLength(2);
+    });
   });
 });

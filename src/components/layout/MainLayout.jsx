@@ -5,6 +5,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import Container from '../ui/Container';
 import Modal from '../ui/Modal';
 import HeroLeadForm from '../home/HeroLeadForm';
+import FloatingLeadWidget from './FloatingLeadWidget';
 import HeaderCatalogMenu from './HeaderCatalogMenu';
 import HeaderSearch from './HeaderSearch';
 import SiteFooter from './SiteFooter';
@@ -48,6 +49,7 @@ export default function MainLayout() {
   const totalCount = items.length;
 
   const location = useLocation();
+  const isHomePage = location.pathname === '/';
   usePageviewTracking();
 
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -424,6 +426,11 @@ export default function MainLayout() {
             source: 'CTA в футере',
           })
         }
+      />
+
+      <FloatingLeadWidget
+        autoOpen={false}
+        sourceLabel={isHomePage ? 'Главная страница' : 'Внутренняя страница'}
       />
 
       <Modal

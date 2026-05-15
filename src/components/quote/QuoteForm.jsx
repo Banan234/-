@@ -332,12 +332,11 @@ export default function QuoteForm({
                 aria-invalid={errors.consent ? 'true' : undefined}
                 aria-describedby={errors.consent ? errorIds.consent : undefined}
               />
-              <span>Даю согласие на обработку персональных данных</span>
+              <span>
+                Даю согласие на{' '}
+                <a href="/privacy">обработку персональных&nbsp;данных</a>
+              </span>
             </label>
-            <div className="contact-card__meta">
-              Продолжая, вы соглашаетесь с{' '}
-              <a href="/privacy">политикой конфиденциальности</a>.
-            </div>
             {errors.consent ? (
               <span id={errorIds.consent} className="field-error">
                 {errors.consent}

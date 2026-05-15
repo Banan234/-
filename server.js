@@ -11,6 +11,8 @@ import rateLimit from 'express-rate-limit';
 import { monitorEventLoopDelay } from 'perf_hooks';
 import { pathToFileURL } from 'url';
 import { createCatalogStore } from './lib/catalog.js';
+import { createFileChatStore } from './lib/chatStore.js';
+import { createTelegramChatBridge } from './lib/telegramChat.js';
 import {
   MAX_QUOTE_ITEMS,
   MAX_QUOTE_PAYLOAD_BYTES,
@@ -54,15 +56,19 @@ const DEFAULT_SMTP_SEND_RETRIES = 1;
 const DEFAULT_SMTP_RETRY_DELAY_MS = 750;
 const QUOTE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const LEAD_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const CHAT_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const BOT_FORM_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const PRODUCT_API_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const QUOTE_RATE_LIMIT = 12;
 const LEAD_RATE_LIMIT = 30;
+const CHAT_RATE_LIMIT = 60;
 const BOT_FORM_RATE_LIMIT = 5;
 const PRODUCT_API_RATE_LIMIT = 3_000;
 const MAX_LEAD_NAME_LENGTH = 120;
 const MAX_LEAD_COMMENT_LENGTH = 1000;
 const MAX_LEAD_SOURCE_LENGTH = 160;
+const MAX_CHAT_MESSAGE_LENGTH = 2_000;
+const MAX_CHAT_TOKEN_LENGTH = 128;
 const RUNTIME_EVENT_LOOP_DELAY = monitorEventLoopDelay({ resolution: 20 });
 const RETRYABLE_MAIL_ERROR_CODES = new Set([
   'ECONNABORTED',
@@ -204,6 +210,17 @@ function normalizePhoneInput(value) {
 
 function isTrimmedStringWithinLength(value, maxLength) {
   return String(value ?? '').trim().length <= maxLength;
+}
+
+function isNonEmptyTrimmedStringWithinLength(value, maxLength) {
+  const length = String(value ?? '').trim().length;
+  return length > 0 && length <= maxLength;
+}
+
+function normalizeChatToken(value) {
+  return String(value ?? '')
+    .trim()
+    .slice(0, MAX_CHAT_TOKEN_LENGTH);
 }
 
 function applyCatalogCache(res) {
@@ -693,6 +710,7 @@ export function createApp({
   rateLimitOptions,
   quoteRateLimitOptions,
   leadRateLimitOptions,
+  chatRateLimitOptions,
   botRateLimitOptions,
   productApiRateLimitOptions,
   env = process.env,
@@ -703,6 +721,8 @@ export function createApp({
     facetCacheTtlMs: CATALOG_CACHE_TTL_MS,
   }),
   mailTransporter,
+  chatStore = createFileChatStore(),
+  telegramBridge = createTelegramChatBridge({ env }),
   formsDiagnostic,
   mailSendOptions = getMailSendOptions(env),
   formResponseDelayRange = getDefaultFormResponseDelayRange(),
@@ -729,6 +749,8 @@ export function createApp({
   app.set('etag', false);
   app.set('trust proxy', trustProxy);
   app.locals.mailTransporter = resolvedMailTransporter;
+  app.locals.chatStore = chatStore;
+  app.locals.telegramBridge = telegramBridge;
   app.locals.formsDiagnostic = startupFormsDiagnostic;
   app.locals.activeRequests = 0;
   app.locals.catalogWarmupPromise = null;
@@ -809,6 +831,18 @@ export function createApp({
     skip: isBotSubmission,
     ...sharedFormRateLimitOptions,
     ...leadRateLimitOptions,
+  });
+  const chatRateLimitMessage = {
+    ok: false,
+    message: messages.errors.api.chatRateLimited,
+  };
+  const chatRateLimiter = rateLimit({
+    windowMs: CHAT_RATE_LIMIT_WINDOW_MS,
+    limit: CHAT_RATE_LIMIT,
+    message: chatRateLimitMessage,
+    skip: isBotSubmission,
+    ...sharedFormRateLimitOptions,
+    ...chatRateLimitOptions,
   });
   const productApiRateLimiter = rateLimit({
     windowMs: PRODUCT_API_RATE_LIMIT_WINDOW_MS,
@@ -926,6 +960,235 @@ export function createApp({
       status: ok ? 'ready' : 'unavailable',
     });
   });
+
+  app.post('/api/telegram/webhook/:secret', async (req, res) => {
+    const secret = String(req.params.secret || '').trim();
+    const bridge = app.locals.telegramBridge;
+
+    if (!bridge?.isConfigured?.() || !secret || secret !== bridge.webhookSecret) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Не найдено',
+      });
+    }
+
+    try {
+      await bridge.handleWebhookUpdate(req.body, {
+        chatStore: app.locals.chatStore,
+      });
+
+      return res.json({ ok: true });
+    } catch (error) {
+      logger.error('telegram.webhook.failed', { err: error });
+      return res.status(500).json({ ok: false, message: 'Webhook failed' });
+    }
+  });
+
+  app.get('/api/chat/conversations/:conversationId', async (req, res) => {
+    try {
+      const { conversationId } = req.params;
+      const token = normalizeChatToken(req.query.token);
+
+      if (!token) {
+        return res.status(404).json({
+          ok: false,
+          message: messages.errors.api.chatNotFound,
+        });
+      }
+
+      const conversation =
+        await app.locals.chatStore.getConversationForCustomer(
+          conversationId,
+          token
+        );
+
+      if (!conversation) {
+        return res.status(404).json({
+          ok: false,
+          message: messages.errors.api.chatNotFound,
+        });
+      }
+
+      return res.json({
+        ok: true,
+        role: 'customer',
+        conversation,
+      });
+    } catch (error) {
+      logger.error('chat.conversation.read_failed', { err: error });
+      return createErrorResponse(res, messages.errors.api.chatLoadFailed);
+    }
+  });
+
+  app.post(
+    '/api/chat/conversations',
+    requireJsonContentType,
+    botFormRateLimiter,
+    chatRateLimiter,
+    async (req, res) => {
+      const formResponseStartedAt = Date.now();
+      const formResponseDelayMs = pickFormResponseDelayMs(
+        normalizedFormResponseDelayRange
+      );
+
+      try {
+        if (getBotSubmissionSignal(req)) {
+          return sendFormJson(res, formResponseStartedAt, formResponseDelayMs, {
+            ok: true,
+            message: messages.success.chatStarted,
+          });
+        }
+
+        const { phone, name, message, source } = req.body;
+        const contactName = String(name || '').trim();
+        const normalizedPhone = normalizePhoneInput(phone);
+        const chatMessage = String(message || '').trim();
+        const chatSource = String(source || '').trim();
+
+        if (!isValidRussianPhone(normalizedPhone)) {
+          return sendFormErrorResponse(
+            res,
+            formResponseStartedAt,
+            formResponseDelayMs,
+            messages.errors.api.phoneInvalid,
+            400
+          );
+        }
+
+        if (
+          !isTrimmedStringWithinLength(contactName, MAX_LEAD_NAME_LENGTH) ||
+          !isNonEmptyTrimmedStringWithinLength(
+            chatMessage,
+            MAX_CHAT_MESSAGE_LENGTH
+          ) ||
+          !isTrimmedStringWithinLength(chatSource, MAX_LEAD_SOURCE_LENGTH)
+        ) {
+          return sendFormErrorResponse(
+            res,
+            formResponseStartedAt,
+            formResponseDelayMs,
+            messages.errors.api.invalidChatRequest,
+            400
+          );
+        }
+
+        const created = await app.locals.chatStore.createConversation({
+          customerPhone: normalizedPhone,
+          customerName: contactName,
+          source: chatSource,
+          initialMessage: chatMessage,
+        });
+
+        try {
+          const notification =
+            await app.locals.telegramBridge.notifyConversationCreated(
+              created.conversation
+            );
+
+          if (notification) {
+            await app.locals.chatStore.registerTelegramNotification(
+              created.conversation.id,
+              notification
+            );
+          }
+        } catch (error) {
+          logger.error('chat.telegram_notify_failed', {
+            err: error,
+            conversationId: created.conversation.id,
+          });
+        }
+
+        return sendFormJson(res, formResponseStartedAt, formResponseDelayMs, {
+          ok: true,
+          message: messages.success.chatStarted,
+          conversationId: created.conversation.id,
+          customerToken: created.customerToken,
+          conversation: created.customerConversation,
+        });
+      } catch (error) {
+        logger.error('chat.conversation.create_failed', { err: error });
+        return sendFormErrorResponse(
+          res,
+          formResponseStartedAt,
+          formResponseDelayMs,
+          messages.errors.api.chatSendFailed
+        );
+      }
+    }
+  );
+
+  app.post(
+    '/api/chat/conversations/:conversationId/messages',
+    requireJsonContentType,
+    chatRateLimiter,
+    async (req, res) => {
+      try {
+        const { conversationId } = req.params;
+        const token = normalizeChatToken(req.body?.token);
+        const message = String(req.body?.message || '').trim();
+
+        if (
+          !token ||
+          !isNonEmptyTrimmedStringWithinLength(
+            message,
+            MAX_CHAT_MESSAGE_LENGTH
+          )
+        ) {
+          return res.status(400).json({
+            ok: false,
+            message: messages.errors.api.invalidChatRequest,
+          });
+        }
+
+        const updated = await app.locals.chatStore.appendCustomerMessage(
+          conversationId,
+          token,
+          message
+        );
+
+        if (!updated) {
+          return res.status(404).json({
+            ok: false,
+            message: messages.errors.api.chatNotFound,
+          });
+        }
+
+        try {
+          const latestMessage =
+            updated.conversation.messages[
+              updated.conversation.messages.length - 1
+            ];
+          const notification =
+            await app.locals.telegramBridge.notifyCustomerMessage(
+              updated.conversation,
+              latestMessage
+            );
+
+          if (notification) {
+            await app.locals.chatStore.registerTelegramNotification(
+              updated.conversation.id,
+              notification
+            );
+          }
+        } catch (error) {
+          logger.error('chat.telegram_notify_failed', {
+            err: error,
+            conversationId,
+          });
+        }
+
+        return res.json({
+          ok: true,
+          role: 'customer',
+          message: messages.success.chatMessageSent,
+          conversation: updated.customerConversation,
+        });
+      } catch (error) {
+        logger.error('chat.message.send_failed', { err: error });
+        return createErrorResponse(res, messages.errors.api.chatSendFailed);
+      }
+    }
+  );
 
   app.get('/api/products', productApiRateLimiter, async (req, res) => {
     try {
@@ -1429,6 +1692,7 @@ export async function startServer({
   port = env.PORT || PORT,
   warmCatalogOnStart = true,
   mailTransporter,
+  telegramBridge = createTelegramChatBridge({ env }),
   listen = (app, listenPort, onListening) =>
     app.listen(listenPort, onListening),
 } = {}) {
@@ -1443,8 +1707,17 @@ export async function startServer({
     env,
     warmCatalogOnStart,
     mailTransporter: formsStartup.transporter,
+    telegramBridge,
     formsDiagnostic: formsStartup.diagnostic,
   });
+  try {
+    const webhookConfigured = await telegramBridge.configureWebhook?.();
+    if (webhookConfigured) {
+      logger.info('startup.telegram_webhook_configured');
+    }
+  } catch (error) {
+    logger.error('startup.telegram_webhook_failed', { err: error });
+  }
   const server = listen(app, port, () => {
     logger.info('startup.listening', { port });
   });

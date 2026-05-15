@@ -37,7 +37,7 @@ describe('HeroLeadForm render flow', () => {
     render(<HeroLeadForm />);
 
     expect(
-      screen.getByRole('link', { name: 'политикой конфиденциальности' })
+      screen.getByRole('link', { name: /обработку персональных\sданных/i })
     ).toHaveAttribute('href', '/privacy');
   });
 });

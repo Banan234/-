@@ -13,6 +13,7 @@ import CartPage from './pages/CartPage';
 import ContactsPage from './pages/ContactsPage';
 import DeliveryPage from './pages/DeliveryPage';
 import PaymentPage from './pages/PaymentPage';
+import PrivacyPage from './pages/PrivacyPage';
 import AboutPage from './pages/AboutPage';
 import NotFoundPage from './pages/NotFoundPage';
 import './styles/global.css';
@@ -25,6 +26,7 @@ const routes = createRouteObjects({
   ContactsPage,
   DeliveryPage,
   PaymentPage,
+  PrivacyPage,
   AboutPage,
   NotFoundPage,
 });

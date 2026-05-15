@@ -31,7 +31,7 @@ describe('QuoteForm render flow', () => {
       screen.getByLabelText('Даю согласие на обработку персональных данных')
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: 'политикой конфиденциальности' })
+      screen.getByRole('link', { name: /обработку персональных\sданных/i })
     ).toHaveAttribute('href', '/privacy');
   });
 

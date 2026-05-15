@@ -10,6 +10,8 @@ export const MESSAGE_DICTIONARIES = Object.freeze({
         payloadTooLarge: 'Слишком большой запрос',
         quoteRateLimited:
           'Слишком много заявок. Попробуйте позже или свяжитесь с нами по телефону или email.',
+        chatRateLimited:
+          'Слишком много сообщений. Подождите немного и попробуйте снова.',
         productApiRateLimited:
           'Слишком много запросов к каталогу. Попробуйте немного позже.',
         catalogLoadFailed: 'Не удалось загрузить каталог',
@@ -22,7 +24,11 @@ export const MESSAGE_DICTIONARIES = Object.freeze({
         tooManyIds: 'Слишком много id (максимум {max})',
         lookupFailed: 'Не удалось сверить позиции',
         invalidQuoteRequest: 'Некорректные данные заявки',
+        invalidChatRequest: 'Некорректные данные сообщения',
         quoteSendFailed: 'Не удалось отправить заявку',
+        chatSendFailed: 'Не удалось отправить сообщение',
+        chatLoadFailed: 'Не удалось загрузить диалог',
+        chatNotFound: 'Диалог не найден',
         formsDisabled:
           'Формы временно отключены. Свяжитесь с нами по телефону или email.',
         formsUnavailable:
@@ -50,6 +56,9 @@ export const MESSAGE_DICTIONARIES = Object.freeze({
         phoneInvalid: 'Укажите корректный телефон',
         consentRequired: 'Нужно согласие на обработку данных',
         submitFailed: 'Не удалось отправить заявку',
+      }),
+      chat: Object.freeze({
+        messageRequired: 'Введите сообщение',
       }),
       pdf: Object.freeze({
         fontLoadFailed: 'Не удалось загрузить шрифт для PDF: {url}',
@@ -86,6 +95,8 @@ export const MESSAGE_DICTIONARIES = Object.freeze({
     success: Object.freeze({
       leadSent: 'Заявка отправлена',
       leadSentDetailed: 'Заявка отправлена. Мы скоро свяжемся с вами.',
+      chatStarted: 'Диалог начат. Менеджер ответит здесь в рабочее время.',
+      chatMessageSent: 'Сообщение отправлено',
       quoteSent: 'Заявка успешно отправлена',
     }),
     text: Object.freeze({
@@ -95,6 +106,8 @@ export const MESSAGE_DICTIONARIES = Object.freeze({
       errorBoundaryReload: 'Перезагрузить страницу',
       backToCatalog: 'Вернуться в каталог',
       leadDefaultCommentPrefix: 'Короткая заявка: {source}',
+      chatGreeting:
+        'Здравствуйте.\nУ вас возникли вопросы? Мы с удовольствием ответим!',
     }),
   }),
 });

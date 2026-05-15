@@ -164,9 +164,6 @@ export default function StockProductsGrid({ products, isLoading, loadError }) {
             <h2 className="section-title section-title--left">
               Из наличия на складе
             </h2>
-            <p className="home-stock-showcase__sub">
-              Актуальные позиции, готовые к отгрузке
-            </p>
           </div>
 
           <Link
