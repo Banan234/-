@@ -21,7 +21,7 @@ services:
       # Прокси-цепочка nginx → app: один прыжок, доверяем X-Forwarded-* от Nginx.
       NODE_ENV: production
       PORT: 3001
-      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-uniquelocal}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-172.30.0.10}
       # importPrice пишет runtime-public артефакты сюда, а web отдаёт их
       # поверх файлов, запечённых в образ при build.
       PUBLIC_ARTIFACTS_DIR: /app/data/public
@@ -38,7 +38,8 @@ services:
       start_period: 10s
       retries: 3
     networks:
-      - yuzhural-net
+      yuzhural-net:
+        ipv4_address: 172.30.0.11
 
   web:
     build:
@@ -75,8 +76,12 @@ services:
       start_period: 5s
       retries: 3
     networks:
-      - yuzhural-net
+      yuzhural-net:
+        ipv4_address: 172.30.0.10
 
 networks:
   yuzhural-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

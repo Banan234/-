@@ -10,9 +10,7 @@ import {
 } from '../../lib/browserStorage';
 import { captureException } from '../../lib/errorTracking';
 import { trackEvent } from '../../lib/analytics';
-import { SITE_PHONE_DISPLAY, SITE_PHONE_HREF } from '../../lib/siteConfig';
 import { messages } from '../../../shared/messages.js';
-import { isValidRussianPhone } from '../../../shared/quoteValidation.js';
 
 const CHAT_SESSION_STORAGE_KEY = 'yuzhural-chat-session';
 const CHAT_POLL_INTERVAL_MS = 5_000;
@@ -26,14 +24,8 @@ const INITIAL_MESSAGES = Object.freeze([
 ]);
 
 const initialForm = {
-  phone: '',
   comment: '',
-  consent: false,
 };
-
-function normalizePhone(phone) {
-  return phone.replace(/[^\d+]/g, '');
-}
 
 function getStoredSession() {
   const stored = loadStoredJson(CHAT_SESSION_STORAGE_KEY, null);
@@ -78,6 +70,13 @@ function getConversationMessages(conversation) {
   return INITIAL_MESSAGES;
 }
 
+function createChatAuthHeaders(customerToken, headers = {}) {
+  return {
+    ...headers,
+    Authorization: `Bearer ${customerToken}`,
+  };
+}
+
 export default function FloatingLeadWidget({
   autoOpen = true,
   sourceLabel = 'Главная страница',
@@ -86,8 +85,6 @@ export default function FloatingLeadWidget({
   const [honeypot, setHoneypot] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCaptureOpen, setIsCaptureOpen] = useState(false);
-  const [errors, setErrors] = useState({});
   const [status, setStatus] = useState({ kind: '', text: '' });
   const [session, setSession] = useState(() => getStoredSession());
   const [conversation, setConversation] = useState(null);
@@ -96,18 +93,13 @@ export default function FloatingLeadWidget({
   const [isConversationLoading, setIsConversationLoading] = useState(false);
   const renderedAtRef = useRef(Date.now());
   const autoOpenTrackedRef = useRef(false);
-  const phoneInputRef = useRef(null);
   const sessionRef = useRef(session);
   const messagesEndRef = useRef(null);
   const fieldIds = {
-    phone: 'floating-lead-phone',
     comment: 'floating-lead-comment',
-    consent: 'floating-lead-consent',
   };
-  const errorIds = {
-    phone: `${fieldIds.phone}-error`,
-    consent: `${fieldIds.consent}-error`,
-  };
+  const hasSession = Boolean(session);
+  const isSessionRestoring = hasSession && !conversation;
 
   useEffect(() => {
     sessionRef.current = session;
@@ -136,14 +128,8 @@ export default function FloatingLeadWidget({
   }, [autoOpen, sourceLabel]);
 
   useEffect(() => {
-    if (!isCaptureOpen) return;
-
-    phoneInputRef.current?.focus();
-  }, [isCaptureOpen]);
-
-  useEffect(() => {
     messagesEndRef.current?.scrollIntoView?.({ block: 'end' });
-  }, [conversationMessages, isCaptureOpen]);
+  }, [conversationMessages, conversation]);
 
   useEffect(() => {
     if (!session) {
@@ -164,7 +150,10 @@ export default function FloatingLeadWidget({
 
       try {
         const response = await fetch(
-          `/api/chat/conversations/${encodeURIComponent(activeSession.conversationId)}?token=${encodeURIComponent(activeSession.customerToken)}`
+          `/api/chat/conversations/${encodeURIComponent(activeSession.conversationId)}`,
+          {
+            headers: createChatAuthHeaders(activeSession.customerToken),
+          }
         );
         const result = await expectOkApiJson(
           response,
@@ -175,7 +164,6 @@ export default function FloatingLeadWidget({
 
         setConversation(result.conversation);
         setConversationMessages(getConversationMessages(result.conversation));
-        setIsCaptureOpen(false);
       } catch (error) {
         if (isDisposed) return;
 
@@ -211,33 +199,13 @@ export default function FloatingLeadWidget({
   }, [session]);
 
   function handleChange(event) {
-    const { name, value, type, checked } = event.target;
+    const { name, value } = event.target;
 
     setForm((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-
-    setErrors((prev) => ({
-      ...prev,
-      [name]: '',
+      [name]: value,
     }));
     setStatus({ kind: '', text: '' });
-  }
-
-  function validateLeadCapture() {
-    const nextErrors = {};
-    const normalizedPhone = normalizePhone(form.phone.trim());
-
-    if (!isValidRussianPhone(normalizedPhone)) {
-      nextErrors.phone = messages.errors.leadForm.phoneInvalid;
-    }
-
-    if (!form.consent) {
-      nextErrors.consent = messages.errors.leadForm.consentRequired;
-    }
-
-    return nextErrors;
   }
 
   async function handleSubmit(event) {
@@ -252,34 +220,27 @@ export default function FloatingLeadWidget({
       return;
     }
 
-    if (!conversation && !isCaptureOpen) {
-      setIsCaptureOpen(true);
-      setStatus({ kind: '', text: '' });
-      return;
-    }
-
-    if (!conversation) {
-      const nextErrors = validateLeadCapture();
-      if (Object.keys(nextErrors).length > 0) {
-        setErrors(nextErrors);
-        return;
-      }
-    }
-
     try {
       setIsSubmitting(true);
       setStatus({ kind: '', text: '' });
 
-      if (!conversation) {
+      if (isSessionRestoring) {
+        setStatus({
+          kind: 'error',
+          text: 'Подождите, загружаем текущий диалог.',
+        });
+        return;
+      }
+
+      if (!session) {
         const response = await fetch('/api/chat/conversations', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            phone: form.phone.trim(),
             message: trimmedComment,
-            source: `Компактный виджет: ${sourceLabel}`,
+            source: `Чат: ${sourceLabel}`,
             createdAt: new Date().toLocaleString('ru-RU'),
             rendered_at: renderedAtRef.current,
             submit_at: Date.now(),
@@ -302,13 +263,7 @@ export default function FloatingLeadWidget({
         setConversation(result.conversation);
         setConversationMessages(getConversationMessages(result.conversation));
         setForm(initialForm);
-        setErrors({});
-        setIsCaptureOpen(false);
         renderedAtRef.current = Date.now();
-        setStatus({
-          kind: 'success',
-          text: result.message || messages.success.chatStarted,
-        });
         trackEvent('lead-widget-submit', {
           source: sourceLabel,
           hasComment: true,
@@ -321,10 +276,10 @@ export default function FloatingLeadWidget({
         {
           method: 'POST',
           headers: {
+            ...createChatAuthHeaders(session.customerToken),
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            token: session.customerToken,
             message: trimmedComment,
           }),
         }
@@ -367,12 +322,10 @@ export default function FloatingLeadWidget({
       {isOpen ? (
         <section
           className="floating-lead-widget__panel"
-          aria-label="Окно сообщений"
+          aria-label="Чат с менеджером"
         >
           <div className="floating-lead-widget__header">
-            <h2 className="floating-lead-widget__title">
-              Отправьте нам сообщение
-            </h2>
+            <h2 className="floating-lead-widget__title">Чат с менеджером</h2>
             <button
               type="button"
               className="floating-lead-widget__close"
@@ -437,77 +390,7 @@ export default function FloatingLeadWidget({
               </div>
             </div>
 
-            {isCaptureOpen ? (
-              <div className="floating-lead-widget__capture">
-                <div className="floating-lead-widget__capture-head">
-                  <span className="floating-lead-widget__capture-label">
-                    Оставьте телефон для связи
-                  </span>
-                  <a
-                    href={SITE_PHONE_HREF}
-                    className="floating-lead-widget__phone-link"
-                  >
-                    {SITE_PHONE_DISPLAY}
-                  </a>
-                </div>
-
-                <label
-                  className="floating-lead-widget__field"
-                  htmlFor={fieldIds.phone}
-                >
-                  <span className="visually-hidden">Телефон</span>
-                  <input
-                    ref={phoneInputRef}
-                    id={fieldIds.phone}
-                    name="phone"
-                    type="text"
-                    value={form.phone}
-                    onChange={handleChange}
-                    placeholder="+7 904 306-94-94"
-                    autoComplete="tel"
-                    aria-invalid={errors.phone ? 'true' : undefined}
-                    aria-describedby={errors.phone ? errorIds.phone : undefined}
-                  />
-                </label>
-                {errors.phone ? (
-                  <span id={errorIds.phone} className="field-error">
-                    {errors.phone}
-                  </span>
-                ) : null}
-
-                <label className="floating-lead-widget__consent">
-                  <input
-                    id={fieldIds.consent}
-                    name="consent"
-                    type="checkbox"
-                    checked={form.consent}
-                    onChange={handleChange}
-                    aria-invalid={errors.consent ? 'true' : undefined}
-                    aria-describedby={
-                      errors.consent ? errorIds.consent : undefined
-                    }
-                  />
-                  <span>
-                    Даю согласие на{' '}
-                    <a href="/privacy">обработку персональных данных</a>
-                  </span>
-                </label>
-                {errors.consent ? (
-                  <span id={errorIds.consent} className="field-error">
-                    {errors.consent}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-
             <div className="floating-lead-widget__composer">
-              <span
-                className="floating-lead-widget__composer-tool floating-lead-widget__composer-tool--attach"
-                aria-hidden="true"
-              >
-                📎
-              </span>
-
               <label
                 className="floating-lead-widget__composer-input"
                 htmlFor={fieldIds.comment}
@@ -518,7 +401,7 @@ export default function FloatingLeadWidget({
                   name="comment"
                   value={form.comment}
                   onChange={handleChange}
-                  placeholder="Введите сообщение"
+                  placeholder="Напишите сообщение..."
                   rows={1}
                 />
               </label>
@@ -526,9 +409,11 @@ export default function FloatingLeadWidget({
               <button
                 type="submit"
                 className="floating-lead-widget__send"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isSessionRestoring}
                 aria-label={
-                  isSubmitting ? 'Отправляем сообщение' : 'Отправить сообщение'
+                  isSubmitting || isSessionRestoring
+                    ? 'Отправляем сообщение'
+                    : 'Отправить сообщение'
                 }
               >
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -577,7 +462,7 @@ export default function FloatingLeadWidget({
             </svg>
           </span>
           <span className="floating-lead-widget__launcher-text">
-            Отправьте нам сообщение
+            Чат с менеджером
           </span>
         </button>
       )}

@@ -59,7 +59,7 @@ describe('MainLayout', () => {
     renderLayout('/catalog');
 
     expect(
-      screen.getByRole('button', { name: 'Отправьте нам сообщение' })
+      screen.getByRole('button', { name: 'Чат с менеджером' })
     ).toBeInTheDocument();
   });
 

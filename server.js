@@ -12,7 +12,7 @@ import { monitorEventLoopDelay } from 'perf_hooks';
 import { pathToFileURL } from 'url';
 import { createCatalogStore } from './lib/catalog.js';
 import { createFileChatStore } from './lib/chatStore.js';
-import { createTelegramChatBridge } from './lib/telegramChat.js';
+import { createVkChatBridge } from './lib/vkChat.js';
 import {
   MAX_QUOTE_ITEMS,
   MAX_QUOTE_PAYLOAD_BYTES,
@@ -223,11 +223,65 @@ function normalizeChatToken(value) {
     .slice(0, MAX_CHAT_TOKEN_LENGTH);
 }
 
+function getChatTokenFromRequest(req) {
+  const authorization = String(req.get('authorization') || '');
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return normalizeChatToken(match?.[1]);
+}
+
 function applyCatalogCache(res) {
   res.setHeader(
     'Cache-Control',
     `public, max-age=${CATALOG_CACHE_TTL_SECONDS}, must-revalidate`
   );
+}
+
+async function flushPendingManagerNotifications({
+  conversationId,
+  chatStore,
+  vkBridge,
+  loggerImpl = logger,
+}) {
+  if (!conversationId || !chatStore || !vkBridge?.isConfigured?.()) {
+    return 0;
+  }
+
+  const pendingMessages =
+    await chatStore.getPendingCustomerMessages(conversationId);
+  let deliveredCount = 0;
+
+  for (const { conversation, message } of pendingMessages) {
+    try {
+      const customerMessages = conversation.messages.filter(
+        (entry) => entry.role === 'customer'
+      );
+      const isConversationStart =
+        customerMessages.length > 0 && customerMessages[0].id === message.id;
+      const notification = isConversationStart
+        ? await vkBridge.notifyConversationCreated(conversation)
+        : await vkBridge.notifyCustomerMessage(conversation, message);
+
+      if (!notification) {
+        break;
+      }
+
+      await chatStore.markCustomerMessageNotified(
+        conversation.id,
+        message.id,
+        notification
+      );
+      deliveredCount += 1;
+    } catch (error) {
+      loggerImpl.error('chat.manager_notify_failed', {
+        err: error,
+        conversationId: conversation.id,
+        customerMessageId: message.id,
+      });
+      break;
+    }
+  }
+
+  return deliveredCount;
 }
 
 function getFeaturedProducts(items, limit) {
@@ -319,11 +373,30 @@ export function validateFormsEnv(env = process.env) {
   return diagnostic;
 }
 
+export function validateVkEnv(env = process.env) {
+  const accessToken = readNonEmptyEnv(env.VK_COMMUNITY_ACCESS_TOKEN);
+  const managerPeerId = readNonEmptyEnv(env.VK_MANAGER_PEER_ID);
+  const callbackSecret = readNonEmptyEnv(env.VK_CALLBACK_SECRET);
+  const vkEnabled = Boolean(accessToken || managerPeerId);
+
+  if (env.NODE_ENV === 'production' && vkEnabled && !callbackSecret) {
+    throw new Error(
+      'VK callback не настроен безопасно: задайте VK_CALLBACK_SECRET или отключите VK bridge'
+    );
+  }
+
+  return {
+    vkEnabled,
+    callbackSecretConfigured: Boolean(callbackSecret),
+  };
+}
+
 export function validateStartupEnv(env = process.env) {
   const site = validateSiteUrlEnv(env);
   const forms = validateFormsEnv(env);
+  const vk = validateVkEnv(env);
 
-  return { site, forms };
+  return { site, forms, vk };
 }
 
 function getBearerToken(req) {
@@ -722,7 +795,7 @@ export function createApp({
   }),
   mailTransporter,
   chatStore = createFileChatStore(),
-  telegramBridge = createTelegramChatBridge({ env }),
+  vkBridge = createVkChatBridge({ env }),
   formsDiagnostic,
   mailSendOptions = getMailSendOptions(env),
   formResponseDelayRange = getDefaultFormResponseDelayRange(),
@@ -750,7 +823,7 @@ export function createApp({
   app.set('trust proxy', trustProxy);
   app.locals.mailTransporter = resolvedMailTransporter;
   app.locals.chatStore = chatStore;
-  app.locals.telegramBridge = telegramBridge;
+  app.locals.vkBridge = vkBridge;
   app.locals.formsDiagnostic = startupFormsDiagnostic;
   app.locals.activeRequests = 0;
   app.locals.catalogWarmupPromise = null;
@@ -961,11 +1034,24 @@ export function createApp({
     });
   });
 
-  app.post('/api/telegram/webhook/:secret', async (req, res) => {
-    const secret = String(req.params.secret || '').trim();
-    const bridge = app.locals.telegramBridge;
+  app.post('/api/vk/callback', async (req, res) => {
+    const bridge = app.locals.vkBridge;
+    const update = req.body && typeof req.body === 'object' ? req.body : {};
+    const type = String(update.type || '').trim();
+    const secret = String(update.secret || '').trim();
 
-    if (!bridge?.isConfigured?.() || !secret || secret !== bridge.webhookSecret) {
+    if (!bridge?.isConfigured?.() && type !== 'confirmation') {
+      return res.status(404).json({
+        ok: false,
+        message: 'Не найдено',
+      });
+    }
+
+    if (
+      type !== 'confirmation' &&
+      bridge?.requiresCallbackSecret?.() &&
+      (!bridge.callbackSecret || !secret || secret !== bridge.callbackSecret)
+    ) {
       return res.status(404).json({
         ok: false,
         message: 'Не найдено',
@@ -973,21 +1059,25 @@ export function createApp({
     }
 
     try {
-      await bridge.handleWebhookUpdate(req.body, {
+      const result = await bridge.handleCallbackUpdate(update, {
         chatStore: app.locals.chatStore,
       });
 
-      return res.json({ ok: true });
+      if (result?.confirmation) {
+        return res.type('text/plain').send(bridge.confirmationToken || '');
+      }
+
+      return res.type('text/plain').send('ok');
     } catch (error) {
-      logger.error('telegram.webhook.failed', { err: error });
-      return res.status(500).json({ ok: false, message: 'Webhook failed' });
+      logger.error('vk.callback.failed', { err: error });
+      return res.status(500).type('text/plain').send('error');
     }
   });
 
   app.get('/api/chat/conversations/:conversationId', async (req, res) => {
     try {
       const { conversationId } = req.params;
-      const token = normalizeChatToken(req.query.token);
+      const token = getChatTokenFromRequest(req);
 
       if (!token) {
         return res.status(404).json({
@@ -1009,10 +1099,22 @@ export function createApp({
         });
       }
 
+      await flushPendingManagerNotifications({
+        conversationId,
+        chatStore: app.locals.chatStore,
+        vkBridge: app.locals.vkBridge,
+      });
+
+      const refreshedConversation =
+        await app.locals.chatStore.getConversationForCustomer(
+          conversationId,
+          token
+        );
+
       return res.json({
         ok: true,
         role: 'customer',
-        conversation,
+        conversation: refreshedConversation || conversation,
       });
     } catch (error) {
       logger.error('chat.conversation.read_failed', { err: error });
@@ -1045,16 +1147,6 @@ export function createApp({
         const chatMessage = String(message || '').trim();
         const chatSource = String(source || '').trim();
 
-        if (!isValidRussianPhone(normalizedPhone)) {
-          return sendFormErrorResponse(
-            res,
-            formResponseStartedAt,
-            formResponseDelayMs,
-            messages.errors.api.phoneInvalid,
-            400
-          );
-        }
-
         if (
           !isTrimmedStringWithinLength(contactName, MAX_LEAD_NAME_LENGTH) ||
           !isNonEmptyTrimmedStringWithinLength(
@@ -1079,24 +1171,11 @@ export function createApp({
           initialMessage: chatMessage,
         });
 
-        try {
-          const notification =
-            await app.locals.telegramBridge.notifyConversationCreated(
-              created.conversation
-            );
-
-          if (notification) {
-            await app.locals.chatStore.registerTelegramNotification(
-              created.conversation.id,
-              notification
-            );
-          }
-        } catch (error) {
-          logger.error('chat.telegram_notify_failed', {
-            err: error,
-            conversationId: created.conversation.id,
-          });
-        }
+        await flushPendingManagerNotifications({
+          conversationId: created.conversation.id,
+          chatStore: app.locals.chatStore,
+          vkBridge: app.locals.vkBridge,
+        });
 
         return sendFormJson(res, formResponseStartedAt, formResponseDelayMs, {
           ok: true,
@@ -1124,7 +1203,7 @@ export function createApp({
     async (req, res) => {
       try {
         const { conversationId } = req.params;
-        const token = normalizeChatToken(req.body?.token);
+        const token = getChatTokenFromRequest(req);
         const message = String(req.body?.message || '').trim();
 
         if (
@@ -1153,35 +1232,23 @@ export function createApp({
           });
         }
 
-        try {
-          const latestMessage =
-            updated.conversation.messages[
-              updated.conversation.messages.length - 1
-            ];
-          const notification =
-            await app.locals.telegramBridge.notifyCustomerMessage(
-              updated.conversation,
-              latestMessage
-            );
+        await flushPendingManagerNotifications({
+          conversationId,
+          chatStore: app.locals.chatStore,
+          vkBridge: app.locals.vkBridge,
+        });
 
-          if (notification) {
-            await app.locals.chatStore.registerTelegramNotification(
-              updated.conversation.id,
-              notification
-            );
-          }
-        } catch (error) {
-          logger.error('chat.telegram_notify_failed', {
-            err: error,
+        const refreshedConversation =
+          await app.locals.chatStore.getConversationForCustomer(
             conversationId,
-          });
-        }
+            token
+          );
 
         return res.json({
           ok: true,
           role: 'customer',
           message: messages.success.chatMessageSent,
-          conversation: updated.customerConversation,
+          conversation: refreshedConversation || updated.customerConversation,
         });
       } catch (error) {
         logger.error('chat.message.send_failed', { err: error });
@@ -1692,7 +1759,7 @@ export async function startServer({
   port = env.PORT || PORT,
   warmCatalogOnStart = true,
   mailTransporter,
-  telegramBridge = createTelegramChatBridge({ env }),
+  vkBridge = createVkChatBridge({ env }),
   listen = (app, listenPort, onListening) =>
     app.listen(listenPort, onListening),
 } = {}) {
@@ -1707,16 +1774,16 @@ export async function startServer({
     env,
     warmCatalogOnStart,
     mailTransporter: formsStartup.transporter,
-    telegramBridge,
+    vkBridge,
     formsDiagnostic: formsStartup.diagnostic,
   });
   try {
-    const webhookConfigured = await telegramBridge.configureWebhook?.();
+    const webhookConfigured = await vkBridge.configureWebhook?.();
     if (webhookConfigured) {
-      logger.info('startup.telegram_webhook_configured');
+      logger.info('startup.vk_callback_configured');
     }
   } catch (error) {
-    logger.error('startup.telegram_webhook_failed', { err: error });
+    logger.error('startup.vk_callback_failed', { err: error });
   }
   const server = listen(app, port, () => {
     logger.info('startup.listening', { port });

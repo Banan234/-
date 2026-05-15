@@ -87,11 +87,16 @@ describe('docker-compose.staging.yml', () => {
     expect(appBlock).toContain('- ./data-staging:/app/data');
     expect(appBlock).toContain('PUBLIC_ARTIFACTS_DIR: /app/data/public');
     expect(appBlock).toContain(
+      'TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-172.31.0.10}'
+    );
+    expect(appBlock).toContain(
       'image: ${APP_IMAGE:-yuzhural-site-app}:${STAGING_DEPLOY_TAG:-staging}'
     );
 
     expect(webBlock).toContain('container_name: yuzhural-staging-web');
-    expect(webBlock).toContain("- '${STAGING_HTTP_PORT:-8080}:80'");
+    expect(webBlock).toContain(
+      "- '${STAGING_HTTP_BIND:-127.0.0.1}:${STAGING_HTTP_PORT:-8080}:80'"
+    );
     expect(webBlock).toContain(
       '- ./data-staging:/usr/share/nginx/runtime-data:ro'
     );

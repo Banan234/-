@@ -5,7 +5,7 @@
 #   docker compose -f docker-compose.staging.yml up -d --build
 #
 # По умолчанию публикует сайт на http://localhost:8080 и использует ./data-staging.
-# Для VPS задайте STAGING_SITE_URL, STAGING_HTTP_PORT и .env.staging.
+# Для VPS задайте STAGING_SITE_URL, STAGING_HTTP_BIND, STAGING_HTTP_PORT и .env.staging.
 
 services:
   app:
@@ -22,7 +22,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
-      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-uniquelocal}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-172.31.0.10}
       PUBLIC_ARTIFACTS_DIR: /app/data/public
       VITE_SENTRY_ENVIRONMENT: staging
     expose:
@@ -36,7 +36,8 @@ services:
       start_period: 10s
       retries: 3
     networks:
-      - yuzhural-staging-net
+      yuzhural-staging-net:
+        ipv4_address: 172.31.0.11
 
   web:
     build:
@@ -57,7 +58,7 @@ services:
     container_name: yuzhural-staging-web
     restart: unless-stopped
     ports:
-      - '${STAGING_HTTP_PORT:-8080}:80'
+      - '${STAGING_HTTP_BIND:-127.0.0.1}:${STAGING_HTTP_PORT:-8080}:80'
     depends_on:
       app:
         condition: service_healthy
@@ -70,8 +71,12 @@ services:
       start_period: 5s
       retries: 3
     networks:
-      - yuzhural-staging-net
+      yuzhural-staging-net:
+        ipv4_address: 172.31.0.10
 
 networks:
   yuzhural-staging-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24

@@ -7,7 +7,7 @@
 #   docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
 #
 # После старта:
-#   1. Зайти на http://<host>:8000, создать суперпользователя
+#   1. Зайти на http://localhost:8000, создать суперпользователя
 #      (docker compose exec glitchtip ./manage.py createsuperuser)
 #      или через переменные GLITCHTIP_*_SUPERUSER ниже.
 #   2. Создать проект → скопировать DSN → положить в .env как VITE_SENTRY_DSN.
@@ -53,7 +53,7 @@ services:
       CELERY_WORKER_AUTOSCALE: '1,3'
       CELERY_WORKER_MAX_TASKS_PER_CHILD: '10000'
     ports:
-      - '8000:8080'
+      - '${GLITCHTIP_HTTP_BIND:-127.0.0.1}:${GLITCHTIP_HTTP_PORT:-8000}:8080'
     networks:
       - yuzhural-net
 
