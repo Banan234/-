@@ -613,6 +613,10 @@
   .catalog-search-bar {
     flex-direction: column;
   }
+  .catalog-search-bar__form {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
   .catalog-price-range {
     flex-wrap: wrap;
     height: auto;
