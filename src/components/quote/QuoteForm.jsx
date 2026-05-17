@@ -7,6 +7,7 @@ import { expectOkApiJson } from '../../lib/apiResponse';
 import { captureException } from '../../lib/errorTracking';
 import HoneypotField from '../forms/HoneypotField';
 import { removeStoredValue } from '../../lib/browserStorage';
+import { CATALOG_CANONICAL_PATH } from '../../lib/canonicalPaths.js';
 import { messages } from '../../../shared/messages.js';
 import { MAX_QUOTE_CUSTOMER_COMMENT_LENGTH } from '../../../shared/quoteValidation.js';
 import { validateForm } from './quoteFormValidation';
@@ -184,7 +185,10 @@ export default function QuoteForm({
       {items.length === 0 && !isSubmitted ? (
         <div className="form-error">
           {messages.text.cartEmptyPromptPrefix}{' '}
-          <a href="/catalog" style={{ color: 'inherit', fontWeight: 700 }}>
+          <a
+            href={CATALOG_CANONICAL_PATH}
+            style={{ color: 'inherit', fontWeight: 700 }}
+          >
             каталога
           </a>
           {messages.text.cartEmptyPromptSuffix}

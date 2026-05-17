@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { trackEvent } from '../../lib/analytics';
 import { captureException } from '../../lib/errorTracking';
+import { CATALOG_CANONICAL_PATH } from '../../lib/canonicalPaths.js';
 import { fetchProductSuggestions } from '../../lib/productsApi';
 
 const SEARCH_SUGGESTIONS_LIMIT = 7;
@@ -89,7 +90,10 @@ export default function HeaderSearch() {
     const currentSearch =
       new URLSearchParams(location.search).get('search') || '';
 
-    if (location.pathname === '/catalog') {
+    if (
+      location.pathname === '/catalog' ||
+      location.pathname === CATALOG_CANONICAL_PATH
+    ) {
       setHeaderSearch(currentSearch);
     } else {
       setHeaderSearch('');
@@ -112,15 +116,15 @@ export default function HeaderSearch() {
       params.delete('search');
 
       const nextUrl = params.toString()
-        ? `/catalog?${params.toString()}`
-        : '/catalog';
+        ? `${CATALOG_CANONICAL_PATH}?${params.toString()}`
+        : CATALOG_CANONICAL_PATH;
 
       navigate(nextUrl);
       return;
     }
 
     params.set('search', value);
-    navigate(`/catalog?${params.toString()}`);
+    navigate(`${CATALOG_CANONICAL_PATH}?${params.toString()}`);
   }
 
   function loadSearchSuggestions(value) {
@@ -202,7 +206,7 @@ export default function HeaderSearch() {
     setIsSearchSuggestionsOpen(false);
     setActiveSearchSuggestionIndex(-1);
     trackEvent('search-submit', { query: mark, source: 'header-suggestion' });
-    navigate(`/catalog?search=${encodeURIComponent(mark)}`);
+    navigate(`${CATALOG_CANONICAL_PATH}?search=${encodeURIComponent(mark)}`);
   }
 
   function handleSearchInputKeyDown(event) {

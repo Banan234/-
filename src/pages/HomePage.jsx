@@ -10,6 +10,7 @@ import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useJsonLd } from '../hooks/useJsonLd';
 import { usePrerenderData } from '../lib/prerenderData';
+import { CATALOG_CANONICAL_PATH } from '../lib/canonicalPaths.js';
 import { messages } from '../../shared/messages.js';
 import {
   SITE_MANUFACTURERS,
@@ -79,7 +80,7 @@ const WEBSITE_JSON_LD = {
   url: SITE_URL,
   potentialAction: {
     '@type': 'SearchAction',
-    target: `${SITE_URL}/catalog?search={search_term_string}`,
+    target: `${SITE_URL}${CATALOG_CANONICAL_PATH}?search={search_term_string}`,
     'query-input': 'required name=search_term_string',
   },
 };
@@ -373,7 +374,6 @@ export default function HomePage() {
           </div>
         </Container>
       </section>
-
     </>
   );
 }

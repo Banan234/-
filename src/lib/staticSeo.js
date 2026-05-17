@@ -1,24 +1,25 @@
 // Файл хранит SEO-метаданные статических страниц и тексты для canonical/meta tags.
 
 import { SITE_NAME } from './siteConfig.js';
+import { toCanonicalSitePath } from './canonicalPaths.js';
 
 export const STATIC_PAGE_SEO = {
   about: {
-    path: '/about',
+    path: toCanonicalSitePath('/about'),
     title: 'О компании',
     fullTitle: `О компании — ${SITE_NAME}`,
     description:
       'ЮжУралЭлектроКабель — надёжный поставщик кабельно-проводниковой продукции. Работаем с 2008 года, более 5000 позиций в наличии.',
   },
   delivery: {
-    path: '/delivery',
+    path: toCanonicalSitePath('/delivery'),
     title: 'Доставка',
     fullTitle: `Доставка — ${SITE_NAME}`,
     description:
       'Доставка кабельно-проводниковой продукции по всей России. Самовывоз со склада в Челябинске или через транспортные компании.',
   },
   payment: {
-    path: '/payment',
+    path: toCanonicalSitePath('/payment'),
     title: 'Оплата',
     fullTitle: `Оплата — ${SITE_NAME}`,
     description:

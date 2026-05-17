@@ -26,18 +26,28 @@ describe('buildSitemapPagesXml', () => {
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
     );
     expect(xml).toContain(`<loc>${SITE}/</loc>`);
-    expect(xml).toContain(`<loc>${SITE}/catalog</loc>`);
-    expect(xml).toContain(`<loc>${SITE}/contacts</loc>`);
+    expect(xml).toContain(`<loc>${SITE}/catalog/</loc>`);
+    expect(xml).toContain(`<loc>${SITE}/contacts/</loc>`);
     expect(xml).toContain('<lastmod>2026-01-01</lastmod>');
     // Не должно быть карточек или категорий-уровня-2.
     expect(xml).not.toContain('/product/');
-    expect(xml).not.toContain('/catalog/');
+    expect(xml).not.toContain('/catalog/silovoy-kabel');
   });
 
   it('убирает завершающий слэш у siteUrl', () => {
     const xml = buildSitemapPagesXml({ siteUrl: `${SITE}//` });
     expect(xml).toContain(`<loc>${SITE}/</loc>`);
     expect(xml).not.toContain(`${SITE}///`);
+  });
+
+  it('нормализует siteUrl к https non-www для sitemap', () => {
+    const xml = buildSitemapPagesXml({
+      siteUrl: 'http://www.example.test//',
+    });
+
+    expect(xml).toContain('<loc>https://example.test/catalog/</loc>');
+    expect(xml).toContain('<loc>https://example.test/contacts/</loc>');
+    expect(xml).not.toContain('http://www.example.test');
   });
 });
 
@@ -184,6 +194,12 @@ describe('buildRobotsTxt', () => {
     expect(txt).toContain('Disallow: /api/');
     expect(txt).toContain('Disallow: /cart');
     expect(txt).toContain(`Sitemap: ${SITE}/${SITEMAP_FILES.index}`);
+  });
+
+  it('нормализует siteUrl к https non-www для robots', () => {
+    const txt = buildRobotsTxt({ siteUrl: 'http://www.example.test//' });
+    expect(txt).toContain('Sitemap: https://example.test/sitemap.xml');
+    expect(txt).not.toContain('http://www.example.test');
   });
 });
 

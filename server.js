@@ -802,6 +802,7 @@ export function createApp({
   warmCatalogOnStart = false,
 } = {}) {
   const app = express();
+  app.disable('x-powered-by');
   const startupFormsDiagnostic = withFormsSmtpStatus(
     formsDiagnostic || validateFormsEnv(env),
     {

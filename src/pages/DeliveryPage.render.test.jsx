@@ -6,10 +6,12 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  SITE_URL,
   SITE_WAREHOUSE_ADDRESS_DISPLAY,
   SITE_WAREHOUSE_MAP_EMBED_URL,
   SITE_WAREHOUSE_MAP_URL,
 } from '../lib/siteConfig.js';
+import { STATIC_PAGE_SEO } from '../lib/staticSeo.js';
 import DeliveryPage from './DeliveryPage.jsx';
 
 function renderDeliveryPage() {
@@ -58,6 +60,10 @@ describe('DeliveryPage', () => {
         /Услуги перевозчика оплачивает покупатель по тарифам выбранной ТК/
       )
     ).toBeInTheDocument();
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      `${SITE_URL}${STATIC_PAGE_SEO.delivery.path}`
+    );
   });
 
   it('открывает форму вопроса менеджеру по кнопке', () => {

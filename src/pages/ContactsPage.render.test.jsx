@@ -12,9 +12,11 @@ import {
   SITE_PHONE_DISPLAY,
   SITE_PHONE_HREF,
   SITE_REQUISITES,
+  SITE_URL,
   SITE_WAREHOUSE_ADDRESS_DISPLAY,
   SITE_WAREHOUSE_MAP_URL,
 } from '../lib/siteConfig.js';
+import { toCanonicalSitePath } from '../lib/canonicalPaths.js';
 import ContactsPage from './ContactsPage.jsx';
 
 function renderContactsPage() {
@@ -56,5 +58,9 @@ describe('ContactsPage', () => {
     expect(
       screen.getByText(SITE_REQUISITES.registrationNumber)
     ).toBeInTheDocument();
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      `${SITE_URL}${toCanonicalSitePath('/contacts')}`
+    );
   });
 });

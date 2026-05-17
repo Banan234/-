@@ -12,6 +12,7 @@ import { trackEvent } from '../lib/analytics';
 import { captureException } from '../lib/errorTracking';
 import { formatProductPrice } from '../lib/productPrice';
 import { usePrerenderData } from '../lib/prerenderData';
+import { CATALOG_CANONICAL_PATH } from '../lib/canonicalPaths.js';
 import {
   buildProductBreadcrumbJsonLd,
   buildProductJsonLd,
@@ -24,6 +25,7 @@ import {
   getProductImageAlt,
 } from '../../shared/productImages.js';
 import { messages } from '../../shared/messages.js';
+import { NOT_FOUND_SEO, NotFoundPageContent } from './NotFoundPage.jsx';
 import '../styles/sections/product-detail.css';
 
 const BREADCRUMB_JSON_LD_ID = 'product-breadcrumb-json-ld';
@@ -48,15 +50,21 @@ export default function ProductPage() {
   const [product, setProduct] = useState(() => initialProduct);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(() => !initialProduct);
+  const [isNotFound, setIsNotFound] = useState(false);
   const [error, setError] = useState('');
 
-  useSEO({
-    title: product ? buildProductMetaTitle(product) : undefined,
-    description: product ? buildProductMetaDescription(product) : '',
-    ogType: 'product',
-    image: product ? getProductImage(product) : undefined,
-    canonical: product ? `/product/${product.slug}` : undefined,
-  });
+  useSEO(
+    isNotFound
+      ? NOT_FOUND_SEO
+      : {
+          title: product ? buildProductMetaTitle(product) : undefined,
+          description: product ? buildProductMetaDescription(product) : '',
+          ogType: 'product',
+          image: product ? getProductImage(product) : undefined,
+          canonical:
+            product?.slug || slug ? `/product/${product?.slug || slug}` : false,
+        }
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -66,6 +74,7 @@ export default function ProductPage() {
       setRelatedProducts([]);
       setProduct(initialProduct);
       setIsLoading(false);
+      setIsNotFound(false);
       setError('');
       return () => controller.abort();
     }
@@ -73,14 +82,18 @@ export default function ProductPage() {
     setQuantity(1);
     setRelatedProducts([]);
     setProduct(null);
+    setIsNotFound(false);
 
     async function load() {
+      let item = null;
+
       try {
         setIsLoading(true);
         setError('');
 
-        const item = await fetchProductBySlug(slug, controller.signal);
+        item = await fetchProductBySlug(slug, controller.signal);
 
+        setIsNotFound(!item);
         setProduct(item);
         if (item) {
           trackEvent('product-view', {
@@ -92,6 +105,14 @@ export default function ProductPage() {
         }
       } catch (requestError) {
         if (requestError.name === 'AbortError') {
+          return;
+        }
+
+        if (requestError.status === 404) {
+          setIsNotFound(true);
+          setProduct(null);
+          setRelatedProducts([]);
+          setIsLoading(false);
           return;
         }
 
@@ -107,6 +128,9 @@ export default function ProductPage() {
       }
 
       setIsLoading(false);
+      if (!item) {
+        return;
+      }
 
       try {
         const related = await fetchRelatedProducts(slug, 6, controller.signal);
@@ -148,6 +172,10 @@ export default function ProductPage() {
     );
   }
 
+  if (isNotFound) {
+    return <NotFoundPageContent />;
+  }
+
   if (!product) {
     return (
       <section className="section">
@@ -158,7 +186,7 @@ export default function ProductPage() {
           <p className="page-subtitle">
             {error || messages.errors.productApi.productNotFoundDescription}
           </p>
-          <Link to="/catalog" className="button-primary">
+          <Link to={CATALOG_CANONICAL_PATH} className="button-primary">
             {messages.text.backToCatalog}
           </Link>
         </Container>

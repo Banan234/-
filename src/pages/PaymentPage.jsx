@@ -18,8 +18,8 @@ import {
 import { STATIC_PAGE_SEO } from '../lib/staticSeo';
 import '../styles/pages/content.css';
 
-const PAYMENT_JSON_LD_ID = getStaticPageJsonLdId('/payment');
-const PAYMENT_JSON_LD = buildStaticPageJsonLd('/payment');
+const PAYMENT_JSON_LD_ID = getStaticPageJsonLdId(STATIC_PAGE_SEO.payment.path);
+const PAYMENT_JSON_LD = buildStaticPageJsonLd(STATIC_PAGE_SEO.payment.path);
 
 const PAYMENT_BADGES = [
   'Сайт-каталог без онлайн-оплаты',
@@ -110,6 +110,7 @@ export default function PaymentPage() {
   useSEO({
     title: STATIC_PAGE_SEO.payment.title,
     description: STATIC_PAGE_SEO.payment.description,
+    canonical: STATIC_PAGE_SEO.payment.path,
   });
 
   useJsonLd(PAYMENT_JSON_LD_ID, PAYMENT_JSON_LD);
@@ -123,8 +124,7 @@ export default function PaymentPage() {
               <h1 className="page-title">Оплата и оформление поставки</h1>
               <p className="page-subtitle">
                 Поставка кабельно-проводниковой продукции осуществляется после
-                подтверждения наличия, согласования условий и выставления
-                счёта.
+                подтверждения наличия, согласования условий и выставления счёта.
               </p>
 
               <div className="payment-page__badges" aria-label="Условия оплаты">
@@ -216,8 +216,7 @@ export default function PaymentPage() {
               <p className="content-lead">
                 Процесс один и тот же для компаний и физических лиц: сначала
                 проверяем фактические условия поставки, потом направляем
-                документы на оплату и только после этого подтверждаем
-                отгрузку.
+                документы на оплату и только после этого подтверждаем отгрузку.
               </p>
             </div>
 
@@ -239,8 +238,7 @@ export default function PaymentPage() {
               <p className="content-lead">
                 До выставления счёта или подписания договора заранее
                 согласовываем все ключевые условия, чтобы оплата не уходила
-                вслепую и не требовала пересогласования после поступления
-                денег.
+                вслепую и не требовала пересогласования после поступления денег.
               </p>
             </div>
 

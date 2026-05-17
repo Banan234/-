@@ -1,6 +1,7 @@
 // Файл готовит структуру пунктов меню каталога для desktop и mobile навигации.
 
 import catalogCategoriesData from '../../../shared/catalogCategories.json';
+import { CATALOG_CANONICAL_PATH } from '../../lib/canonicalPaths.js';
 
 const cableSection = catalogCategoriesData.sections.find(
   (section) => section.slug === 'kabel-i-provod'
@@ -9,7 +10,7 @@ const cableSection = catalogCategoriesData.sections.find(
 function buildSearchLink(term) {
   return {
     label: term,
-    to: `/catalog?search=${encodeURIComponent(term)}`,
+    to: `${CATALOG_CANONICAL_PATH}?search=${encodeURIComponent(term)}`,
   };
 }
 

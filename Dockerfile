@@ -70,6 +70,7 @@ COPY --from=prod-deps /home/node/app/node_modules ./node_modules
 COPY server.js ./
 COPY --from=build /home/node/app/dist/index.html ./dist/index.html
 COPY lib ./lib
+COPY src/lib ./src/lib
 COPY shared ./shared
 COPY data ./data
 COPY scripts ./scripts
@@ -85,10 +86,11 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 CMD ["node", "server.js"]
 
-# ---------- 5. Brotli-модули под точную версию nginx из web-образа ----------
+# ---------- 5. Brotli и headers-more модули под точную версию nginx ----------
 FROM nginx:1.27-alpine AS brotli-builder
 RUN apk add --no-cache --virtual .brotli-build-deps \
     build-base \
+    cmake \
     curl \
     git \
     linux-headers \
@@ -101,19 +103,26 @@ RUN set -eux; \
     curl -fsSL -o nginx.tar.gz "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"; \
     tar -zxf nginx.tar.gz; \
     git clone --recursive --depth=1 https://github.com/google/ngx_brotli.git; \
-    cd "nginx-${NGINX_VERSION}"; \
-    ./configure --with-compat --add-dynamic-module=/tmp/ngx_brotli; \
+    git clone --depth=1 https://github.com/openresty/headers-more-nginx-module.git; \
+    cd /tmp/ngx_brotli/deps/brotli; \
+    mkdir out; \
+    cd out; \
+    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF ..; \
+    cmake --build . --config Release --target brotlienc; \
+    cd "/tmp/nginx-${NGINX_VERSION}"; \
+    ./configure --with-compat --add-dynamic-module=/tmp/ngx_brotli --add-dynamic-module=/tmp/headers-more-nginx-module; \
     make modules; \
-    mkdir -p /tmp/brotli-modules; \
-    cp objs/ngx_http_brotli_filter_module.so objs/ngx_http_brotli_static_module.so /tmp/brotli-modules/
+    mkdir -p /tmp/nginx-modules; \
+    cp objs/ngx_http_brotli_filter_module.so objs/ngx_http_brotli_static_module.so objs/ngx_http_headers_more_filter_module.so /tmp/nginx-modules/
 
 # ---------- 6. Nginx со статикой и прокси на API ----------
 FROM nginx:1.27-alpine AS web
 RUN apk add --no-cache curl
-COPY --from=brotli-builder /tmp/brotli-modules/ /etc/nginx/modules/
+COPY --from=brotli-builder /tmp/nginx-modules/ /etc/nginx/modules/
 RUN { \
       echo 'load_module modules/ngx_http_brotli_filter_module.so;'; \
       echo 'load_module modules/ngx_http_brotli_static_module.so;'; \
+      echo 'load_module modules/ngx_http_headers_more_filter_module.so;'; \
       cat /etc/nginx/nginx.conf; \
     } > /tmp/nginx.conf \
     && mv /tmp/nginx.conf /etc/nginx/nginx.conf

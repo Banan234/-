@@ -2,6 +2,13 @@
 
 const DEFAULT_API_ERROR_MESSAGE = 'Сервис временно недоступен';
 
+function createApiError(response, result, fallbackMessage) {
+  const error = new Error(result.message || fallbackMessage);
+  error.status = Number(response?.status) || 0;
+  error.isNotFound = error.status === 404;
+  return error;
+}
+
 export async function readApiJson(response, fallbackMessage) {
   const message = fallbackMessage || DEFAULT_API_ERROR_MESSAGE;
 
@@ -37,7 +44,7 @@ export async function expectOkApiJson(response, fallbackMessage) {
   const result = await readApiJson(response, message);
 
   if (!response.ok || !result.ok) {
-    throw new Error(result.message || message);
+    throw createApiError(response, result, message);
   }
 
   return result;

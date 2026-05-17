@@ -6,10 +6,12 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  SITE_URL,
   SITE_PUBLIC_DOCUMENTS,
   SITE_REQUISITES,
   SITE_PHONE_HREF,
 } from '../lib/siteConfig.js';
+import { STATIC_PAGE_SEO } from '../lib/staticSeo.js';
 import AboutPage from './AboutPage.jsx';
 
 function renderAboutPage() {
@@ -52,6 +54,10 @@ describe('AboutPage', () => {
         screen.getByRole('link', { name: new RegExp(doc.title) })
       ).toHaveAttribute('href', doc.href);
     });
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      `${SITE_URL}${STATIC_PAGE_SEO.about.path}`
+    );
   });
 
   it('открывает лид-форму по кнопке отправки заявки', () => {

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CABLE_SECTION_NAME, CATALOG_MENU } from './catalogMenuData';
+import { CATALOG_CANONICAL_PATH } from '../../lib/canonicalPaths.js';
 
 const CATALOG_DROPDOWN_ID = 'catalog-dropdown';
 
@@ -135,7 +136,7 @@ export default function HeaderCatalogMenu() {
                 {CATALOG_MENU.map((group, index) => (
                   <Link
                     key={group.title}
-                    to={group.links[0]?.to || '/catalog'}
+                    to={group.links[0]?.to || CATALOG_CANONICAL_PATH}
                     className={`catalog-dropdown__sidebar-item ${
                       activeCatalogIndex === index
                         ? 'catalog-dropdown__sidebar-item--active'

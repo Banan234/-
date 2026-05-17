@@ -3,6 +3,13 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CATALOG_MENU } from './catalogMenuData';
+import {
+  ABOUT_CANONICAL_PATH,
+  CATALOG_CANONICAL_PATH,
+  CONTACTS_CANONICAL_PATH,
+  DELIVERY_CANONICAL_PATH,
+  PAYMENT_CANONICAL_PATH,
+} from '../../lib/canonicalPaths.js';
 import { SITE_PHONE_DISPLAY, SITE_PHONE_HREF } from '../../lib/siteConfig';
 
 export default function MobileNav({
@@ -111,19 +118,19 @@ export default function MobileNav({
           <nav className="mobile-nav__section" aria-label="Основная навигация">
             <div className="mobile-nav__section-title">Разделы</div>
             <div className="mobile-nav__links">
-              <Link to="/catalog" onClick={onClose}>
+              <Link to={CATALOG_CANONICAL_PATH} onClick={onClose}>
                 Весь каталог
               </Link>
-              <Link to="/delivery" onClick={onClose}>
+              <Link to={DELIVERY_CANONICAL_PATH} onClick={onClose}>
                 Доставка
               </Link>
-              <Link to="/payment" onClick={onClose}>
+              <Link to={PAYMENT_CANONICAL_PATH} onClick={onClose}>
                 Оплата
               </Link>
-              <Link to="/about" onClick={onClose}>
+              <Link to={ABOUT_CANONICAL_PATH} onClick={onClose}>
                 О компании
               </Link>
-              <Link to="/contacts" onClick={onClose}>
+              <Link to={CONTACTS_CANONICAL_PATH} onClick={onClose}>
                 Контакты
               </Link>
             </div>

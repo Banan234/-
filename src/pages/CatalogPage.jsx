@@ -1,12 +1,7 @@
 // Файл рендерит страницу каталога с фильтрами, поиском, категориями и списком товаров.
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import Container from '../components/ui/Container';
 import ProductListingView from '../components/catalog/ProductListingView';
 import { fetchProducts } from '../lib/productsApi';
@@ -14,7 +9,12 @@ import { captureException } from '../lib/errorTracking';
 import { useSEO } from '../hooks/useSEO';
 import { useCatalogFilters } from '../hooks/useCatalogFilters';
 import { usePrerenderData } from '../lib/prerenderData';
+import {
+  CATALOG_CANONICAL_PATH,
+  toCanonicalSitePath,
+} from '../lib/canonicalPaths.js';
 import { messages } from '../../shared/messages.js';
+import { NOT_FOUND_SEO, NotFoundPageContent } from './NotFoundPage.jsx';
 import catalogCategoriesData from '../../shared/catalogCategories.json';
 import '../styles/sections/catalog.css';
 
@@ -33,14 +33,36 @@ const CATALOG_PRERENDER_FILTER_KEYS = [
   'powerGroup',
 ];
 
-const categoryBySlug = {};
+const routeEntryBySlug = {};
 const parentByChildSlug = {};
+const sectionByRouteSlug = {};
 for (const section of catalogCategoriesData.sections) {
+  routeEntryBySlug[section.slug] = {
+    ...section,
+    routeType: 'section',
+  };
+  sectionByRouteSlug[section.slug] = section;
+
   for (const cat of section.categories) {
-    categoryBySlug[cat.slug] = cat;
+    routeEntryBySlug[cat.slug] = {
+      ...cat,
+      routeType: 'category',
+      sectionName: section.name,
+      sectionSlug: section.slug,
+    };
+    sectionByRouteSlug[cat.slug] = section;
+
     for (const sub of cat.subcategories || []) {
-      categoryBySlug[sub.slug] = sub;
-      parentByChildSlug[sub.slug] = cat;
+      routeEntryBySlug[sub.slug] = {
+        ...sub,
+        routeType: 'subcategory',
+        parentName: cat.name,
+        parentSlug: cat.slug,
+        sectionName: section.name,
+        sectionSlug: section.slug,
+      };
+      parentByChildSlug[sub.slug] = routeEntryBySlug[cat.slug];
+      sectionByRouteSlug[sub.slug] = section;
     }
   }
 }
@@ -54,9 +76,15 @@ export function doesCatalogPrerenderDataMatchQuery({
   activeCategoryParam,
   prerenderData,
   productQueryOptions = {},
+  expectedPath = '/catalog',
 }) {
-  if (!prerenderData || prerenderData.path !== '/catalog') return false;
-  if (activeCategoryParam) return false;
+  if (!prerenderData || prerenderData.path !== expectedPath) return false;
+  if (
+    activeCategoryParam &&
+    expectedPath !== `/catalog/${activeCategoryParam}`
+  ) {
+    return false;
+  }
 
   const prerenderPagination = prerenderData.meta?.pagination || {};
   const currentPage = getPositiveQueryNumber(productQueryOptions.page, 1);
@@ -84,15 +112,17 @@ export function doesCatalogPrerenderDataMatchQuery({
 
 export default function CatalogPage() {
   const { slug } = useParams();
-  const navigate = useNavigate();
   const [catalogSearchParams] = useSearchParams();
   const isCategoryRoute = Boolean(slug);
   const categoryParam = catalogSearchParams.get('category') || '';
   const shouldIncludeAdvancedFilters =
     isCategoryRoute || categoryParam === POWER_CABLE_CATEGORY_SLUG;
   const prerenderData = usePrerenderData();
+  const expectedPrerenderPath = isCategoryRoute
+    ? `/catalog/${slug}`
+    : '/catalog';
   const catalogPrerenderData =
-    !isCategoryRoute && prerenderData.catalog?.path === '/catalog'
+    prerenderData.catalog?.path === expectedPrerenderPath
       ? prerenderData.catalog
       : null;
   const { filters, productQueryOptions, searchQuery, updateParam } =
@@ -100,12 +130,17 @@ export default function CatalogPage() {
       limit: CATALOG_PAGE_SIZE,
       includeAdvancedFilters: shouldIncludeAdvancedFilters,
     });
-  const routeCategory = isCategoryRoute ? categoryBySlug[slug] : null;
+  const routeCategory = isCategoryRoute ? routeEntryBySlug[slug] : null;
+  const routeSection = isCategoryRoute
+    ? sectionByRouteSlug[slug] || null
+    : null;
   const parentCategory = isCategoryRoute
     ? parentByChildSlug[slug] || null
     : null;
+  const isMissingCategoryRoute = isCategoryRoute && !routeCategory;
   const hasSubcategories =
     Boolean(routeCategory) &&
+    routeCategory.routeType === 'category' &&
     Array.isArray(routeCategory.subcategories) &&
     routeCategory.subcategories.length > 0;
   const activeCategoryParam = isCategoryRoute ? slug : filters.category;
@@ -113,6 +148,7 @@ export default function CatalogPage() {
     activeCategoryParam,
     prerenderData: catalogPrerenderData,
     productQueryOptions,
+    expectedPath: expectedPrerenderPath,
   });
   const initialCatalogPrerenderData = hasMatchingPrerenderData
     ? catalogPrerenderData
@@ -134,13 +170,7 @@ export default function CatalogPage() {
   const didUseInitialPrerenderDataRef = useRef(hasMatchingPrerenderData);
 
   useEffect(() => {
-    if (isCategoryRoute && !routeCategory) {
-      navigate('/', { replace: true });
-    }
-  }, [isCategoryRoute, navigate, routeCategory]);
-
-  useEffect(() => {
-    if (isCategoryRoute && !routeCategory) {
+    if (isMissingCategoryRoute) {
       return undefined;
     }
 
@@ -199,9 +229,8 @@ export default function CatalogPage() {
     activeCategoryParam,
     catalogPrerenderData,
     hasMatchingPrerenderData,
-    isCategoryRoute,
+    isMissingCategoryRoute,
     productQueryOptions,
-    routeCategory,
     searchQuery,
   ]);
 
@@ -239,6 +268,10 @@ export default function CatalogPage() {
   const categoryQuickLinks = useMemo(() => {
     if (!isCategoryRoute || !routeCategory) return [];
 
+    if (routeCategory.routeType === 'section') {
+      return routeCategory.categories || [];
+    }
+
     if (parentCategory?.subcategories?.length) {
       return parentCategory.subcategories;
     }
@@ -252,20 +285,34 @@ export default function CatalogPage() {
     );
   }, [isCategoryRoute, parentCategory, routeCategory]);
 
-  useSEO({
-    title: isCategoryRoute
-      ? activeCategory
-        ? `${activeCategory.name} — купить оптом в Челябинске`
-        : 'Каталог'
-      : activeCategory
-        ? `Каталог: ${activeCategory.name}`
-        : 'Каталог продукции',
-    description: activeCategory
-      ? `Купить ${activeCategory.name.toLowerCase()} оптом. Актуальный прайс и наличие на складе в Челябинске. ЮжУралЭлектроКабель.`
-      : 'Каталог кабельной и некабельной продукции. Кабель, провод, арматура и электрооборудование в наличии и под заказ.',
-  });
+  useSEO(
+    isMissingCategoryRoute
+      ? NOT_FOUND_SEO
+      : {
+          title: isCategoryRoute
+            ? activeCategory
+              ? `${activeCategory.name} — купить оптом в Челябинске`
+              : 'Каталог'
+            : activeCategory
+              ? `Каталог: ${activeCategory.name}`
+              : 'Каталог продукции',
+          description: activeCategory
+            ? `Купить ${activeCategory.name.toLowerCase()} оптом. Актуальный прайс и наличие на складе в Челябинске. ЮжУралЭлектроКабель.`
+            : 'Каталог кабельной и некабельной продукции. Кабель, провод, арматура и электрооборудование в наличии и под заказ.',
+          canonical:
+            isCategoryRoute && slug
+              ? `/catalog/${slug}`
+              : activeCategoryParam
+                ? toCanonicalSitePath(
+                    `/catalog?category=${encodeURIComponent(activeCategoryParam)}`
+                  )
+                : toCanonicalSitePath('/catalog'),
+        }
+  );
 
-  if (isCategoryRoute && !routeCategory) return null;
+  if (isMissingCategoryRoute) {
+    return <NotFoundPageContent />;
+  }
 
   return (
     <section
@@ -282,7 +329,17 @@ export default function CatalogPage() {
               <nav className="breadcrumbs" aria-label="Хлебные крошки">
                 <Link to="/">Главная</Link>
                 <span aria-hidden="true"> / </span>
-                <Link to="/catalog">Каталог</Link>
+                <Link to={CATALOG_CANONICAL_PATH}>Каталог</Link>
+                {routeSection &&
+                routeCategory?.routeType !== 'section' &&
+                routeSection.slug !== parentCategory?.slug ? (
+                  <>
+                    <span aria-hidden="true"> / </span>
+                    <Link to={`/catalog/${routeSection.slug}`}>
+                      {routeSection.name}
+                    </Link>
+                  </>
+                ) : null}
                 {parentCategory && (
                   <>
                     <span aria-hidden="true"> / </span>

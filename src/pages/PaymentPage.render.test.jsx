@@ -9,7 +9,9 @@ import {
   SITE_EMAIL_HREF,
   SITE_PHONE_HREF,
   SITE_REQUISITES,
+  SITE_URL,
 } from '../lib/siteConfig.js';
+import { STATIC_PAGE_SEO } from '../lib/staticSeo.js';
 import PaymentPage from './PaymentPage.jsx';
 
 function renderPaymentPage() {
@@ -73,6 +75,10 @@ describe('PaymentPage', () => {
     expect(
       document.querySelector(`a[href="${SITE_EMAIL_HREF}"]`)
     ).not.toBeNull();
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      `${SITE_URL}${STATIC_PAGE_SEO.payment.path}`
+    );
   });
 
   it('открывает лид-форму по кнопке запроса счёта', () => {

@@ -6,6 +6,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchProducts } from '../lib/productsApi.js';
+import { SITE_URL } from '../lib/siteConfig.js';
+import { toCanonicalSitePath } from '../lib/canonicalPaths.js';
 import { PrerenderDataProvider } from '../lib/prerenderData.jsx';
 import CatalogPage, {
   doesCatalogPrerenderDataMatchQuery,
@@ -61,6 +63,10 @@ describe('CatalogPage', () => {
     expect(
       screen.queryByRole('heading', { level: 1, name: 'Кабель и провод' })
     ).not.toBeInTheDocument();
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      `${SITE_URL}${toCanonicalSitePath('/catalog')}`
+    );
   });
 
   it('не делает fetch, если prerender data совпадает с /catalog', () => {
@@ -169,5 +175,26 @@ describe('CatalogPage', () => {
       appType: 'силовой',
       spe: '1',
     });
+  });
+
+  it('показывает 404 для несуществующего category slug и не делает fetch', () => {
+    renderCatalogPage('/catalog/__missing__');
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Страница не найдена' })
+    ).toBeInTheDocument();
+    expect(fetchProducts).not.toHaveBeenCalled();
+  });
+
+  it('рендерит section slug из sitemap как валидный route', async () => {
+    renderCatalogPage('/catalog/kabel-i-provod');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Кабель и провод' })
+    ).toBeInTheDocument();
+    expect(fetchProducts).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ category: 'kabel-i-provod' })
+    );
   });
 });

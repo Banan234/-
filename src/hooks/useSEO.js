@@ -60,9 +60,12 @@ export function useSEO({
   const fullTitle = title ? `${title} — ${SITE_NAME}` : SITE_NAME;
   const metaDescription = normalizeMetaDescription(description);
   const ogImage = image ? resolveSocialImageUrl(image) : DEFAULT_OG_IMAGE;
-  const canonicalUrl = canonical
-    ? absoluteUrl(canonical)
-    : `${SITE_URL}${location.pathname}`;
+  const canonicalUrl =
+    canonical === false
+      ? null
+      : canonical
+        ? absoluteUrl(canonical)
+        : `${SITE_URL}${location.pathname}`;
 
   useEffect(() => {
     document.title = fullTitle;

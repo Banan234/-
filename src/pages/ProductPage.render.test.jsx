@@ -90,4 +90,19 @@ describe('ProductPage', () => {
     expect(await screen.findByText('Цена по запросу')).toBeInTheDocument();
     expect(screen.queryByText('/ м')).not.toBeInTheDocument();
   });
+
+  it('показывает 404-экран для несуществующего товара', async () => {
+    const error = new Error('Товар не найден');
+    error.status = 404;
+    fetchProductBySlug.mockRejectedValue(error);
+
+    renderProductPage();
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Страница не найдена',
+      })
+    ).toBeInTheDocument();
+  });
 });

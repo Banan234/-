@@ -84,7 +84,7 @@ describe('Dockerfile', () => {
     expect(webStage).not.toMatch(/\bwget\b/);
   });
 
-  it('builds and loads nginx brotli dynamic modules', () => {
+  it('builds and loads nginx hardening and brotli dynamic modules', () => {
     const source = readFileSync('Dockerfile', 'utf8');
 
     expect(source).toContain('FROM nginx:1.27-alpine AS brotli-builder');
@@ -95,17 +95,29 @@ describe('Dockerfile', () => {
       'git clone --recursive --depth=1 https://github.com/google/ngx_brotli.git'
     );
     expect(source).toContain(
-      './configure --with-compat --add-dynamic-module=/tmp/ngx_brotli'
+      'git clone --depth=1 https://github.com/openresty/headers-more-nginx-module.git'
+    );
+    expect(source).toContain(
+      'cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF ..;'
+    );
+    expect(source).toContain(
+      'cmake --build . --config Release --target brotlienc;'
+    );
+    expect(source).toContain(
+      './configure --with-compat --add-dynamic-module=/tmp/ngx_brotli --add-dynamic-module=/tmp/headers-more-nginx-module'
     );
     expect(source).toContain('make modules');
     expect(source).toContain(
-      'COPY --from=brotli-builder /tmp/brotli-modules/ /etc/nginx/modules/'
+      'COPY --from=brotli-builder /tmp/nginx-modules/ /etc/nginx/modules/'
     );
     expect(source).toContain(
       "echo 'load_module modules/ngx_http_brotli_filter_module.so;'"
     );
     expect(source).toContain(
       "echo 'load_module modules/ngx_http_brotli_static_module.so;'"
+    );
+    expect(source).toContain(
+      "echo 'load_module modules/ngx_http_headers_more_filter_module.so;'"
     );
     expect(source).not.toContain('nginx-mod-http-brotli');
   });
@@ -128,5 +140,16 @@ describe('Dockerfile', () => {
       expect(buildStage).toContain(`ARG ${argName}`);
       expect(buildStage).toContain(`${argName}=$${argName}`);
     }
+  });
+
+  it('ships src/lib helpers in the runtime image for price import prerender', () => {
+    const source = readFileSync('Dockerfile', 'utf8');
+    const runtimeStage = source.slice(
+      source.indexOf('FROM node:20-slim AS runtime'),
+      source.indexOf('FROM nginx:1.27-alpine AS brotli-builder')
+    );
+
+    expect(runtimeStage).toContain('COPY src/lib ./src/lib');
+    expect(runtimeStage).toContain('COPY scripts ./scripts');
   });
 });

@@ -23,8 +23,8 @@ import {
 } from '../lib/siteConfig';
 import '../styles/pages/content.css';
 
-const ABOUT_JSON_LD_ID = getStaticPageJsonLdId('/about');
-const ABOUT_JSON_LD = buildStaticPageJsonLd('/about');
+const ABOUT_JSON_LD_ID = getStaticPageJsonLdId(STATIC_PAGE_SEO.about.path);
+const ABOUT_JSON_LD = buildStaticPageJsonLd(STATIC_PAGE_SEO.about.path);
 
 const ABOUT_BADGES = [
   `Коммерческое предложение ${SITE_QUOTE_RESPONSE_DISPLAY}`,
@@ -103,6 +103,7 @@ export default function AboutPage() {
   useSEO({
     title: STATIC_PAGE_SEO.about.title,
     description: STATIC_PAGE_SEO.about.description,
+    canonical: STATIC_PAGE_SEO.about.path,
   });
 
   useJsonLd(ABOUT_JSON_LD_ID, ABOUT_JSON_LD);

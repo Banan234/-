@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import Container from '../components/ui/Container';
 import { MAX_CART_ITEMS, useCartStore } from '../store/useCartStore';
 import { useSEO } from '../hooks/useSEO';
+import { CATALOG_CANONICAL_PATH } from '../lib/canonicalPaths.js';
 import { trackEvent } from '../lib/analytics';
 import { expectOkApiJson } from '../lib/apiResponse';
 import { captureException } from '../lib/errorTracking';
@@ -252,7 +253,7 @@ export default function CartPage() {
         {items.length === 0 ? (
           <div className="cart-empty">
             <p className="page-subtitle">Список пока пуст.</p>
-            <Link to="/catalog" className="button-primary">
+            <Link to={CATALOG_CANONICAL_PATH} className="button-primary">
               Перейти в каталог
             </Link>
           </div>

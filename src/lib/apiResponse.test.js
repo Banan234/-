@@ -29,6 +29,28 @@ describe('apiResponse helpers', () => {
     ).rejects.toThrow('Недоступно');
   });
 
+  it('attaches HTTP status metadata to API errors', async () => {
+    let error;
+
+    try {
+      await expectOkApiJson(
+        response(JSON.stringify({ ok: false, message: 'Не найдено' }), {
+          ok: false,
+          status: 404,
+        }),
+        'fallback'
+      );
+    } catch (caughtError) {
+      error = caughtError;
+    }
+
+    expect(error).toMatchObject({
+      message: 'Не найдено',
+      status: 404,
+      isNotFound: true,
+    });
+  });
+
   it('uses fallback message for HTML proxy errors', async () => {
     await expect(
       expectOkApiJson(

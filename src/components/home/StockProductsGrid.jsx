@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CATALOG_CANONICAL_PATH } from '../../lib/canonicalPaths.js';
 import Container from '../ui/Container';
 import ProductCard from '../ui/ProductCard';
 
@@ -167,7 +168,7 @@ export default function StockProductsGrid({ products, isLoading, loadError }) {
           </div>
 
           <Link
-            to="/catalog"
+            to={CATALOG_CANONICAL_PATH}
             className="section-link home-stock-showcase__link"
           >
             Смотреть весь каталог

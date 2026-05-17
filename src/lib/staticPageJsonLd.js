@@ -10,10 +10,10 @@ import {
 import { STATIC_PAGE_SEO } from './staticSeo.js';
 
 const STATIC_PAGE_JSON_LD_IDS = {
-  '/about': 'about-page-json-ld',
-  '/payment': 'payment-page-json-ld',
-  '/delivery': 'delivery-page-json-ld',
-  '/privacy': 'privacy-page-json-ld',
+  [STATIC_PAGE_SEO.about.path]: 'about-page-json-ld',
+  [STATIC_PAGE_SEO.payment.path]: 'payment-page-json-ld',
+  [STATIC_PAGE_SEO.delivery.path]: 'delivery-page-json-ld',
+  [STATIC_PAGE_SEO.privacy.path]: 'privacy-page-json-ld',
 };
 
 function buildWebsiteReference() {
@@ -34,8 +34,8 @@ function buildAboutPageJsonLd() {
     '@graph': [
       {
         '@type': 'AboutPage',
-        '@id': `${absoluteUrl('/about')}#webpage`,
-        url: absoluteUrl('/about'),
+        '@id': `${absoluteUrl(STATIC_PAGE_SEO.about.path)}#webpage`,
+        url: absoluteUrl(STATIC_PAGE_SEO.about.path),
         name: STATIC_PAGE_SEO.about.fullTitle,
         description: STATIC_PAGE_SEO.about.description,
         isPartOf: buildWebsiteReference(),
@@ -52,8 +52,8 @@ function buildPaymentPageJsonLd() {
     '@graph': [
       {
         '@type': 'WebPage',
-        '@id': `${absoluteUrl('/payment')}#webpage`,
-        url: absoluteUrl('/payment'),
+        '@id': `${absoluteUrl(STATIC_PAGE_SEO.payment.path)}#webpage`,
+        url: absoluteUrl(STATIC_PAGE_SEO.payment.path),
         name: STATIC_PAGE_SEO.payment.fullTitle,
         description: STATIC_PAGE_SEO.payment.description,
         isPartOf: buildWebsiteReference(),
@@ -61,7 +61,7 @@ function buildPaymentPageJsonLd() {
       },
       {
         '@type': 'FAQPage',
-        '@id': `${absoluteUrl('/payment')}#faq`,
+        '@id': `${absoluteUrl(STATIC_PAGE_SEO.payment.path)}#faq`,
         mainEntity: [
           {
             '@type': 'Question',
@@ -99,8 +99,8 @@ function buildDeliveryPageJsonLd() {
     '@graph': [
       {
         '@type': 'WebPage',
-        '@id': `${absoluteUrl('/delivery')}#webpage`,
-        url: absoluteUrl('/delivery'),
+        '@id': `${absoluteUrl(STATIC_PAGE_SEO.delivery.path)}#webpage`,
+        url: absoluteUrl(STATIC_PAGE_SEO.delivery.path),
         name: STATIC_PAGE_SEO.delivery.fullTitle,
         description: STATIC_PAGE_SEO.delivery.description,
         isPartOf: buildWebsiteReference(),
@@ -111,7 +111,7 @@ function buildDeliveryPageJsonLd() {
       },
       {
         '@type': 'FAQPage',
-        '@id': `${absoluteUrl('/delivery')}#faq`,
+        '@id': `${absoluteUrl(STATIC_PAGE_SEO.delivery.path)}#faq`,
         mainEntity: [
           {
             '@type': 'Question',
@@ -141,8 +141,8 @@ function buildPrivacyPageJsonLd() {
     '@graph': [
       {
         '@type': 'WebPage',
-        '@id': `${absoluteUrl('/privacy')}#webpage`,
-        url: absoluteUrl('/privacy'),
+        '@id': `${absoluteUrl(STATIC_PAGE_SEO.privacy.path)}#webpage`,
+        url: absoluteUrl(STATIC_PAGE_SEO.privacy.path),
         name: STATIC_PAGE_SEO.privacy.fullTitle,
         description: STATIC_PAGE_SEO.privacy.description,
         isPartOf: buildWebsiteReference(),
@@ -159,9 +159,9 @@ export function getStaticPageJsonLdId(path) {
 }
 
 export function buildStaticPageJsonLd(path) {
-  if (path === '/about') return buildAboutPageJsonLd();
-  if (path === '/payment') return buildPaymentPageJsonLd();
-  if (path === '/delivery') return buildDeliveryPageJsonLd();
-  if (path === '/privacy') return buildPrivacyPageJsonLd();
+  if (path === STATIC_PAGE_SEO.about.path) return buildAboutPageJsonLd();
+  if (path === STATIC_PAGE_SEO.payment.path) return buildPaymentPageJsonLd();
+  if (path === STATIC_PAGE_SEO.delivery.path) return buildDeliveryPageJsonLd();
+  if (path === STATIC_PAGE_SEO.privacy.path) return buildPrivacyPageJsonLd();
   return null;
 }

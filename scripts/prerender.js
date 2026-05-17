@@ -32,6 +32,7 @@ import {
   absoluteUrl,
   resolveSocialImageUrl,
 } from '../src/lib/siteConfig.js';
+import { toCanonicalSitePath } from '../src/lib/canonicalPaths.js';
 import { normalizeMetaDescription } from '../src/lib/metaDescription.js';
 import {
   buildStaticPageJsonLd,
@@ -44,6 +45,11 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
 const productsFile = path.join(repoRoot, 'data', 'products.json');
+const catalogCategoriesFile = path.join(
+  repoRoot,
+  'shared',
+  'catalogCategories.json'
+);
 const serverEntryFile = 'entry-server.js';
 const CATALOG_PRERENDER_PAGE_SIZE = 24;
 const buildManifestFile = path.join(distDir, '.vite', 'manifest.json');
@@ -106,7 +112,25 @@ export const STATIC_ROUTES = [
     intro:
       'Работаем с юрлицами по безналичному расчёту с НДС. Договор поставки, отсрочка платежа — по согласованию.',
   },
+  {
+    path: '/privacy',
+    title: `Политика конфиденциальности — ${SITE_NAME}`,
+    description:
+      'Политика конфиденциальности ЮжУралЭлектроКабель: обработка персональных данных, cookie, формы заявок и порядок обращения.',
+    h1: 'Политика конфиденциальности',
+    intro:
+      'Порядок обработки персональных данных, использования cookie и обратной связи на сайте ЮжУралЭлектроКабель.',
+  },
 ];
+
+export const NOT_FOUND_ROUTE = Object.freeze({
+  path: '/404',
+  title: `Страница не найдена — ${SITE_NAME}`,
+  description:
+    'Страница не найдена. Перейдите в каталог ЮжУралЭлектроКабель или вернитесь на главную.',
+  h1: 'Страница не найдена',
+  intro: 'Адрес устарел или был набран с ошибкой.',
+});
 
 const PRODUCT_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const URL_OR_ROOT_PATH_RE = /^(https?:\/\/[^\s"<>]+|\/(?!\/)[^\s"<>]*)$/i;
@@ -168,6 +192,14 @@ const ROUTE_MODULES = [
   {
     test: (routePath) => routePath === '/payment',
     module: 'src/pages/PaymentPage.jsx',
+  },
+  {
+    test: (routePath) => routePath === '/privacy',
+    module: 'src/pages/PrivacyPage.jsx',
+  },
+  {
+    test: (routePath) => routePath === '/404',
+    module: 'src/pages/NotFoundPage.jsx',
   },
 ];
 
@@ -482,27 +514,41 @@ export function buildMetaTags({
   canonical,
   ogType = 'website',
   ogImage,
+  noindex = false,
 }) {
   const fullTitle = title;
   const metaDescription = normalizeMetaDescription(description);
   const image = resolveSocialImageUrl(ogImage);
-  return [
+  const tags = [
     `<title>${escapeHtml(fullTitle)}</title>`,
     `<meta name="description" content="${escapeHtml(metaDescription)}">`,
-    `<link rel="canonical" href="${escapeHtml(canonical)}">`,
     `<meta property="og:site_name" content="${escapeHtml(SITE_NAME)}">`,
     `<meta property="og:locale" content="ru_RU">`,
     `<meta property="og:type" content="${escapeHtml(ogType)}">`,
     `<meta property="og:title" content="${escapeHtml(fullTitle)}">`,
     `<meta property="og:description" content="${escapeHtml(metaDescription)}">`,
-    `<meta property="og:url" content="${escapeHtml(canonical)}">`,
     `<meta property="og:image" content="${escapeHtml(image)}">`,
     `<meta property="og:image:alt" content="${escapeHtml(fullTitle)}">`,
     `<meta name="twitter:card" content="summary_large_image">`,
     `<meta name="twitter:title" content="${escapeHtml(fullTitle)}">`,
     `<meta name="twitter:description" content="${escapeHtml(metaDescription)}">`,
     `<meta name="twitter:image" content="${escapeHtml(image)}">`,
-  ].join('\n    ');
+  ];
+
+  if (canonical) {
+    tags.splice(2, 0, `<link rel="canonical" href="${escapeHtml(canonical)}">`);
+    tags.splice(
+      8,
+      0,
+      `<meta property="og:url" content="${escapeHtml(canonical)}">`
+    );
+  }
+
+  if (noindex) {
+    tags.push('<meta name="robots" content="noindex,follow">');
+  }
+
+  return tags.join('\n    ');
 }
 
 function buildHomeHeroPreloadLink() {
@@ -694,20 +740,34 @@ function buildCatalogListItem(product) {
   };
 }
 
-export function buildCatalogPrerenderData(products) {
-  const items = products
+function filterCatalogProductsByRoute(products, categorySlug = '') {
+  if (!categorySlug) return products;
+
+  return products.filter(
+    (product) =>
+      product.catalogCategorySlug === categorySlug ||
+      product.catalogSectionSlug === categorySlug
+  );
+}
+
+export function buildCatalogPrerenderData(
+  products,
+  { path = '/catalog', categorySlug = '' } = {}
+) {
+  const filteredProducts = filterCatalogProductsByRoute(products, categorySlug);
+  const items = filteredProducts
     .slice(0, CATALOG_PRERENDER_PAGE_SIZE)
     .map(buildCatalogListItem);
-  const total = products.length;
+  const total = filteredProducts.length;
 
   return {
-    path: '/catalog',
+    path,
     items,
     catalogSections: buildCatalogSections(products),
     meta: {
       count: items.length,
       total,
-      catalogCount: total,
+      catalogCount: products.length,
       pagination: {
         page: 1,
         limit: CATALOG_PRERENDER_PAGE_SIZE,
@@ -822,6 +882,14 @@ export function buildStaticBodyShell(route) {
   <p>${escapeHtml(route.intro)}</p>
   ${buildBreadcrumbsHtml(crumbs)}
 </div>`.trim();
+}
+
+function buildCatalogRouteTitle(route) {
+  return `${route.name} — купить оптом в Челябинске — ${SITE_NAME}`;
+}
+
+function buildCatalogRouteDescription(route) {
+  return `Купить ${route.name.toLowerCase()} оптом. Актуальный прайс и наличие на складе в Челябинске. ЮжУралЭлектроКабель.`;
 }
 
 export function injectIntoTemplate(
@@ -1039,6 +1107,14 @@ export async function writeProductRoute(
   await fs.writeFile(path.join(dir, `${slug}.html`), html, 'utf8');
 }
 
+export async function writeStatusPage(
+  filename,
+  html,
+  { outputDir = distDir } = {}
+) {
+  await fs.writeFile(path.join(outputDir, filename), html, 'utf8');
+}
+
 export async function loadTemplate({ outputDir = distDir } = {}) {
   const template = await fs.readFile(
     path.join(outputDir, 'index.html'),
@@ -1079,6 +1155,64 @@ export async function loadProducts({
   }
 }
 
+export async function loadCatalogCategories({
+  filePath = catalogCategoriesFile,
+  warn = console.warn,
+} = {}) {
+  try {
+    const raw = await fs.readFile(filePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : { sections: [] };
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      warn?.(
+        `[prerender] ${path.relative(repoRoot, filePath)} не найден — category prerender будет пропущен.`
+      );
+      return { sections: [] };
+    }
+    if (error instanceof SyntaxError) {
+      throw new Error(
+        `[prerender] ${filePath} содержит некорректный JSON: ${error.message}`
+      );
+    }
+    throw error;
+  }
+}
+
+export function collectCatalogRouteEntries(categoriesData) {
+  const entries = [];
+  const seen = new Set();
+
+  const addEntry = (slug, name) => {
+    const normalizedSlug = String(slug || '').trim();
+    const normalizedName = String(name || '').trim();
+    if (!normalizedSlug || !normalizedName || seen.has(normalizedSlug)) {
+      return;
+    }
+
+    seen.add(normalizedSlug);
+    entries.push({
+      slug: normalizedSlug,
+      name: normalizedName,
+      path: `/catalog/${normalizedSlug}`,
+    });
+  };
+
+  for (const section of categoriesData?.sections || []) {
+    addEntry(section.slug, section.name);
+
+    for (const category of section.categories || []) {
+      addEntry(category.slug, category.name);
+
+      for (const subcategory of category.subcategories || []) {
+        addEntry(subcategory.slug, subcategory.name);
+      }
+    }
+  }
+
+  return entries;
+}
+
 export async function prerenderStatic(
   template,
   {
@@ -1090,14 +1224,19 @@ export async function prerenderStatic(
   } = {}
 ) {
   for (const route of STATIC_ROUTES) {
-    const canonical = absoluteUrl(route.path);
-    const staticJsonLd = buildStaticPageJsonLd(route.path);
-    const staticJsonLdId = getStaticPageJsonLdId(route.path);
+    const canonicalPath = toCanonicalSitePath(route.path);
+    const canonical = absoluteUrl(canonicalPath);
+    const staticJsonLd = buildStaticPageJsonLd(canonicalPath);
+    const staticJsonLdId = getStaticPageJsonLdId(canonicalPath);
     const prerenderData =
       route.path === '/'
         ? { home: buildHomePrerenderData(products) }
         : route.path === '/catalog'
-          ? { catalog: buildCatalogPrerenderData(products) }
+          ? {
+              catalog: buildCatalogPrerenderData(products, {
+                path: '/catalog',
+              }),
+            }
           : {};
     const headExtras = [
       buildMetaTags({
@@ -1124,6 +1263,77 @@ export async function prerenderStatic(
       (r) => r.path
     ).join(', ')}}`
   );
+}
+
+export async function prerenderCatalogRoutes(
+  template,
+  categoriesData,
+  {
+    outputDir = distDir,
+    log = console.log,
+    renderApp,
+    products = [],
+    manifest = null,
+  } = {}
+) {
+  const routes = collectCatalogRouteEntries(categoriesData);
+
+  for (const route of routes) {
+    const canonical = absoluteUrl(route.path);
+    const prerenderData = {
+      catalog: buildCatalogPrerenderData(products, {
+        path: route.path,
+        categorySlug: route.slug,
+      }),
+    };
+    const headExtras = [
+      buildMetaTags({
+        title: buildCatalogRouteTitle(route),
+        description: buildCatalogRouteDescription(route),
+        canonical,
+      }),
+      buildRouteCssLinks(route.path, manifest),
+    ].join('\n    ');
+    const html = injectIntoTemplate(template, {
+      headExtras,
+      bodyShell: renderApp
+        ? await renderApp(route.path, { prerenderData })
+        : buildStaticBodyShell({
+            path: route.path,
+            h1: route.name,
+            intro: buildCatalogRouteDescription(route),
+          }),
+      bodyEndExtras: buildPrerenderDataScript(prerenderData),
+    });
+    await writeRoute(route.path, html, { outputDir });
+  }
+
+  log?.(
+    `[prerender] categories: ${routes.length} pages → dist/catalog/<slug>/index.html`
+  );
+}
+
+export async function prerenderNotFoundPage(
+  template,
+  { outputDir = distDir, log = console.log, renderApp, manifest = null } = {}
+) {
+  const headExtras = [
+    buildMetaTags({
+      title: NOT_FOUND_ROUTE.title,
+      description: NOT_FOUND_ROUTE.description,
+      noindex: true,
+    }),
+    buildRouteCssLinks(NOT_FOUND_ROUTE.path, manifest),
+  ].join('\n    ');
+  const html = injectIntoTemplate(template, {
+    headExtras,
+    bodyShell: renderApp
+      ? await renderApp(NOT_FOUND_ROUTE.path)
+      : buildStaticBodyShell(NOT_FOUND_ROUTE),
+  });
+
+  await writeStatusPage('404.html', html, { outputDir });
+  log?.('[prerender] 404: dist/404.html');
 }
 
 export async function prerenderProducts(
@@ -1222,6 +1432,7 @@ export async function prerender({
     warn,
   });
   const products = await loadProducts({ filePath: productsPath, warn });
+  const categoriesData = await loadCatalogCategories({ warn });
   validatePrerenderProducts(products, { source: productsPath });
   const routeRenderer = renderApp || (await loadServerRenderer({ outputDir }));
   await prerenderStatic(template, {
@@ -1229,6 +1440,19 @@ export async function prerender({
     log,
     renderApp: routeRenderer,
     products,
+    manifest,
+  });
+  await prerenderCatalogRoutes(template, categoriesData, {
+    outputDir,
+    log,
+    renderApp: routeRenderer,
+    products,
+    manifest,
+  });
+  await prerenderNotFoundPage(template, {
+    outputDir,
+    log,
+    renderApp: routeRenderer,
     manifest,
   });
   const productSelection = selectBuildPrerenderProducts(products, {

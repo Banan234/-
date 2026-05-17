@@ -17,11 +17,10 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { toCanonicalSitePath } from '../../src/lib/canonicalPaths.js';
 
 const DEFAULT_SITE_URL =
-  process.env.SITE_URL ||
-  process.env.VITE_SITE_URL ||
-  'https://yu-uek.ru';
+  process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://yu-uek.ru';
 
 export const SITEMAP_FILES = {
   index: 'sitemap.xml',
@@ -34,17 +33,63 @@ export const MAX_SITEMAP_URLS = 50_000;
 
 const STATIC_ROUTES = [
   { path: '/', changefreq: 'daily', priority: '1.0' },
-  { path: '/catalog', changefreq: 'daily', priority: '0.9' },
-  { path: '/delivery', changefreq: 'monthly', priority: '0.5' },
-  { path: '/payment', changefreq: 'monthly', priority: '0.4' },
-  { path: '/about', changefreq: 'monthly', priority: '0.4' },
-  { path: '/contacts', changefreq: 'monthly', priority: '0.5' },
+  {
+    path: toCanonicalSitePath('/catalog'),
+    changefreq: 'daily',
+    priority: '0.9',
+  },
+  {
+    path: toCanonicalSitePath('/delivery'),
+    changefreq: 'monthly',
+    priority: '0.5',
+  },
+  {
+    path: toCanonicalSitePath('/payment'),
+    changefreq: 'monthly',
+    priority: '0.4',
+  },
+  {
+    path: toCanonicalSitePath('/about'),
+    changefreq: 'monthly',
+    priority: '0.4',
+  },
+  {
+    path: toCanonicalSitePath('/contacts'),
+    changefreq: 'monthly',
+    priority: '0.5',
+  },
 ];
 
 const PRODUCT_SITEMAP_FILE_RE = /^sitemap-products(?:-\d+)?\.xml$/;
+const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 
 function trimTrailingSlash(value) {
   return String(value || '').replace(/\/+$/, '');
+}
+
+function normalizeSitemapSiteUrl(value = DEFAULT_SITE_URL) {
+  const fallback = 'https://yu-uek.ru';
+  const raw = String(value || fallback).trim();
+  if (!raw) return fallback;
+
+  try {
+    const parsed = new URL(raw);
+    const hostname = parsed.hostname.toLowerCase();
+    const isLocalhost = LOCALHOST_HOSTNAMES.has(hostname);
+    const protocol = isLocalhost ? parsed.protocol : 'https:';
+    const canonicalHostname =
+      isLocalhost || !hostname.startsWith('www.')
+        ? hostname
+        : hostname.slice(4);
+    const pathname =
+      parsed.pathname && parsed.pathname !== '/'
+        ? trimTrailingSlash(parsed.pathname)
+        : '';
+
+    return `${protocol}//${canonicalHostname}${parsed.port ? `:${parsed.port}` : ''}${pathname}`;
+  } catch {
+    return trimTrailingSlash(raw);
+  }
 }
 
 function escapeXml(value) {
@@ -77,7 +122,7 @@ function buildUrlEntry({ loc, lastmod, changefreq, priority }) {
 function buildUrlSet(routes, base, lastmod) {
   const entries = routes.map((route) =>
     buildUrlEntry({
-      loc: `${base}${route.path}`,
+      loc: `${base}${toCanonicalSitePath(route.path)}`,
       lastmod,
       changefreq: route.changefreq,
       priority: route.priority,
@@ -186,7 +231,7 @@ export function buildSitemapPagesXml({
   siteUrl = DEFAULT_SITE_URL,
   lastmod = new Date().toISOString(),
 } = {}) {
-  return buildUrlSet(STATIC_ROUTES, trimTrailingSlash(siteUrl), lastmod);
+  return buildUrlSet(STATIC_ROUTES, normalizeSitemapSiteUrl(siteUrl), lastmod);
 }
 
 export function buildSitemapCategoriesXml({
@@ -196,7 +241,7 @@ export function buildSitemapCategoriesXml({
 } = {}) {
   return buildUrlSet(
     collectCategoryRoutes(categoriesData),
-    trimTrailingSlash(siteUrl),
+    normalizeSitemapSiteUrl(siteUrl),
     lastmod
   );
 }
@@ -212,7 +257,7 @@ export function buildSitemapProductsXml({
       `sitemap-products.xml получил ${routes.length} URL при лимите ${MAX_SITEMAP_URLS}. Используйте buildSitemapProductXmlFiles().`
     );
   }
-  return buildUrlSet(routes, trimTrailingSlash(siteUrl), lastmod);
+  return buildUrlSet(routes, normalizeSitemapSiteUrl(siteUrl), lastmod);
 }
 
 export function buildSitemapProductXmlFiles({
@@ -221,7 +266,7 @@ export function buildSitemapProductXmlFiles({
   lastmod = new Date().toISOString(),
   maxUrlsPerSitemap = MAX_SITEMAP_URLS,
 } = {}) {
-  const base = trimTrailingSlash(siteUrl);
+  const base = normalizeSitemapSiteUrl(siteUrl);
   const chunkSize = normalizeMaxUrlsPerSitemap(maxUrlsPerSitemap);
   const routes = collectProductRoutes(products);
   const routeChunks = chunkRoutes(routes, chunkSize);
@@ -244,7 +289,7 @@ export function buildSitemapIndexXml({
   ],
   lastmod = new Date().toISOString(),
 } = {}) {
-  const base = trimTrailingSlash(siteUrl);
+  const base = normalizeSitemapSiteUrl(siteUrl);
   const entries = sitemaps.map((file) =>
     [
       '  <sitemap>',
@@ -266,7 +311,7 @@ export function buildSitemapIndexXml({
 // ── robots.txt ─────────────────────────────────────────────────────────────
 
 export function buildRobotsTxt({ siteUrl = DEFAULT_SITE_URL } = {}) {
-  const base = trimTrailingSlash(siteUrl);
+  const base = normalizeSitemapSiteUrl(siteUrl);
   return [
     'User-agent: *',
     'Allow: /',

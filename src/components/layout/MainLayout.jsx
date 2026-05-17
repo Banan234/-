@@ -14,6 +14,12 @@ import { trackEvent } from '../../lib/analytics';
 import { usePageviewTracking } from '../../hooks/usePageviewTracking';
 import { STORAGE_WRITE_FAILED_EVENT } from '../../lib/browserStorage';
 import {
+  ABOUT_CANONICAL_PATH,
+  CONTACTS_CANONICAL_PATH,
+  DELIVERY_CANONICAL_PATH,
+  PAYMENT_CANONICAL_PATH,
+} from '../../lib/canonicalPaths.js';
+import {
   SITE_EMAIL,
   SITE_EMAIL_HREF,
   SITE_OFFICE_ADDRESS_DISPLAY,
@@ -284,7 +290,7 @@ export default function MainLayout() {
                 <HeaderCatalogMenu />
 
                 <NavLink
-                  to="/payment"
+                  to={PAYMENT_CANONICAL_PATH}
                   className={({ isActive }) =>
                     `nav-link${isActive ? ' nav-link--active' : ''}`
                   }
@@ -292,7 +298,7 @@ export default function MainLayout() {
                   Оплата
                 </NavLink>
                 <NavLink
-                  to="/delivery"
+                  to={DELIVERY_CANONICAL_PATH}
                   className={({ isActive }) =>
                     `nav-link${isActive ? ' nav-link--active' : ''}`
                   }
@@ -300,7 +306,7 @@ export default function MainLayout() {
                   Доставка
                 </NavLink>
                 <NavLink
-                  to="/about"
+                  to={ABOUT_CANONICAL_PATH}
                   className={({ isActive }) =>
                     `nav-link${isActive ? ' nav-link--active' : ''}`
                   }
@@ -308,7 +314,7 @@ export default function MainLayout() {
                   О компании
                 </NavLink>
                 <NavLink
-                  to="/contacts"
+                  to={CONTACTS_CANONICAL_PATH}
                   className={({ isActive }) =>
                     `nav-link${isActive ? ' nav-link--active' : ''}`
                   }

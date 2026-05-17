@@ -4,6 +4,7 @@
 // и в build-time prerender (scripts/prerender.js) — поэтому никаких импортов
 // из react/react-router здесь быть не должно.
 
+import { CATALOG_CANONICAL_PATH } from './canonicalPaths.js';
 import {
   SITE_LEGAL_NAME,
   SITE_NAME,
@@ -158,13 +159,13 @@ export function buildProductJsonLd(product) {
 }
 
 function getCatalogPath(slug) {
-  return slug ? `/catalog/${slug}` : '/catalog';
+  return slug ? `/catalog/${slug}` : CATALOG_CANONICAL_PATH;
 }
 
 export function getProductBreadcrumbs(product) {
   const items = [
     { label: 'Главная', to: '/' },
-    { label: 'Каталог', to: '/catalog' },
+    { label: 'Каталог', to: CATALOG_CANONICAL_PATH },
   ];
   const hasSection = Boolean(product.catalogSection);
   const hasCategory = Boolean(product.catalogCategory);

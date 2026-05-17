@@ -3,6 +3,13 @@
 import { Link } from 'react-router-dom';
 import Container from '../ui/Container';
 import {
+  ABOUT_CANONICAL_PATH,
+  CATALOG_CANONICAL_PATH,
+  CONTACTS_CANONICAL_PATH,
+  DELIVERY_CANONICAL_PATH,
+  PAYMENT_CANONICAL_PATH,
+} from '../../lib/canonicalPaths.js';
+import {
   SITE_EMAIL,
   SITE_EMAIL_HREF,
   SITE_NAME,
@@ -27,7 +34,8 @@ export default function SiteFooter({ onOpenQuote }) {
               Нужно коммерческое предложение?
             </h2>
             <p className="site-footer__cta-text">
-              Отправьте список нужных позиций — подготовим КП с актуальными ценами
+              Отправьте список нужных позиций — подготовим КП с актуальными
+              ценами
               {` ${SITE_QUOTE_RESPONSE_DISPLAY}.`}
             </p>
           </div>
@@ -84,15 +92,21 @@ export default function SiteFooter({ onOpenQuote }) {
           <div className="site-footer__column">
             <h3 className="site-footer__title">Каталог</h3>
             <div className="site-footer__links">
-              <Link to="/catalog?category=Силовой%20кабель">
+              <Link to={`${CATALOG_CANONICAL_PATH}?category=Силовой%20кабель`}>
                 Силовой кабель
               </Link>
-              <Link to="/catalog?category=Контрольный%20кабель">
+              <Link
+                to={`${CATALOG_CANONICAL_PATH}?category=Контрольный%20кабель`}
+              >
                 Контрольный кабель
               </Link>
-              <Link to="/catalog?category=Кабели%20связи">Кабели связи</Link>
-              <Link to="/catalog?category=Гибкий%20кабель">Гибкий кабель</Link>
-              <Link to="/catalog">Весь каталог →</Link>
+              <Link to={`${CATALOG_CANONICAL_PATH}?category=Кабели%20связи`}>
+                Кабели связи
+              </Link>
+              <Link to={`${CATALOG_CANONICAL_PATH}?category=Гибкий%20кабель`}>
+                Гибкий кабель
+              </Link>
+              <Link to={CATALOG_CANONICAL_PATH}>Весь каталог →</Link>
             </div>
           </div>
 
@@ -106,8 +120,8 @@ export default function SiteFooter({ onOpenQuote }) {
               >
                 Как оформить заявку
               </button>
-              <Link to="/payment">Условия оплаты</Link>
-              <Link to="/delivery">Доставка</Link>
+              <Link to={PAYMENT_CANONICAL_PATH}>Условия оплаты</Link>
+              <Link to={DELIVERY_CANONICAL_PATH}>Доставка</Link>
               <span className="site-footer__step">Гарантии и документы</span>
             </div>
           </div>
@@ -115,10 +129,10 @@ export default function SiteFooter({ onOpenQuote }) {
           <div className="site-footer__column">
             <h3 className="site-footer__title">Компания</h3>
             <div className="site-footer__links">
-              <Link to="/about">О компании</Link>
-              <Link to="/delivery">Доставка</Link>
-              <Link to="/payment">Оплата</Link>
-              <Link to="/contacts">Контакты</Link>
+              <Link to={ABOUT_CANONICAL_PATH}>О компании</Link>
+              <Link to={DELIVERY_CANONICAL_PATH}>Доставка</Link>
+              <Link to={PAYMENT_CANONICAL_PATH}>Оплата</Link>
+              <Link to={CONTACTS_CANONICAL_PATH}>Контакты</Link>
               <Link to="/privacy">Политика конфиденциальности</Link>
             </div>
           </div>
@@ -141,7 +155,8 @@ export default function SiteFooter({ onOpenQuote }) {
 
         <div className="site-footer__legal">
           © 2026 {SITE_NAME}. Информация на сайте носит справочный характер и не
-          является публичной офертой. <Link to="/privacy">Политика конфиденциальности</Link>
+          является публичной офертой.{' '}
+          <Link to="/privacy">Политика конфиденциальности</Link>
         </div>
       </Container>
     </footer>

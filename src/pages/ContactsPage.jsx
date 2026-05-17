@@ -20,12 +20,16 @@ import {
   SITE_WAREHOUSE_MAP_URL,
   SITE_WORKING_HOURS_DISPLAY,
 } from '../lib/siteConfig';
+import { toCanonicalSitePath } from '../lib/canonicalPaths.js';
 import '../styles/pages/content.css';
+
+const CONTACTS_CANONICAL_PATH = toCanonicalSitePath('/contacts');
 
 export default function ContactsPage() {
   useSEO({
     title: 'Контакты',
     description: `Контакты ЮжУралЭлектроКабель: телефон ${SITE_PHONE_DISPLAY}, email ${SITE_EMAIL}. Офис: ${SITE_OFFICE_ADDRESS_DISPLAY}. Склад самовывоза: ${SITE_WAREHOUSE_ADDRESS_DISPLAY}. ${SITE_WORKING_HOURS_DISPLAY}.`,
+    canonical: CONTACTS_CANONICAL_PATH,
   });
 
   return (
@@ -193,7 +197,11 @@ export default function ContactsPage() {
                 </div>
                 <div className="contacts-map-card__footer">
                   <span>Офис: {SITE_OFFICE_ADDRESS_DISPLAY}</span>
-                  <a href={SITE_OFFICE_MAP_URL} target="_blank" rel="noreferrer">
+                  <a
+                    href={SITE_OFFICE_MAP_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Открыть маршрут в офис
                   </a>
                 </div>

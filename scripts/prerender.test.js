@@ -259,6 +259,18 @@ describe('prerender HTML helpers', () => {
     expect(new Set(descriptions).size).toBe(1);
   });
 
+  it('умеет собирать noindex-страницу без canonical', () => {
+    const html = buildMetaTags({
+      title: 'Страница не найдена — Example',
+      description: 'Такой страницы нет',
+      noindex: true,
+    });
+
+    expect(html).toContain('<meta name="robots" content="noindex,follow">');
+    expect(html).not.toContain('rel="canonical"');
+    expect(html).not.toContain('property="og:url"');
+  });
+
   it('заменяет SVG social image на общий PNG-фолбэк', () => {
     const html = buildMetaTags({
       title: 'Товар с плейсхолдером',
@@ -421,6 +433,11 @@ describe('prerender IO flow', () => {
       path.join(distDir, 'delivery', 'index.html'),
       'utf8'
     );
+    const categoryHtml = await readFile(
+      path.join(distDir, 'catalog', 'kabel-i-provod', 'index.html'),
+      'utf8'
+    );
+    const notFoundHtml = await readFile(path.join(distDir, '404.html'), 'utf8');
     const productHtml = await readFile(
       path.join(distDir, 'product', `${product.slug}.html`),
       'utf8'
@@ -430,13 +447,32 @@ describe('prerender IO flow', () => {
     expect(homeHtml).toContain('data-prerender="home-hero"');
     expect(homeHtml).not.toContain('display:none');
     expect(catalogHtml).toContain('<main data-ssr="true" data-url="/catalog">');
+    expect(catalogHtml).toContain(
+      `<link rel="canonical" href="${SITE_URL}/catalog/">`
+    );
     expect(catalogHtml).toContain('href="/assets/catalog.css"');
     expect(catalogHtml).toContain('href="/assets/product-card.css"');
     expect(catalogHtml).not.toContain('/hero-bg-1536.avif');
     expect(aboutHtml).toContain('id="about-page-json-ld"');
+    expect(aboutHtml).toContain(
+      `<link rel="canonical" href="${SITE_URL}/about/">`
+    );
     expect(aboutHtml).toContain('href="/assets/static-page.css"');
     expect(paymentHtml).toContain('"@type":"FAQPage"');
+    expect(paymentHtml).toContain(
+      `<link rel="canonical" href="${SITE_URL}/payment/">`
+    );
     expect(deliveryHtml).toContain('id="delivery-page-json-ld"');
+    expect(deliveryHtml).toContain(
+      `<link rel="canonical" href="${SITE_URL}/delivery/">`
+    );
+    expect(categoryHtml).toContain(
+      '<main data-ssr="true" data-url="/catalog/kabel-i-provod">'
+    );
+    expect(notFoundHtml).toContain('<title>Страница не найдена —');
+    expect(notFoundHtml).toContain(
+      '<meta name="robots" content="noindex,follow">'
+    );
     expect(productHtml).toContain(
       `<link rel="canonical" href="${SITE_URL}/product/${product.slug}">`
     );
@@ -452,6 +488,13 @@ describe('prerender IO flow', () => {
     expect(productHtml).toContain('id="yuzhural-prerender-data"');
     expect(renderApp).toHaveBeenCalledWith('/product/vvgng-ls-3h2-5', {
       prerenderData: { product },
+    });
+    expect(renderApp).toHaveBeenCalledWith('/catalog/kabel-i-provod', {
+      prerenderData: {
+        catalog: expect.objectContaining({
+          path: '/catalog/kabel-i-provod',
+        }),
+      },
     });
     expect(productHtml).not.toContain('display:none');
     expect(productHtml).not.toContain('<nav');

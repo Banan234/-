@@ -17,8 +17,10 @@ import {
 import { STATIC_PAGE_SEO } from '../lib/staticSeo';
 import '../styles/pages/content.css';
 
-const DELIVERY_JSON_LD_ID = getStaticPageJsonLdId('/delivery');
-const DELIVERY_JSON_LD = buildStaticPageJsonLd('/delivery');
+const DELIVERY_JSON_LD_ID = getStaticPageJsonLdId(
+  STATIC_PAGE_SEO.delivery.path
+);
+const DELIVERY_JSON_LD = buildStaticPageJsonLd(STATIC_PAGE_SEO.delivery.path);
 
 export default function DeliveryPage() {
   function handleOpenDeliveryLead() {
@@ -37,6 +39,7 @@ export default function DeliveryPage() {
   useSEO({
     title: STATIC_PAGE_SEO.delivery.title,
     description: STATIC_PAGE_SEO.delivery.description,
+    canonical: STATIC_PAGE_SEO.delivery.path,
   });
 
   useJsonLd(DELIVERY_JSON_LD_ID, DELIVERY_JSON_LD);
@@ -125,7 +128,9 @@ export default function DeliveryPage() {
             />
           </div>
           <div className="contacts-map-card__footer">
-            <span>Маршрут до входа на склад: {SITE_WAREHOUSE_ADDRESS_DISPLAY}</span>
+            <span>
+              Маршрут до входа на склад: {SITE_WAREHOUSE_ADDRESS_DISPLAY}
+            </span>
             <a href={SITE_WAREHOUSE_MAP_URL} target="_blank" rel="noreferrer">
               Открыть в Яндекс Картах
             </a>

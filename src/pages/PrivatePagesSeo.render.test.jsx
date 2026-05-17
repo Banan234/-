@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CartPage from './CartPage.jsx';
+import NotFoundPage from './NotFoundPage.jsx';
 import { useCartStore } from '../store/useCartStore.js';
 
 function renderPage(page, path) {
@@ -21,6 +22,10 @@ function renderPage(page, path) {
 
 function getRobotsMetaContent() {
   return document.querySelector('meta[name="robots"]')?.getAttribute('content');
+}
+
+function getCanonicalHref() {
+  return document.querySelector('link[rel="canonical"]')?.getAttribute('href');
 }
 
 const noPriceItem = {
@@ -100,4 +105,12 @@ describe('private pages SEO', () => {
     ).toBeInTheDocument();
   });
 
+  it('убирает canonical и ставит noindex на 404-страницу', async () => {
+    renderPage(<NotFoundPage />, '/missing');
+
+    await waitFor(() => {
+      expect(getRobotsMetaContent()).toBe('noindex,follow');
+    });
+    expect(getCanonicalHref()).toBeUndefined();
+  });
 });
