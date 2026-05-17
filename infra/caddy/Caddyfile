@@ -1,0 +1,10 @@
+www.yu-uek.ru {
+    header -Server
+    redir https://yu-uek.ru{uri} permanent
+}
+
+yu-uek.ru {
+    header -Server
+    encode gzip zstd
+    reverse_proxy 127.0.0.1:8080
+}
