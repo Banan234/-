@@ -24,27 +24,42 @@ const DEFAULT_REDIRECTS_NGINX = path.join(
   'redirects.nginx.conf'
 );
 
-async function replaceDirectory(sourceDir, targetDir) {
+async function replaceDirectory(sourceDir, targetDir, fsModule = fs) {
   const backupDir = `${targetDir}.${process.pid}.${Date.now()}.old`;
   let hasBackup = false;
 
   try {
-    await fs.rename(targetDir, backupDir);
+    await moveDirectory(targetDir, backupDir, fsModule);
     hasBackup = true;
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
   }
 
   try {
-    await fs.rename(sourceDir, targetDir);
+    await moveDirectory(sourceDir, targetDir, fsModule);
     if (hasBackup) {
-      await fs.rm(backupDir, { recursive: true, force: true });
+      await fsModule.rm(backupDir, { recursive: true, force: true });
     }
   } catch (error) {
     if (hasBackup) {
-      await fs.rename(backupDir, targetDir).catch(() => {});
+      await moveDirectory(backupDir, targetDir, fsModule).catch(() => {});
     }
     throw error;
+  }
+}
+
+async function moveDirectory(sourceDir, targetDir, fsModule = fs) {
+  try {
+    await fsModule.rename(sourceDir, targetDir);
+  } catch (error) {
+    if (error.code !== 'EXDEV') throw error;
+
+    await fsModule.cp(sourceDir, targetDir, {
+      recursive: true,
+      force: true,
+      errorOnExist: false,
+    });
+    await fsModule.rm(sourceDir, { recursive: true, force: true });
   }
 }
 
@@ -80,6 +95,7 @@ export async function syncRuntimeArtifacts({
   redirectsNginxSource = DEFAULT_REDIRECTS_NGINX,
   siteUrl = process.env.SITE_URL || process.env.VITE_SITE_URL,
   log = console.log,
+  fsModule = fs,
 } = {}) {
   if (siteUrl) {
     process.env.SITE_URL = siteUrl;
@@ -89,7 +105,7 @@ export async function syncRuntimeArtifacts({
   const { extractProductsPayload, loadTemplate, prerenderProducts } =
     await import('./prerender.js');
 
-  await fs.mkdir(runtimePublicDir, { recursive: true });
+  await fsModule.mkdir(runtimePublicDir, { recursive: true });
 
   const template = await loadTemplate({ outputDir: templateDir });
   const productsPayload = await loadJson(productsPath);
@@ -116,10 +132,11 @@ export async function syncRuntimeArtifacts({
     });
     await replaceDirectory(
       path.join(tmpDir, 'product'),
-      path.join(runtimePublicDir, 'product')
+      path.join(runtimePublicDir, 'product'),
+      fsModule
     );
   } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    await fsModule.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 
   const coverage = await assertProductPrerenderCoverage({
